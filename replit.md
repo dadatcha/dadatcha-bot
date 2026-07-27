@@ -1,10 +1,10 @@
-# Python REPL
+# Lotto Discord Bot
 
-An interactive Python console with session variables, multiline code, file loading, and helpful commands.
+A Discord bot that watches a configured lotto channel and posts the game reminder when a new user message is the latest message.
 
 ## Run & Operate
 
-- `python3 main.py` — start the Python REPL
+- `python3 main.py` — start the Discord bot
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
@@ -14,7 +14,7 @@ An interactive Python console with session variables, multiline code, file loadi
 
 ## Stack
 
-- Python 3
+- Python 3.11 + discord.py
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
@@ -24,15 +24,19 @@ An interactive Python console with session variables, multiline code, file loadi
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `main.py` — Discord bot and reminder loop
+- `pyproject.toml` — Python dependency declaration
+- `uv.lock` — locked Python dependency versions
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- `DISCORD_TOKEN` is read only from Replit Secrets.
+- The reminder loop starts only once, even if Discord reconnects and emits `on_ready` again.
+- The bot checks the latest message before sending, so its own reminder does not trigger another reminder.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The bot posts the configured lotto-channel announcement once per minute when a user has most recently posted in the channel.
 
 ## User preferences
 
@@ -40,7 +44,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Enable the Message Content Intent for the bot in the Discord Developer Portal.
+- The bot needs View Channel, Read Message History, and Send Messages permissions in the configured channel.
+- `/blackjack`, `/higher-lower`, and `/roulette` are advertised in the reminder but are not implemented by this bot yet.
 
 ## Pointers
 

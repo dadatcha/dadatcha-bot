@@ -1,120 +1,99 @@
-"""A small, friendly Python REPL for this Replit project."""
+"""Discord bot that posts a lottery-channel reminder when the channel is active."""
 
 from __future__ import annotations
 
-import code
-import pathlib
-import sys
-from typing import NoReturn
+import logging
+import os
+
+import discord
+from discord.ext import commands, tasks
 
 
-PROMPT = ">>> "
-CONTINUATION_PROMPT = "... "
+CHANNEL_ID = 1_530_295_626_242_461_726
+REMINDER_MESSAGE = """Here is the lotto channel.
+You can play many games to win money.
+Here are all the commands:
+/blackjack
+/higher-lower
+/roulette"""
 
 
-class ProjectConsole(code.InteractiveConsole):
-    """Interactive console with a small set of colon commands."""
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("lotto-bot")
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.locals["__name__"] = "__console__"
+intents = discord.Intents.default()
+# This is required to inspect the latest message in the channel.
+intents.message_content = True
 
-    def show_help(self) -> None:
-        print(
-            """
-Commands:
-  :help              Show this help message
-  :vars              List variables created in the session
-  :load <file>       Run a Python file in this session
-  :reset             Clear variables and restart the session namespace
-  :exit              Leave the REPL
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-You can also use normal Python expressions, statements, imports, and
-multiline blocks. Press Ctrl-D to exit.
-""".strip()
+
+@bot.event
+async def on_ready() -> None:
+    """Log readiness and start the reminder loop once per process."""
+    if bot.user is not None:
+        logger.info("Bot connected as %s (ID: %s)", bot.user, bot.user.id)
+
+    if not verifier_et_envoyer.is_running():
+        verifier_et_envoyer.start()
+
+
+async def get_lotto_channel() -> discord.abc.Messageable | None:
+    """Return the configured channel, fetching it if it is not cached."""
+    channel = bot.get_channel(CHANNEL_ID)
+    if channel is not None:
+        return channel
+
+    try:
+        return await bot.fetch_channel(CHANNEL_ID)
+    except discord.NotFound:
+        logger.error("Channel %s was not found.", CHANNEL_ID)
+    except discord.Forbidden:
+        logger.error("The bot cannot access channel %s.", CHANNEL_ID)
+    except discord.HTTPException:
+        logger.exception("Discord failed while fetching channel %s.", CHANNEL_ID)
+    return None
+
+
+@tasks.loop(minutes=1)
+async def verifier_et_envoyer() -> None:
+    """Send the reminder only when the latest channel message is not from the bot."""
+    channel = await get_lotto_channel()
+    if channel is None or not hasattr(channel, "history"):
+        logger.error("Configured channel %s is not a readable text channel.", CHANNEL_ID)
+        return
+
+    try:
+        async for message in channel.history(limit=1):
+            if bot.user is not None and message.author.id == bot.user.id:
+                return
+
+            await channel.send(REMINDER_MESSAGE)
+            logger.info("Reminder sent to channel %s.", CHANNEL_ID)
+            return
+    except discord.Forbidden:
+        logger.error("The bot cannot read or send messages in channel %s.", CHANNEL_ID)
+    except discord.HTTPException:
+        logger.exception("Discord failed while processing channel %s.", CHANNEL_ID)
+
+
+@verifier_et_envoyer.before_loop
+async def avant_envoi() -> None:
+    await bot.wait_until_ready()
+
+
+def main() -> None:
+    token = os.getenv("DISCORD_TOKEN")
+    if not token:
+        raise SystemExit(
+            "DISCORD_TOKEN is not configured. Add it as a Replit Secret before running the bot."
         )
 
-    def show_vars(self) -> None:
-        variables = {
-            name: value
-            for name, value in self.locals.items()
-            if not name.startswith("_") and name not in {"__console__"}
-        }
-        if not variables:
-            print("No user variables yet.")
-            return
-
-        for name, value in sorted(variables.items()):
-            print(f"{name} = {value!r}")
-
-    def load_file(self, filename: str) -> None:
-        path = pathlib.Path(filename).expanduser()
-        if not path.is_file():
-            print(f"File not found: {path}")
-            return
-
-        try:
-            source = path.read_text(encoding="utf-8")
-            self.runcode(compile(source, str(path), "exec"), self.locals)
-        except (OSError, SyntaxError) as error:
-            print(f"Could not load {path}: {error}")
-
-    def reset(self) -> None:
-        self.locals.clear()
-        self.locals["__name__"] = "__console__"
-        self.buffer.clear()
-        print("Session reset.")
-
-    def handle_command(self, line: str) -> bool:
-        command, _, argument = line.partition(" ")
-        command = command.lower()
-        argument = argument.strip()
-
-        if command in {":exit", ":quit", ":q"}:
-            return False
-        if command == ":help":
-            self.show_help()
-        elif command == ":vars":
-            self.show_vars()
-        elif command == ":load":
-            if not argument:
-                print("Usage: :load <file>")
-            else:
-                self.load_file(argument)
-        elif command == ":reset":
-            self.reset()
-        else:
-            print(f"Unknown command: {command}. Type :help for help.")
-        return True
-
-
-def run() -> NoReturn:
-    console = ProjectConsole()
-    print("Python REPL")
-    print("Type :help for commands, or :exit to leave.")
-
-    while True:
-        try:
-            prompt = CONTINUATION_PROMPT if console.buffer else PROMPT
-            line = input(prompt)
-        except EOFError:
-            print()
-            return
-        except KeyboardInterrupt:
-            console.resetbuffer()
-            print("\nKeyboardInterrupt")
-            continue
-
-        if not console.buffer and line.startswith(":"):
-            if not console.handle_command(line):
-                return
-            continue
-
-        try:
-            console.push(line)
-        except SystemExit:
-            return
+    bot.run(token)
 
 
 if __name__ == "__main__":
-    run()
+    main()
