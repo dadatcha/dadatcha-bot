@@ -1,0 +1,1 @@
+- [Python runtime setup](python-runtime.md) — Python must be enabled as a project module, with the validated Run command at `.replit` top level.
