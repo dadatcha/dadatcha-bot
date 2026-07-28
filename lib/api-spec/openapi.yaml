@@ -751,6 +751,7 @@ components:
           type: ["string", "null"]
         price:
           type: integer
+          format: int64
         roleId:
           type: ["string", "null"]
         emoji:
@@ -772,6 +773,7 @@ components:
           type: string
         price:
           type: integer
+          format: int64
         roleId:
           type: string
         emoji:

@@ -9,7 +9,7 @@
 export interface ShopItemInput {
   name: string;
   description?: string;
-  price: number;
+  price: bigint;
   roleId?: string;
   emoji?: string;
   enabled?: boolean;

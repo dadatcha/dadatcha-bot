@@ -11,7 +11,7 @@ export interface ShopItem {
   name: string;
   /** @nullable */
   description: string | null;
-  price: number;
+  price: bigint;
   /** @nullable */
   roleId: string | null;
   emoji: string;

@@ -135,7 +135,7 @@ export const shopItemsTable = pgTable("shop_items", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  price: integer("price").notNull().default(0),
+  price: bigint("price", { mode: "number" }).notNull().default(0),
   roleId: text("role_id"),
   emoji: text("emoji").notNull().default("🛍️"),
   enabled: boolean("enabled").notNull().default(true),
