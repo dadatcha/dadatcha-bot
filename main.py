@@ -185,6 +185,13 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "lb_title":   {"fr": "Classement — Top 10", "en": "Leaderboard — Top 10"},
     "lb_empty":   {"fr": "Aucun joueur pour l'instant.", "en": "No players yet."},
     "lb_err":     {"fr": "Impossible de charger le classement en ce moment.", "en": "Could not load leaderboard right now."},
+    # level / xp
+    "lvl_title":      {"fr": "Niveau — {name}", "en": "Level — {name}"},
+    "lvl_level":      {"fr": "Niveau", "en": "Level"},
+    "lvl_xp":         {"fr": "XP total", "en": "Total XP"},
+    "lvl_top_title":  {"fr": "🏅 Classement Niveaux — Top 10", "en": "🏅 Level Leaderboard — Top 10"},
+    "lvl_top_empty":  {"fr": "Aucun joueur avec de l'XP pour l'instant.", "en": "No players with XP yet."},
+    "lvl_top_err":    {"fr": "Impossible de charger le classement en ce moment.", "en": "Could not load leaderboard right now."},
     # blackjack
     "bj_dealer_hidden": {"fr": "Croupier (caché)", "en": "Dealer (hidden)"},
     "bj_dealer_shown":  {"fr": "Croupier — {total}", "en": "Dealer — {total}"},
@@ -1386,6 +1393,61 @@ async def leaderboard(interaction: discord.Interaction) -> None:
         total = p["wallet"] + p["bank"]
         lines.append(f"{medal} **{p['username']}** — {total:,} {_coin()}")
     embed.description = "\n".join(lines) if lines else _t("lb_empty")
+    await interaction.followup.send(embed=embed)
+
+
+# ── /level ─────────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="level", description="Voir son niveau et son XP (ou celui d'un autre membre)")
+@app_commands.describe(player="Membre dont tu veux voir le niveau — laisse vide pour toi-même")
+async def level_cmd(interaction: discord.Interaction, player: Optional[discord.Member] = None) -> None:
+    if not await check_cmd(interaction, "level"):
+        return
+    target = player or interaction.user
+    eco = await get_economy(target)
+    lvl = eco.get("level", 0)
+    xp  = eco.get("xp",    0)
+    colour = 0x3498DB if player else 0x9B59B6
+    embed = discord.Embed(title=_t("lvl_title", name=target.display_name), colour=colour)
+    embed.add_field(name=_t("lvl_level"), value=f"**{lvl:,}**", inline=True)
+    embed.add_field(name=_t("lvl_xp"),   value=f"**{xp:,}** XP", inline=True)
+    if isinstance(target, discord.Member) and target.avatar:
+        embed.set_thumbnail(url=target.avatar.url)
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /level-top ─────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="level-top", description="Classement des membres par niveau et XP")
+async def level_top(interaction: discord.Interaction) -> None:
+    if not await check_cmd(interaction, "level-top"):
+        return
+    await interaction.response.defer()
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_BASE}/economy/players", timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                players: list[dict] = await resp.json()
+    except Exception:
+        await interaction.followup.send(_t("lvl_top_err"), ephemeral=True)
+        return
+
+    # Sort by level desc, then xp desc as tie-breaker
+    players.sort(key=lambda p: (p.get("level", 0), p.get("xp", 0)), reverse=True)
+    # Only keep players who actually have xp or levels
+    players = [p for p in players if p.get("level", 0) > 0 or p.get("xp", 0) > 0]
+    top = players[:10]
+
+    embed = discord.Embed(title=_t("lvl_top_title"), colour=0x9B59B6)
+    medals = ["🥇", "🥈", "🥉"]
+    lines = []
+    for i, p in enumerate(top):
+        medal = medals[i] if i < 3 else f"`{i+1}.`"
+        lvl = p.get("level", 0)
+        xp  = p.get("xp", 0)
+        lines.append(f"{medal} **{p['username']}** — Niv. **{lvl:,}** · {xp:,} XP")
+    embed.description = "\n".join(lines) if lines else _t("lvl_top_empty")
     await interaction.followup.send(embed=embed)
 
 
@@ -2934,6 +2996,7 @@ _CMD_CATEGORY: dict[str, str] = {
     "setmoney": "economy", "resetmoney": "economy", "daily": "economy",
     "work": "economy", "crime": "economy", "deposit": "economy",
     "withdraw": "economy", "give": "economy", "leaderboard": "economy",
+    "level": "economy", "level-top": "economy",
     # Games
     "blackjack": "games", "higher-lower": "games",
     "roulette": "games", "guess-number": "games",

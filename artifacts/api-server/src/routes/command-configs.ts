@@ -26,6 +26,8 @@ const KNOWN_COMMANDS = [
   { name: "withdraw",       defaultLabel: "Withdraw",        description: "Retirer des coins de la banque", category: "economy" },
   { name: "give",           defaultLabel: "Give",            description: "Donner des coins à un autre joueur", category: "economy" },
   { name: "leaderboard",    defaultLabel: "Leaderboard",     description: "Top 10 des joueurs les plus riches", category: "economy" },
+  { name: "level",          defaultLabel: "Level",           description: "Voir son niveau et son XP (ou celui d'un autre membre)", category: "economy" },
+  { name: "level-top",      defaultLabel: "Level Top",       description: "Classement des membres par niveau et XP", category: "economy" },
   { name: "blackjack",      defaultLabel: "Blackjack",       description: "Jouer au blackjack", category: "games" },
   { name: "higher-lower",   defaultLabel: "Higher / Lower",  description: "Deviner si le chiffre suivant est plus haut ou plus bas", category: "games" },
   { name: "roulette",       defaultLabel: "Roulette",        description: "Jouer à la roulette", category: "games" },
