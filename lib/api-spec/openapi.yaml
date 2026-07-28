@@ -3,20 +3,26 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for the Lotto Discord Bot dashboard
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: bot
+    description: Bot status and configuration
+  - name: commands
+    description: Custom slash command management
+  - name: logs
+    description: Bot activity logs
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +30,160 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /bot/status:
+    get:
+      operationId: getBotStatus
+      tags: [bot]
+      summary: Get current bot connection status
+      responses:
+        "200":
+          description: Bot status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotStatus"
+
+  /bot/config:
+    get:
+      operationId: getBotConfig
+      tags: [bot]
+      summary: Get bot configuration
+      responses:
+        "200":
+          description: Current config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotConfig"
+    put:
+      operationId: updateBotConfig
+      tags: [bot]
+      summary: Update bot configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotConfigInput"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotConfig"
+
+  /bot/commands:
+    get:
+      operationId: listCommands
+      tags: [commands]
+      summary: List all custom commands
+      responses:
+        "200":
+          description: List of commands
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotCommand"
+    post:
+      operationId: createCommand
+      tags: [commands]
+      summary: Create a custom command
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotCommandInput"
+      responses:
+        "201":
+          description: Created command
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotCommand"
+        "409":
+          description: Command already exists
+
+  /bot/commands/{name}:
+    patch:
+      operationId: updateCommand
+      tags: [commands]
+      summary: Update (enable/disable/edit) a command
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotCommandPatch"
+      responses:
+        "200":
+          description: Updated command
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotCommand"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteCommand
+      tags: [commands]
+      summary: Delete a custom command
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /bot/logs:
+    get:
+      operationId: getLogs
+      tags: [logs]
+      summary: Get recent bot activity logs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LogEntry"
+    post:
+      operationId: addLog
+      tags: [logs]
+      summary: Append a log entry (called by the bot)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogEntryInput"
+      responses:
+        "201":
+          description: Logged
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +191,110 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    BotStatus:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        botName:
+          type: ["string", "null"]
+        botId:
+          type: ["string", "null"]
+        uptimeSeconds:
+          type: ["integer", "null"]
+        lastReminderAt:
+          type: ["string", "null"]
+        remindersSentToday:
+          type: integer
+        lastSeenAt:
+          type: ["string", "null"]
+      required: [connected, botName, botId, uptimeSeconds, lastReminderAt, remindersSentToday, lastSeenAt]
+
+    BotConfig:
+      type: object
+      properties:
+        channelId:
+          type: string
+        reminderEnabled:
+          type: boolean
+        reminderIntervalMinutes:
+          type: integer
+        reminderMessage:
+          type: string
+      required: [channelId, reminderEnabled, reminderIntervalMinutes, reminderMessage]
+
+    BotConfigInput:
+      type: object
+      properties:
+        channelId:
+          type: string
+        reminderEnabled:
+          type: boolean
+        reminderIntervalMinutes:
+          type: integer
+        reminderMessage:
+          type: string
+
+    BotCommand:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        response:
+          type: string
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, name, description, response, enabled, createdAt]
+
+    BotCommandInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        response:
+          type: string
+        enabled:
+          type: boolean
+      required: [name, description, response]
+
+    BotCommandPatch:
+      type: object
+      properties:
+        description:
+          type: string
+        response:
+          type: string
+        enabled:
+          type: boolean
+
+    LogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        level:
+          type: string
+        message:
+          type: string
+        createdAt:
+          type: string
+      required: [id, level, message, createdAt]
+
+    LogEntryInput:
+      type: object
+      properties:
+        level:
+          type: string
+        message:
+          type: string
+      required: [level, message]
