@@ -71,6 +71,7 @@ function toEconomyConfig(r: typeof economyConfigTable.$inferSelect) {
     messageRewardMin: r.messageRewardMin,
     messageRewardMax: r.messageRewardMax,
     messageRewardCooldownSeconds: r.messageRewardCooldownSeconds,
+    language: r.language ?? "fr",
   };
 }
 
@@ -79,6 +80,16 @@ function toEconomyConfig(r: typeof economyConfigTable.$inferSelect) {
 router.get("/economy/config", async (req, res): Promise<void> => {
   const row = await ensureEconomyConfig();
   res.json(GetEconomyConfigResponse.parse(toEconomyConfig(row)));
+});
+
+router.patch("/economy/config", async (req, res): Promise<void> => {
+  const parsed = UpdateEconomyConfigBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  await ensureEconomyConfig();
+  const [updated] = await db.update(economyConfigTable)
+    .set(parsed.data as Partial<typeof economyConfigTable.$inferInsert>)
+    .where(eq(economyConfigTable.id, 1)).returning();
+  res.json(UpdateEconomyConfigResponse.parse(toEconomyConfig(updated)));
 });
 
 router.put("/economy/config", async (req, res): Promise<void> => {

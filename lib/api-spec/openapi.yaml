@@ -847,6 +847,9 @@ components:
           type: integer
         messageRewardCooldownSeconds:
           type: integer
+        language:
+          type: string
+          enum: [fr, en]
       required:
         - startingWallet
         - balanceEnabled
@@ -879,6 +882,7 @@ components:
         - messageRewardMin
         - messageRewardMax
         - messageRewardCooldownSeconds
+        - language
 
     EconomyConfigInput:
       type: object
@@ -945,6 +949,9 @@ components:
           type: integer
         messageRewardCooldownSeconds:
           type: integer
+        language:
+          type: string
+          enum: [fr, en]
 
     Player:
       type: object

@@ -1,1 +1,2 @@
 - [Python runtime setup](python-runtime.md) — Python must be enabled as a project module, with the validated Run command at `.replit` top level.
+- [i18n architecture](i18n-architecture.md) — FR/EN strings live in STRINGS dict in main.py; language stored in economy_config.language; PATCH /economy/config endpoint added alongside PUT.

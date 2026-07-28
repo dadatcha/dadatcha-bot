@@ -14,6 +14,8 @@ export * from './commandConfigInput';
 export * from './commandSyncJob';
 export * from './economyConfig';
 export * from './economyConfigInput';
+export * from './economyConfigInputLanguage';
+export * from './economyConfigLanguage';
 export * from './getLogsParams';
 export * from './giveaway';
 export * from './giveawayInput';

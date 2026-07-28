@@ -5,6 +5,7 @@
  * API specification for the Lotto Discord Bot dashboard
  * OpenAPI spec version: 0.1.0
  */
+import type { EconomyConfigInputLanguage } from './economyConfigInputLanguage';
 
 export interface EconomyConfigInput {
   startingWallet?: number;
@@ -38,4 +39,5 @@ export interface EconomyConfigInput {
   messageRewardMin?: number;
   messageRewardMax?: number;
   messageRewardCooldownSeconds?: number;
+  language?: EconomyConfigInputLanguage;
 }

@@ -108,6 +108,7 @@ export const economyConfigTable = pgTable("economy_config", {
   messageRewardMin: integer("message_reward_min").notNull().default(1),
   messageRewardMax: integer("message_reward_max").notNull().default(10),
   messageRewardCooldownSeconds: integer("message_reward_cooldown_seconds").notNull().default(60),
+  language: text("language").notNull().default("fr"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 

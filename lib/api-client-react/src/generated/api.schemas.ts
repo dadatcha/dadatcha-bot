@@ -81,6 +81,14 @@ export interface ShopItemInput {
   position?: number;
 }
 
+export type EconomyConfigLanguage = typeof EconomyConfigLanguage[keyof typeof EconomyConfigLanguage];
+
+
+export const EconomyConfigLanguage = {
+  fr: 'fr',
+  en: 'en',
+} as const;
+
 export interface EconomyConfig {
   startingWallet: number;
   balanceEnabled: boolean;
@@ -113,7 +121,16 @@ export interface EconomyConfig {
   messageRewardMin: number;
   messageRewardMax: number;
   messageRewardCooldownSeconds: number;
+  language: EconomyConfigLanguage;
 }
+
+export type EconomyConfigInputLanguage = typeof EconomyConfigInputLanguage[keyof typeof EconomyConfigInputLanguage];
+
+
+export const EconomyConfigInputLanguage = {
+  fr: 'fr',
+  en: 'en',
+} as const;
 
 export interface EconomyConfigInput {
   startingWallet?: number;
@@ -147,6 +164,7 @@ export interface EconomyConfigInput {
   messageRewardMin?: number;
   messageRewardMax?: number;
   messageRewardCooldownSeconds?: number;
+  language?: EconomyConfigInputLanguage;
 }
 
 export interface Player {

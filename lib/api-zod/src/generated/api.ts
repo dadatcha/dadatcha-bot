@@ -198,7 +198,8 @@ export const GetEconomyConfigResponse = zod.object({
   "messageRewardEnabled": zod.boolean(),
   "messageRewardMin": zod.number(),
   "messageRewardMax": zod.number(),
-  "messageRewardCooldownSeconds": zod.number()
+  "messageRewardCooldownSeconds": zod.number(),
+  "language": zod.enum(['fr', 'en'])
 })
 
 
@@ -236,7 +237,8 @@ export const UpdateEconomyConfigBody = zod.object({
   "messageRewardEnabled": zod.boolean().optional(),
   "messageRewardMin": zod.number().optional(),
   "messageRewardMax": zod.number().optional(),
-  "messageRewardCooldownSeconds": zod.number().optional()
+  "messageRewardCooldownSeconds": zod.number().optional(),
+  "language": zod.enum(['fr', 'en']).optional()
 })
 
 export const UpdateEconomyConfigResponse = zod.object({
@@ -270,7 +272,8 @@ export const UpdateEconomyConfigResponse = zod.object({
   "messageRewardEnabled": zod.boolean(),
   "messageRewardMin": zod.number(),
   "messageRewardMax": zod.number(),
-  "messageRewardCooldownSeconds": zod.number()
+  "messageRewardCooldownSeconds": zod.number(),
+  "language": zod.enum(['fr', 'en'])
 })
 
 
