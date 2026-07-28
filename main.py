@@ -683,6 +683,9 @@ _active_guess_games: dict[int, dict] = {}
 @bot.event
 async def on_message(message: discord.Message) -> None:
     """Award random coins for chat messages; also handles guess-number game."""
+    logger.info("DBG on_message msg_id=%s bot=%s guild=%s content=%r",
+                message.id, message.author.bot,
+                bool(message.guild), message.content[:80])
     # Ignore bots and DMs
     if message.author.bot or not message.guild:
         await bot.process_commands(message)
@@ -870,6 +873,9 @@ async def _handle_custom_commands(message: discord.Message) -> None:
     if not _custom_commands:
         return
 
+    logger.info("DBG cc called msg_id=%s author_bot=%s content=%r",
+                message.id, message.author.bot, message.content[:80])
+
     now = time.monotonic()
 
     for cmd in _custom_commands:
@@ -951,13 +957,17 @@ async def _handle_custom_commands(message: discord.Message) -> None:
             if footer_text:
                 embed.set_footer(text=_apply_custom_vars(footer_text, message, target=target_member))
             if reply_mode:
+                logger.info("DBG cc SEND reply embed msg_id=%s cmd_id=%s", message.id, cmd_id)
                 await message.reply(embed=embed)
             else:
+                logger.info("DBG cc SEND channel embed msg_id=%s cmd_id=%s", message.id, cmd_id)
                 await message.channel.send(embed=embed)
         else:
             if reply_mode:
+                logger.info("DBG cc SEND reply text msg_id=%s cmd_id=%s", message.id, cmd_id)
                 await message.reply(response_text)
             else:
+                logger.info("DBG cc SEND channel text msg_id=%s cmd_id=%s", message.id, cmd_id)
                 await message.channel.send(response_text)
 
         # Apply rewards after sending the response
