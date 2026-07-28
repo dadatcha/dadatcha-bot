@@ -219,7 +219,8 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "rl_green_btn":   {"fr": "Vert / 0  (14x)", "en": "Green / 0  (14x)"},
     # guess-number
     "gn_title":        {"fr": "🔢 Devine le nombre !", "en": "🔢 Guess the Number!"},
-    "gn_desc":         {"fr": "J'ai choisi un nombre entre **1** et **100**.\n📝 Écrivez votre nombre directement dans ce salon pour participer !\nLe premier qui trouve gagne — spam autorisé !", "en": "I picked a number between **1** and **100**.\n📝 Just type your number in this channel to play!\nFirst to find it wins — spam allowed!"},
+    "gn_desc":         {"fr": "J'ai choisi un nombre entre **{min}** et **{max}**.\n📝 Écrivez votre nombre directement dans ce salon pour participer !\nLe premier qui trouve gagne — spam autorisé !", "en": "I picked a number between **{min}** and **{max}**.\n📝 Just type your number in this channel to play!\nFirst to find it wins — spam allowed!"},
+    "gn_secret_info":  {"fr": "🔢 Le nombre secret est **{number}** (entre {min} et {max}).\nSeul toi peux voir ce message.", "en": "🔢 The secret number is **{number}** (between {min} and {max}).\nOnly you can see this message."},
     "gn_started_footer": {"fr": "Jeu lancé par {starter}", "en": "Game started by {starter}"},
     "gn_win_title":    {"fr": "🎉 Trouvé !", "en": "🎉 Found it!"},
     "gn_win":          {"fr": "{winner} a trouvé le nombre !\nC'était **{number}**.", "en": "{winner} found the number!\nIt was **{number}**."},
@@ -651,7 +652,9 @@ async def on_message(message: discord.Message) -> None:
         content = message.content.strip()
         try:
             guess = int(content)
-            if 1 <= guess <= 100:
+            g_min = game.get("min", 1)
+            g_max = game.get("max", 100)
+            if g_min <= guess <= g_max:
                 game["attempts"] += 1
                 game["participants"].add(message.author.id)
                 if guess == game["secret"]:
@@ -1523,7 +1526,15 @@ async def _gn_finish(channel: discord.TextChannel, game: dict, winner: Optional[
 
 
 @bot.tree.command(name="guess-number", description="[Admin] Lance une partie — les membres devinent en écrivant dans le salon")
-async def guess_number(interaction: discord.Interaction) -> None:
+@app_commands.describe(
+    minimum="Borne inférieure du nombre (défaut : 1)",
+    maximum="Borne supérieure du nombre (défaut : 100)",
+)
+async def guess_number(
+    interaction: discord.Interaction,
+    minimum: int = 1,
+    maximum: int = 100,
+) -> None:
     if not await check_cmd(interaction, "guess-number"):
         return
     if not is_admin(interaction):
@@ -1535,21 +1546,36 @@ async def guess_number(interaction: discord.Interaction) -> None:
         await interaction.response.send_message(_t("gn_already_running"), ephemeral=True)
         return
 
-    secret = random.randint(1, 100)
+    if minimum >= maximum:
+        await interaction.response.send_message(
+            "❌ La borne inférieure doit être strictement inférieure à la borne supérieure.", ephemeral=True
+        )
+        return
+
+    secret = random.randint(minimum, maximum)
     _active_guess_games[channel_id] = {
         "secret":       secret,
+        "min":          minimum,
+        "max":          maximum,
         "starter_name": str(interaction.user),
         "attempts":     0,
-        "participants": set(),   # set of user_id int
+        "participants": set(),
     }
 
+    # Inform admin of the secret number — ephemeral, invisible to members
+    await interaction.response.send_message(
+        _t("gn_secret_info", number=secret, min=minimum, max=maximum),
+        ephemeral=True,
+    )
+
+    # Send the public game embed
     embed = discord.Embed(
         title=_t("gn_title"),
-        description=_t("gn_desc"),
+        description=_t("gn_desc", min=minimum, max=maximum),
         colour=0x6366F1,
     )
     embed.set_footer(text=_t("gn_started_footer", starter=str(interaction.user)))
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
 
 
 @bot.tree.command(name="guess-stop", description="[Admin] Arrête la partie en cours dans ce salon")
