@@ -87,7 +87,7 @@ function EmbedPreview({ title, description, color, footer }: {
 }) {
   const vars: Record<string, string> = {
     '{user}': '@MemberName', '{tag}': 'MemberName', '{name}': 'MemberName',
-    '{server}': 'Mon Serveur', '{channel}': '#general',
+    '{server}': 'Mon Serveur', '{channel}': '#general', '{target}': '@MembreCible',
   };
   const replace = (s: string) =>
     Object.entries(vars).reduce((a, [k, v]) => a.replaceAll(k, v), s);
@@ -110,7 +110,7 @@ function EmbedPreview({ title, description, color, footer }: {
 // ── Variable chips ─────────────────────────────────────────────────────────────
 
 function VarChips({ onInsert }: { onInsert: (v: string) => void }) {
-  const vars = ['{user}', '{tag}', '{name}', '{server}', '{channel}'];
+  const vars = ['{user}', '{tag}', '{name}', '{server}', '{channel}', '{target}'];
   return (
     <div className="flex flex-wrap gap-1.5 mt-1">
       {vars.map(v => (
@@ -720,7 +720,7 @@ export default function CustomCommands() {
       >
         <strong style={{ color: 'hsl(var(--foreground))' }}>Variables disponibles dans les réponses :</strong>
         {' '}
-        <code>{'{user}'}</code> mention · <code>{'{tag}'}</code> nom · <code>{'{name}'}</code> surnom · <code>{'{server}'}</code> serveur · <code>{'{channel}'}</code> salon
+        <code>{'{user}'}</code> mention · <code>{'{tag}'}</code> nom · <code>{'{name}'}</code> surnom · <code>{'{server}'}</code> serveur · <code>{'{channel}'}</code> salon · <code>{'{target}'}</code> cible récompense
       </div>
 
       {/* Search */}
