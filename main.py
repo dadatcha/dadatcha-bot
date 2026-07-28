@@ -2688,22 +2688,27 @@ async def _push_command_manifest() -> None:
     manifest: list[dict] = []
     for cmd in bot.tree.get_commands():
         if isinstance(cmd, app_commands.Group):
+            # _cmd_name_map tracks current→original for top-level names
+            orig_group = _cmd_name_map.get(cmd.name, cmd.name)
             for sub in cmd.commands:
-                full_name = f"{cmd.name}-{sub.name}"
+                current_full = f"{cmd.name}-{sub.name}"
+                orig_full    = f"{orig_group}-{sub.name}"
+                category = _CMD_CATEGORY.get(orig_full) or _CMD_CATEGORY.get(current_full, "other")
                 manifest.append({
-                    "name": full_name,
-                    "defaultLabel": _default_label(full_name),
-                    "description": sub.description or "",
-                    "category": _CMD_CATEGORY.get(full_name, "other"),
+                    "name":         current_full,
+                    "defaultLabel": _default_label(current_full),
+                    "description":  sub.description or "",
+                    "category":     category,
                 })
         else:
-            # Resolve the actual Discord name (may have been renamed by _apply_command_labels)
-            actual_name = cmd.name
+            # Use _cmd_name_map to look up original name for category resolution
+            orig_name = _cmd_name_map.get(cmd.name, cmd.name)
+            category  = _CMD_CATEGORY.get(orig_name) or _CMD_CATEGORY.get(cmd.name, "other")
             manifest.append({
-                "name": actual_name,
-                "defaultLabel": _default_label(actual_name),
-                "description": cmd.description or "",
-                "category": _CMD_CATEGORY.get(actual_name, "other"),
+                "name":         cmd.name,
+                "defaultLabel": _default_label(cmd.name),
+                "description":  cmd.description or "",
+                "category":     category,
             })
     if not manifest:
         return

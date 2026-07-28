@@ -238,7 +238,12 @@ export default function Commands() {
     return acc;
   }, {});
 
-  const categoryOrder = ['economy', 'games', 'shop', 'giveaway', 'config', 'random-activity'];
+  // Known categories first, then any extras from the manifest (future commands)
+  const PRIORITY_ORDER = ['economy', 'games', 'shop', 'giveaway', 'config', 'random-activity'];
+  const allCategories = [
+    ...PRIORITY_ORDER.filter(c => grouped[c]?.length),
+    ...Object.keys(grouped).filter(c => !PRIORITY_ORDER.includes(c)).sort(),
+  ];
 
   return (
     <div className="p-8 space-y-8 max-w-4xl">
@@ -268,10 +273,10 @@ export default function Commands() {
         <div className="py-12 text-center text-muted-foreground text-sm">Chargement…</div>
       )}
 
-      {categoryOrder.map(cat => {
+      {allCategories.map(cat => {
         const cmds = grouped[cat];
         if (!cmds?.length) return null;
-        const meta = CATEGORY_META[cat] ?? { label: cat, icon: Terminal, color: 'text-muted-foreground' };
+        const meta = CATEGORY_META[cat] ?? { label: cat.charAt(0).toUpperCase() + cat.slice(1), icon: Terminal, color: 'text-muted-foreground' };
         const Icon = meta.icon;
 
         return (
