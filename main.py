@@ -192,6 +192,8 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "lvl_top_title":  {"fr": "🏅 Classement Niveaux — Top 10", "en": "🏅 Level Leaderboard — Top 10"},
     "lvl_top_empty":  {"fr": "Aucun joueur avec de l'XP pour l'instant.", "en": "No players with XP yet."},
     "lvl_top_err":    {"fr": "Impossible de charger le classement en ce moment.", "en": "Could not load leaderboard right now."},
+    # errors / generic
+    "err_generic": {"fr": "Une erreur est survenue. Réessaie dans un instant.", "en": "An error occurred. Please try again in a moment."},
     # admin level management
     "addlevel_title":   {"fr": "✅ Niveau ajouté",   "en": "✅ Level Added"},
     "addlevel_desc":    {"fr": "{mention} a reçu **+{amount}** niveau(x). Niveau actuel : **{new}**", "en": "{mention} received **+{amount}** level(s). Current level: **{new}**"},
@@ -365,84 +367,97 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ── API helpers ───────────────────────────────────────────────────────────────
 
+# ── Global HTTP session (reused across all API calls) ─────────────────────────
+
+_session: Optional[aiohttp.ClientSession] = None
+
+
+async def get_http_session() -> aiohttp.ClientSession:
+    """Return the shared aiohttp session, creating it if needed."""
+    global _session
+    if _session is None or _session.closed:
+        _session = aiohttp.ClientSession()
+    return _session
+
+
 async def api_post(path: str, payload: dict) -> Optional[dict]:
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                if resp.content_type == "application/json":
-                    return await resp.json()
+        s = await get_http_session()
+        async with s.post(
+            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.content_type == "application/json":
+                return await resp.json()
     except Exception:
-        pass
+        logger.warning("api_post %s failed", path, exc_info=True)
     return None
 
 
 async def api_patch(path: str, payload: dict) -> Optional[dict]:
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.patch(
-                f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                if resp.content_type == "application/json":
-                    return await resp.json()
+        s = await get_http_session()
+        async with s.patch(
+            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.content_type == "application/json":
+                return await resp.json()
     except Exception:
-        pass
+        logger.warning("api_patch %s failed", path, exc_info=True)
     return None
 
 
 async def api_delete(path: str) -> Optional[bool]:
     """Returns True on 204 success, False on 404, None on error."""
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.delete(
-                f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                if resp.status == 204:
-                    return True
-                if resp.status == 404:
-                    return False
+        s = await get_http_session()
+        async with s.delete(
+            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.status == 204:
+                return True
+            if resp.status == 404:
+                return False
     except Exception:
-        pass
+        logger.warning("api_delete %s failed", path, exc_info=True)
     return None
 
 
 async def api_put(path: str, payload: dict) -> Optional[dict]:
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.put(
-                f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                if resp.content_type == "application/json":
-                    return await resp.json()
+        s = await get_http_session()
+        async with s.put(
+            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.content_type == "application/json":
+                return await resp.json()
     except Exception:
-        pass
+        logger.warning("api_put %s failed", path, exc_info=True)
     return None
 
 
 async def api_get_json(path: str) -> Optional[dict]:
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                if resp.status == 200:
-                    return await resp.json()
+        s = await get_http_session()
+        async with s.get(
+            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.status == 200:
+                return await resp.json()
     except Exception:
-        pass
+        logger.warning("api_get_json %s failed", path, exc_info=True)
     return None
 
 
 async def api_get_list(path: str) -> Optional[list]:
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                if resp.status == 200:
-                    return await resp.json()
+        s = await get_http_session()
+        async with s.get(
+            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.status == 200:
+                return await resp.json()
     except Exception:
-        pass
+        logger.warning("api_get_list %s failed", path, exc_info=True)
     return None
 
 
@@ -778,21 +793,18 @@ async def _claim_reward(cmd_id: int, author_id: int, target_id: int) -> bool:
     if key in _cc_rewarded:
         return False
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{API_BASE}/custom-commands/{cmd_id}/claim-reward",
-                json={"authorId": str(author_id), "targetId": str(target_id)},
-                timeout=aiohttp.ClientTimeout(total=5),
-            ) as resp:
-                if resp.status == 200:
-                    _cc_rewarded.add(key)
-                    return True
-                # 409 = already granted; any other status = deny (fail-closed)
-                return False
-    except Exception:
-        # Fail-closed: on any network error, block the reward to avoid doubles
-        return False
+    # api_post returns the JSON body regardless of status code (200 or 409 both send JSON).
+    # On network error it returns None → fail-closed.
+    result = await api_post(
+        f"/custom-commands/{cmd_id}/claim-reward",
+        {"authorId": str(author_id), "targetId": str(target_id)},
+    )
+    if result is None:
+        return False  # network error → fail-closed, no reward
+    granted = result.get("granted", False)
+    if granted:
+        _cc_rewarded.add(key)
+    return granted
 
 
 async def _apply_rewards(
@@ -1183,6 +1195,7 @@ async def addmoney(
     if not is_admin(interaction):
         await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
         return
+    await interaction.response.defer()
     target = location.value if location else "wallet"
     eco = await get_economy(player)
     if target == "bank":
@@ -1195,7 +1208,7 @@ async def addmoney(
         await set_wallet(player.id, new_wallet)
         embed = discord.Embed(title=_t("addmoney_title"), description=_t("addmoney_desc_wallet", amount=amount, coin=_coin(), mention=player.mention, new=new_wallet), colour=0x2ECC71)
         await log_to_api("INFO", f"Admin {interaction.user} added {amount} {_coin()} to {player}'s wallet (new wallet: {new_wallet})")
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
 
 
 # ── /removemoney ──────────────────────────────────────────────────────────────
@@ -1216,6 +1229,7 @@ async def removemoney(
     if not is_admin(interaction):
         await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
         return
+    await interaction.response.defer()
     target = location.value if location else "wallet"
     eco = await get_economy(player)
     if target == "bank":
@@ -1228,7 +1242,7 @@ async def removemoney(
         await set_wallet(player.id, new_wallet)
         embed = discord.Embed(title=_t("removemoney_title"), description=_t("removemoney_desc_wallet", amount=amount, coin=_coin(), mention=player.mention, new=new_wallet), colour=0xE74C3C)
         await log_to_api("INFO", f"Admin {interaction.user} removed {amount} {_coin()} from {player}'s wallet (new wallet: {new_wallet})")
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
 
 
 # ── /setmoney ─────────────────────────────────────────────────────────────────
@@ -1240,10 +1254,11 @@ async def setmoney(interaction: discord.Interaction, player: discord.Member, amo
     if not is_admin(interaction):
         await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
         return
+    await interaction.response.defer()
     await get_economy(player)
     await set_wallet(player.id, amount)
     embed = discord.Embed(title=_t("setmoney_title"), description=_t("setmoney_desc", mention=player.mention, amount=amount, coin=_coin()), colour=0xF1C40F)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
     await log_to_api("INFO", f"Admin {interaction.user} set {player}'s wallet to {amount}")
 
 
@@ -1256,10 +1271,11 @@ async def resetmoney(interaction: discord.Interaction, player: discord.Member) -
     if not is_admin(interaction):
         await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
         return
+    await interaction.response.defer()
     await get_economy(player)
     await set_both(player.id, 0, 0)
     embed = discord.Embed(title=_t("resetmoney_title"), description=_t("resetmoney_desc", mention=player.mention, coin=_coin()), colour=0xE74C3C)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
     await log_to_api("INFO", f"Admin {interaction.user} reset {player}'s balance to 0")
 
 
@@ -1272,12 +1288,13 @@ async def addlevel(interaction: discord.Interaction, player: discord.Member, amo
     if not is_admin(interaction):
         await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
         return
+    await interaction.response.defer()
     eco = await get_economy(player)
     new_level = eco.get("level", 0) + amount
     new_xp    = eco.get("xp",    0)
     await api_patch(f"/economy/players/{player.id}", {"level": new_level, "xp": new_xp})
     embed = discord.Embed(title=_t("addlevel_title"), description=_t("addlevel_desc", mention=player.mention, amount=amount, new=new_level), colour=0x2ECC71)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
     await log_to_api("INFO", f"Admin {interaction.user} added {amount} level(s) to {player} (new level: {new_level})")
 
 
@@ -1290,12 +1307,13 @@ async def removelevel(interaction: discord.Interaction, player: discord.Member, 
     if not is_admin(interaction):
         await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
         return
+    await interaction.response.defer()
     eco = await get_economy(player)
     new_level = max(0, eco.get("level", 0) - amount)
     new_xp    = eco.get("xp", 0)
     await api_patch(f"/economy/players/{player.id}", {"level": new_level, "xp": new_xp})
     embed = discord.Embed(title=_t("removelevel_title"), description=_t("removelevel_desc", mention=player.mention, amount=amount, new=new_level), colour=0xE74C3C)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
     await log_to_api("INFO", f"Admin {interaction.user} removed {amount} level(s) from {player} (new level: {new_level})")
 
 
@@ -1308,10 +1326,11 @@ async def resetlevel(interaction: discord.Interaction, player: discord.Member) -
     if not is_admin(interaction):
         await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
         return
+    await interaction.response.defer()
     await get_economy(player)
     await api_patch(f"/economy/players/{player.id}", {"level": 0, "xp": 0})
     embed = discord.Embed(title=_t("resetlevel_title"), description=_t("resetlevel_desc", mention=player.mention), colour=0xE74C3C)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
     await log_to_api("INFO", f"Admin {interaction.user} reset {player}'s level and XP to 0")
 
 
@@ -1467,11 +1486,20 @@ async def give(interaction: discord.Interaction, player: discord.Member, amount:
     if amount > eco["wallet"]:
         await interaction.response.send_message(_t("err_not_enough_wallet", amount=eco["wallet"], coin=_coin()), ephemeral=True)
         return
-    eco_target = await get_economy(player)
+    await interaction.response.defer()
+    # Deduct sender first, then credit recipient.
+    # If recipient update fails, refund sender to prevent money loss.
     await set_wallet(interaction.user.id, eco["wallet"] - amount)
-    await set_wallet(player.id, eco_target["wallet"] + amount)
+    eco_target = await get_economy(player)
+    try:
+        await set_wallet(player.id, eco_target["wallet"] + amount)
+    except Exception:
+        logger.error("give: failed to credit %s — refunding sender", player, exc_info=True)
+        await set_wallet(interaction.user.id, eco["wallet"])  # rollback
+        await interaction.followup.send(_t("err_generic"), ephemeral=True)
+        return
     embed = discord.Embed(title=_t("give_title"), description=_t("give_desc", amount=amount, coin=_coin(), mention=player.mention), colour=0x2ECC71)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
 
 
 # ── /leaderboard ──────────────────────────────────────────────────────────────
@@ -1484,11 +1512,9 @@ async def leaderboard(interaction: discord.Interaction) -> None:
         return
     await interaction.response.defer()
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_BASE}/economy/players", timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                players: list[dict] = await resp.json()
+        s = await get_http_session()
+        async with s.get(f"{API_BASE}/economy/players", timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            players: list[dict] = await resp.json()
     except Exception:
         await interaction.followup.send(_t("lb_err"), ephemeral=True)
         return
@@ -1536,11 +1562,9 @@ async def level_top(interaction: discord.Interaction) -> None:
         return
     await interaction.response.defer()
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_BASE}/economy/players", timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                players: list[dict] = await resp.json()
+        s = await get_http_session()
+        async with s.get(f"{API_BASE}/economy/players", timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            players: list[dict] = await resp.json()
     except Exception:
         await interaction.followup.send(_t("lvl_top_err"), ephemeral=True)
         return
@@ -1564,6 +1588,11 @@ async def level_top(interaction: discord.Interaction) -> None:
 
 
 # ── /blackjack ────────────────────────────────────────────────────────────────
+
+# Active-game guards — prevent the same user from running two concurrent games
+# and betting the same coins twice before either resolves.
+_active_bj: set[int] = set()   # user IDs with a live blackjack game
+_active_rl: set[int] = set()   # user IDs with a live roulette game
 
 SUITS = ["\u2660", "\u2665", "\u2666", "\u2663"]
 RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
@@ -1616,8 +1645,12 @@ class BlackjackView(discord.ui.View):
         embed.set_footer(text=_t("bj_bet_footer", bet=self.bet, coin=_coin()))
         return embed
 
+    async def on_timeout(self) -> None:
+        _active_bj.discard(self.player_user.id)
+
     async def end_game(self, interaction: discord.Interaction, reason: str) -> None:
         self.ended = True
+        _active_bj.discard(self.player_user.id)
         for child in self.children:
             child.disabled = True  # type: ignore[attr-defined]
 
@@ -1685,10 +1718,14 @@ async def blackjack(interaction: discord.Interaction, bet: int = 100) -> None:
     if bet < min_bet or bet > max_bet:
         await interaction.response.send_message(_t("bj_bet_range", min=min_bet, max=max_bet, coin=_coin()), ephemeral=True)
         return
+    if interaction.user.id in _active_bj:
+        await interaction.response.send_message("❌ Tu as déjà une partie de blackjack en cours !", ephemeral=True)
+        return
     eco = await get_economy(interaction.user)
     if eco["wallet"] < bet:
         await interaction.response.send_message(_t("err_not_enough_wallet", amount=eco["wallet"], coin=_coin()), ephemeral=True)
         return
+    _active_bj.add(interaction.user.id)
     deck = new_deck()
     random.shuffle(deck)
     player = [deck.pop(), deck.pop()]
@@ -1786,6 +1823,9 @@ class RouletteView(discord.ui.View):
         self.player_user = player_user
         self.initial_wallet = initial_wallet
 
+    async def on_timeout(self) -> None:
+        _active_rl.discard(self.player_user.id)
+
     @discord.ui.button(label="Red  (2x)", style=discord.ButtonStyle.danger, emoji="\U0001f534")
     async def red(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await self.spin(interaction, "red")
@@ -1799,6 +1839,7 @@ class RouletteView(discord.ui.View):
         await self.spin(interaction, "green")
 
     async def spin(self, interaction: discord.Interaction, choice: str) -> None:
+        _active_rl.discard(self.player_user.id)
         for child in self.children:
             child.disabled = True  # type: ignore[attr-defined]
 
@@ -1850,10 +1891,14 @@ async def roulette(interaction: discord.Interaction, bet: int = 100) -> None:
     if bet < min_bet or bet > max_bet:
         await interaction.response.send_message(_t("rl_bet_range", min=min_bet, max=max_bet, coin=_coin()), ephemeral=True)
         return
+    if interaction.user.id in _active_rl:
+        await interaction.response.send_message("❌ Tu as déjà une partie de roulette en cours !", ephemeral=True)
+        return
     eco = await get_economy(interaction.user)
     if eco["wallet"] < bet:
         await interaction.response.send_message(_t("err_not_enough_wallet", amount=eco["wallet"], coin=_coin()), ephemeral=True)
         return
+    _active_rl.add(interaction.user.id)
     view = RouletteView(bet=bet, player_user=interaction.user, initial_wallet=eco["wallet"])
     embed = discord.Embed(title=_t("rl_title"), description=_t("rl_desc", bet=bet), colour=0x9B59B6)
     embed.add_field(name=_t("rl_payouts"), value="Red \u2192 2x\nBlack \u2192 2x\nGreen (0) \u2192 14x", inline=False)
@@ -2016,39 +2061,38 @@ async def sync_poll_loop() -> None:
     errors = 0
 
     for guild in bot.guilds:
+        # Stream members one-by-one — avoids loading the full list into memory.
         try:
-            members = [m async for m in guild.fetch_members(limit=None)]
+            async for member in guild.fetch_members(limit=None):
+                total += 1
+                member_role_ids = {str(r.id) for r in member.roles}
+                for rule in _role_rewards:
+                    trigger = rule.get("triggerRoleId", "")
+                    reward  = rule.get("rewardRoleId", "")
+                    remove  = rule.get("removeRoleId") or ""
+                    if not trigger or trigger not in member_role_ids:
+                        continue
+                    try:
+                        # Add reward role if configured and missing
+                        if reward and reward not in member_role_ids:
+                            reward_role = guild.get_role(int(reward))
+                            if reward_role:
+                                await member.add_roles(reward_role, reason="Sync: role reward")
+                        # Remove role if configured and present
+                        if remove and remove in member_role_ids:
+                            remove_role = guild.get_role(int(remove))
+                            if remove_role:
+                                await member.remove_roles(remove_role, reason="Sync: role removal")
+                        processed += 1
+                    except Exception as exc:
+                        logger.error("Sync: error on member %s: %s", member, exc)
+                        errors += 1
         except Exception as exc:
             logger.error("Sync: failed to fetch members for guild %s: %s", guild, exc)
             await api_patch(f"/role-rewards-sync/{job_id}", {
-                "status": "error", "total": 0, "processed": 0, "errors": 1,
+                "status": "error", "total": total, "processed": processed, "errors": errors + 1,
             })
             return
-
-        total += len(members)
-        for member in members:
-            member_role_ids = {str(r.id) for r in member.roles}
-            for rule in _role_rewards:
-                trigger = rule.get("triggerRoleId", "")
-                reward  = rule.get("rewardRoleId", "")
-                remove  = rule.get("removeRoleId") or ""
-                if not trigger or trigger not in member_role_ids:
-                    continue
-                try:
-                    # Add reward role if configured and missing
-                    if reward and reward not in member_role_ids:
-                        reward_role = guild.get_role(int(reward))
-                        if reward_role:
-                            await member.add_roles(reward_role, reason="Sync: role reward")
-                    # Remove role if configured and present
-                    if remove and remove in member_role_ids:
-                        remove_role = guild.get_role(int(remove))
-                        if remove_role:
-                            await member.remove_roles(remove_role, reason="Sync: role removal")
-                    processed += 1
-                except Exception as exc:
-                    logger.error("Sync: error on member %s: %s", member, exc)
-                    errors += 1
 
     await api_patch(f"/role-rewards-sync/{job_id}", {
         "status": "done", "total": total, "processed": processed, "errors": errors,
@@ -3162,16 +3206,14 @@ async def _push_command_manifest() -> None:
     if not manifest:
         return
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{API_BASE}/commands/manifest",
-                json=manifest,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
-                if resp.status == 204:
-                    logger.info("Command manifest pushed — %d commands", len(manifest))
-                else:
-                    logger.warning("Command manifest push returned %d", resp.status)
+        s = await get_http_session()
+        async with s.post(
+            f"{API_BASE}/commands/manifest", json=manifest, timeout=aiohttp.ClientTimeout(total=10),
+        ) as resp:
+            if resp.status == 204:
+                logger.info("Command manifest pushed — %d commands", len(manifest))
+            else:
+                logger.warning("Command manifest push returned %d", resp.status)
     except Exception:
         logger.warning("Failed to push command manifest", exc_info=True)
 
@@ -3223,6 +3265,30 @@ async def on_ready() -> None:
 
     await send_heartbeat(connected=True)
     await log_to_api("INFO", f"Bot connected as {bot.user}")
+    # Pre-warm the shared HTTP session
+    await get_http_session()
+
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
+    """Global handler for slash command errors.
+    Silently drops expired-interaction errors (code 10062) which happen when
+    Discord's 3-second window passes before the bot responds — usually during
+    reconnects or heavy load. Logs everything else and notifies the user.
+    """
+    original = getattr(error, "original", error)
+    if isinstance(original, discord.NotFound) and getattr(original, "code", 0) == 10062:
+        return  # interaction token expired — nothing we can do, ignore silently
+    logger.error("App command error in '%s': %s",
+                 getattr(interaction.command, "name", "?"), error, exc_info=error)
+    msg = f"❌ {_t('err_generic')}"
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
+    except Exception:
+        pass
 
     # Push text channels to API cache (used by the dashboard giveaway form)
     try:
@@ -3232,14 +3298,10 @@ async def on_ready() -> None:
             for guild in bot.guilds
             for ch in guild.text_channels
         ]
-        async with aiohttp.ClientSession() as session:
-            await session.post(
-                f"{API_BASE}/bot/channels",
-                json=channels,
-                timeout=aiohttp.ClientTimeout(total=5),
-            )
+        s = await get_http_session()
+        await s.post(f"{API_BASE}/bot/channels", json=channels, timeout=aiohttp.ClientTimeout(total=5))
     except Exception:
-        pass
+        logger.warning("Failed to push channel list to API", exc_info=True)
 
 
 # ── /shop ─────────────────────────────────────────────────────────────────────
@@ -3249,11 +3311,9 @@ async def shop_cmd(interaction: discord.Interaction) -> None:
     if not await check_cmd(interaction, "shop"): return
     await interaction.response.defer()
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                items: list[dict] = await resp.json()
+        s = await get_http_session()
+        async with s.get(f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            items: list[dict] = await resp.json()
     except Exception:
         await interaction.followup.send(_t("shop_err"), ephemeral=True)
         return
@@ -3291,11 +3351,9 @@ async def _shop_items_autocomplete(
     interaction: discord.Interaction, current: str
 ) -> list[app_commands.Choice[str]]:
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=3)
-            ) as resp:
-                items: list[dict] = await resp.json()
+        s = await get_http_session()
+        async with s.get(f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=3)) as resp:
+            items: list[dict] = await resp.json()
     except Exception:
         return []
     enabled = [it for it in items if it.get("enabled", True)]
@@ -3313,11 +3371,9 @@ async def buy_cmd(interaction: discord.Interaction, item: str) -> None:
     if not await check_cmd(interaction, "buy"): return
     # Fetch shop items
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                items: list[dict] = await resp.json()
+        s = await get_http_session()
+        async with s.get(f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            items: list[dict] = await resp.json()
     except Exception:
         await interaction.response.send_message(_t("buy_err"), ephemeral=True)
         return
@@ -3423,11 +3479,9 @@ async def _all_items_autocomplete(
     interaction: discord.Interaction, current: str
 ) -> list[app_commands.Choice[str]]:
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=3)
-            ) as resp:
-                items: list[dict] = await resp.json()
+        s = await get_http_session()
+        async with s.get(f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=3)) as resp:
+            items: list[dict] = await resp.json()
     except Exception:
         return []
     return [
@@ -3461,11 +3515,9 @@ async def give_item(
 
     # Fetch all shop items
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=5)
-            ) as resp:
-                items: list[dict] = await resp.json()
+        s = await get_http_session()
+        async with s.get(f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            items: list[dict] = await resp.json()
     except Exception:
         await interaction.response.send_message(_t("gi_err"), ephemeral=True)
         return
