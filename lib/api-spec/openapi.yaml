@@ -1088,6 +1088,23 @@ components:
           type: string
       required: [level, message]
 
+    GiveawayReward:
+      type: object
+      properties:
+        type:
+          type: string
+        amount:
+          type: integer
+        roleId:
+          type: string
+        roleName:
+          type: string
+        itemId:
+          type: integer
+        itemName:
+          type: string
+      required: [type]
+
     Giveaway:
       type: object
       properties:
@@ -1117,9 +1134,27 @@ components:
           type: ["string", "null"]
         requiredMinBalance:
           type: ["integer", "null"]
+        requiredRoleIds:
+          type: array
+          items:
+            type: string
+        forbiddenRoleIds:
+          type: array
+          items:
+            type: string
+        hostId:
+          type: ["string", "null"]
+        mentionedUserIds:
+          type: array
+          items:
+            type: string
+        rewards:
+          type: array
+          items:
+            $ref: "#/components/schemas/GiveawayReward"
         createdAt:
           type: string
-      required: [id, channelId, messageId, guildId, prize, winnersCount, endsAt, endedAt, winners, status, requiredRoleId, requiredMinBalance, createdAt]
+      required: [id, channelId, messageId, guildId, prize, winnersCount, endsAt, endedAt, winners, status, requiredRoleId, requiredMinBalance, requiredRoleIds, forbiddenRoleIds, hostId, mentionedUserIds, rewards, createdAt]
 
     GiveawayInput:
       type: object
@@ -1136,6 +1171,24 @@ components:
           type: string
         requiredMinBalance:
           type: integer
+        requiredRoleIds:
+          type: array
+          items:
+            type: string
+        forbiddenRoleIds:
+          type: array
+          items:
+            type: string
+        hostId:
+          type: string
+        mentionedUserIds:
+          type: array
+          items:
+            type: string
+        rewards:
+          type: array
+          items:
+            $ref: "#/components/schemas/GiveawayReward"
       required: [channelId, prize, winnersCount, durationMinutes]
 
     GiveawayPatch:

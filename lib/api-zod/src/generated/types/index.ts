@@ -18,6 +18,7 @@ export * from './getLogsParams';
 export * from './giveaway';
 export * from './giveawayInput';
 export * from './giveawayPatch';
+export * from './giveawayReward';
 export * from './giveawayWinnersInput';
 export * from './healthStatus';
 export * from './listGiveawaysParams';

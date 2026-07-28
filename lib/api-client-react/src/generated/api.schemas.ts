@@ -236,6 +236,15 @@ export interface LogEntryInput {
   message: string;
 }
 
+export interface GiveawayReward {
+  type: string;
+  amount?: number;
+  roleId?: string;
+  roleName?: string;
+  itemId?: number;
+  itemName?: string;
+}
+
 export interface Giveaway {
   id: number;
   channelId: string;
@@ -253,6 +262,12 @@ export interface Giveaway {
   requiredRoleId: string | null;
   /** @nullable */
   requiredMinBalance: number | null;
+  requiredRoleIds: string[];
+  forbiddenRoleIds: string[];
+  /** @nullable */
+  hostId: string | null;
+  mentionedUserIds: string[];
+  rewards: GiveawayReward[];
   createdAt: string;
 }
 
@@ -263,6 +278,11 @@ export interface GiveawayInput {
   durationMinutes: number;
   requiredRoleId?: string;
   requiredMinBalance?: number;
+  requiredRoleIds?: string[];
+  forbiddenRoleIds?: string[];
+  hostId?: string;
+  mentionedUserIds?: string[];
+  rewards?: GiveawayReward[];
 }
 
 export interface GiveawayPatch {

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, integer, timestamp, bigint, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, integer, timestamp, bigint, index, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -192,9 +192,20 @@ export const giveawaysTable = pgTable("giveaways", {
   endedAt:      timestamp("ended_at", { withTimezone: true }),
   winners:             text("winners").array().notNull().default([]),
   status:              text("status").notNull().default("active"), // active | ended | cancelled
-  requiredRoleId:      text("required_role_id"),
+  requiredRoleId:      text("required_role_id"),        // legacy single (kept for compat)
   requiredMinBalance:  integer("required_min_balance"),
+  // v2 fields
+  requiredRoleIds:     text("required_role_ids").array().notNull().default([]),
+  forbiddenRoleIds:    text("forbidden_role_ids").array().notNull().default([]),
+  hostId:              text("host_id"),
+  mentionedUserIds:    text("mentioned_user_ids").array().notNull().default([]),
+  rewards:             json("rewards").$type<GiveawayReward[]>().notNull().default([]),
   createdAt:           timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type GiveawayReward =
+  | { type: "money"; amount: number }
+  | { type: "role"; roleId: string; roleName: string }
+  | { type: "item"; itemId: number; itemName: string };
 
 export type Giveaway = typeof giveawaysTable.$inferSelect;

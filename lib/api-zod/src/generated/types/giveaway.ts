@@ -5,6 +5,7 @@
  * API specification for the Lotto Discord Bot dashboard
  * OpenAPI spec version: 0.1.0
  */
+import type { GiveawayReward } from './giveawayReward';
 
 export interface Giveaway {
   id: number;
@@ -23,5 +24,11 @@ export interface Giveaway {
   requiredRoleId: string | null;
   /** @nullable */
   requiredMinBalance: number | null;
+  requiredRoleIds: string[];
+  forbiddenRoleIds: string[];
+  /** @nullable */
+  hostId: string | null;
+  mentionedUserIds: string[];
+  rewards: GiveawayReward[];
   createdAt: string;
 }

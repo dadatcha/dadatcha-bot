@@ -18,6 +18,11 @@ function toGiveaway(r: typeof giveawaysTable.$inferSelect) {
     status:             r.status,
     requiredRoleId:     r.requiredRoleId ?? null,
     requiredMinBalance: r.requiredMinBalance ?? null,
+    requiredRoleIds:    r.requiredRoleIds ?? [],
+    forbiddenRoleIds:   r.forbiddenRoleIds ?? [],
+    hostId:             r.hostId ?? null,
+    mentionedUserIds:   r.mentionedUserIds ?? [],
+    rewards:            (r.rewards as any[]) ?? [],
     createdAt:          r.createdAt.toISOString(),
   };
 }
@@ -34,9 +39,16 @@ router.get("/giveaways", async (req, res): Promise<void> => {
 // ── POST /giveaways ────────────────────────────────────────────────────────────
 
 router.post("/giveaways", async (req, res): Promise<void> => {
-  const { channelId, prize, winnersCount, durationMinutes, requiredRoleId, requiredMinBalance } = req.body as {
+  const {
+    channelId, prize, winnersCount, durationMinutes,
+    requiredRoleId, requiredMinBalance,
+    requiredRoleIds, forbiddenRoleIds,
+    hostId, mentionedUserIds, rewards,
+  } = req.body as {
     channelId?: string; prize?: string; winnersCount?: number; durationMinutes?: number;
     requiredRoleId?: string; requiredMinBalance?: number;
+    requiredRoleIds?: string[]; forbiddenRoleIds?: string[];
+    hostId?: string; mentionedUserIds?: string[]; rewards?: any[];
   };
   if (!channelId || !prize || !durationMinutes) {
     res.status(400).json({ error: "channelId, prize, durationMinutes are required" }); return;
@@ -49,6 +61,11 @@ router.post("/giveaways", async (req, res): Promise<void> => {
     endsAt,
     requiredRoleId:     requiredRoleId || null,
     requiredMinBalance: requiredMinBalance ?? null,
+    requiredRoleIds:    requiredRoleIds ?? [],
+    forbiddenRoleIds:   forbiddenRoleIds ?? [],
+    hostId:             hostId || null,
+    mentionedUserIds:   mentionedUserIds ?? [],
+    rewards:            rewards ?? [],
   }).returning();
   res.status(201).json(toGiveaway(row));
 });

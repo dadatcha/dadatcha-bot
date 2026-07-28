@@ -9,10 +9,18 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Gift, Plus, Trash2, Trophy, Clock, Users, Hash, Shield, Coins } from 'lucide-react';
+import {
+  Gift, Plus, Trash2, Trophy, Clock, Users, Hash,
+  Shield, Coins, UserCheck, Ban, User, MessageCircle,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+type GiveawayReward =
+  | { type: 'money'; amount: number }
+  | { type: 'role'; roleId: string; roleName: string }
+  | { type: 'item'; itemId: number; itemName: string };
 
 type Giveaway = {
   id: number;
@@ -26,6 +34,11 @@ type Giveaway = {
   status: string;
   requiredRoleId: string | null;
   requiredMinBalance: number | null;
+  requiredRoleIds: string[];
+  forbiddenRoleIds: string[];
+  hostId: string | null;
+  mentionedUserIds: string[];
+  rewards: GiveawayReward[];
   createdAt: string;
 };
 
@@ -34,51 +47,62 @@ type Giveaway = {
 function timeLeft(endsAt: string): string {
   const diff = new Date(endsAt).getTime() - Date.now();
   if (diff <= 0) return 'Expiré';
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  const s = Math.floor((diff % 60000) / 1000);
+  const h = Math.floor(diff / 3_600_000);
+  const m = Math.floor((diff % 3_600_000) / 60_000);
+  const s = Math.floor((diff % 60_000) / 1_000);
   if (h > 0) return `${h}h ${m}m`;
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
 
-function formatDate(iso: string) {
+function fmt(iso: string) {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
 }
 
-// ── ConditionBadges ───────────────────────────────────────────────────────────
+function rewardLabel(r: GiveawayReward): string {
+  if (r.type === 'money') return `💰 ${r.amount.toLocaleString('fr-FR')} pièces`;
+  if (r.type === 'role') return `🎭 ${r.roleName}`;
+  if (r.type === 'item') return `📦 ${r.itemName}`;
+  return '?';
+}
 
-function ConditionBadges({ giveaway }: { giveaway: Giveaway }) {
-  if (!giveaway.requiredRoleId && !giveaway.requiredMinBalance) return null;
+// ── Chip ──────────────────────────────────────────────────────────────────────
+
+function Chip({ icon: Icon, children, color = 'default' }: {
+  icon: React.ElementType;
+  children: React.ReactNode;
+  color?: 'default' | 'indigo' | 'red' | 'amber' | 'green' | 'blue';
+}) {
+  const cls: Record<string, string> = {
+    default: 'bg-muted text-muted-foreground border-border',
+    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    red:    'bg-red-50 text-red-700 border-red-200',
+    amber:  'bg-amber-50 text-amber-700 border-amber-200',
+    green:  'bg-green-50 text-green-700 border-green-200',
+    blue:   'bg-blue-50 text-blue-700 border-blue-200',
+  };
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {giveaway.requiredRoleId && (
-        <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
-          <Shield className="w-2.5 h-2.5" />
-          Rôle&nbsp;<code className="font-mono">{giveaway.requiredRoleId}</code>
-        </span>
-      )}
-      {giveaway.requiredMinBalance && (
-        <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
-          <Coins className="w-2.5 h-2.5" />
-          Min&nbsp;{giveaway.requiredMinBalance.toLocaleString('fr-FR')}
-        </span>
-      )}
-    </div>
+    <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium border rounded-full px-2 py-0.5', cls[color])}>
+      <Icon className="w-2.5 h-2.5 shrink-0" />
+      {children}
+    </span>
   );
 }
 
 // ── GiveawayCard ──────────────────────────────────────────────────────────────
 
-function GiveawayCard({ giveaway, onDeleted }: { giveaway: Giveaway; onDeleted: () => void }) {
+function GiveawayCard({ g, onDeleted }: { g: Giveaway; onDeleted: () => void }) {
   const { toast } = useToast();
   const del = useDeleteGiveaway();
-  const active = giveaway.status === 'active';
+  const active = g.status === 'active';
+
+  // Merge legacy + new role lists
+  const allowedRoles = [...new Set([...(g.requiredRoleIds ?? []), ...(g.requiredRoleId ? [g.requiredRoleId] : [])])];
 
   function remove() {
-    if (!confirm(`Supprimer le giveaway "${giveaway.prize}" ?`)) return;
+    if (!confirm(`Supprimer le giveaway "${g.prize}" ?`)) return;
     del.mutate(
-      { id: giveaway.id },
+      { id: g.id },
       {
         onSuccess: () => { onDeleted(); toast({ title: 'Giveaway supprimé' }); },
         onError: () => toast({ title: 'Erreur', variant: 'destructive' }),
@@ -91,24 +115,23 @@ function GiveawayCard({ giveaway, onDeleted }: { giveaway: Giveaway; onDeleted: 
       'rounded-xl border p-4 space-y-3',
       active ? 'border-yellow-300 bg-yellow-50/40' : 'border-border bg-card',
     )}>
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl">🎉</span>
+          <span className="text-xl shrink-0">🎉</span>
           <div className="min-w-0">
-            <p className="font-semibold text-sm truncate">{giveaway.prize}</p>
+            <p className="font-semibold text-sm truncate">{g.prize}</p>
             <p className="text-xs text-muted-foreground">
               {active
-                ? <>Fin <span className="font-medium text-yellow-600">{timeLeft(giveaway.endsAt)}</span> · {formatDate(giveaway.endsAt)}</>
-                : <>Terminé le {formatDate(giveaway.endedAt ?? giveaway.endsAt)}</>}
+                ? <>Fin <span className="font-medium text-yellow-600">{timeLeft(g.endsAt)}</span> · {fmt(g.endsAt)}</>
+                : <>Terminé le {fmt(g.endedAt ?? g.endsAt)}</>}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <span className={cn(
             'text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border',
-            active
-              ? 'text-yellow-700 bg-yellow-100 border-yellow-300'
-              : 'text-muted-foreground bg-muted border-border',
+            active ? 'text-yellow-700 bg-yellow-100 border-yellow-300' : 'text-muted-foreground bg-muted border-border',
           )}>
             {active ? 'Actif' : 'Terminé'}
           </span>
@@ -118,34 +141,59 @@ function GiveawayCard({ giveaway, onDeleted }: { giveaway: Giveaway; onDeleted: 
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-xs">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Hash className="w-3 h-3 shrink-0" />
-          <span className="truncate font-mono">{giveaway.channelId}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Users className="w-3 h-3 shrink-0" />
-          <span>{giveaway.winnersCount} gagnant{giveaway.winnersCount > 1 ? 's' : ''}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Clock className="w-3 h-3 shrink-0" />
-          <span>{formatDate(giveaway.createdAt)}</span>
-        </div>
+      {/* Meta row */}
+      <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5"><Hash className="w-3 h-3" /><span className="truncate font-mono">{g.channelId}</span></div>
+        <div className="flex items-center gap-1.5"><Users className="w-3 h-3" />{g.winnersCount} gagnant{g.winnersCount > 1 ? 's' : ''}</div>
+        <div className="flex items-center gap-1.5"><Clock className="w-3 h-3" />{fmt(g.createdAt)}</div>
       </div>
 
-      <ConditionBadges giveaway={giveaway} />
-
-      {!active && giveaway.winners.length > 0 && (
-        <div className="flex items-start gap-2 pt-1 border-t">
-          <Trophy className="w-3.5 h-3.5 text-yellow-500 shrink-0 mt-0.5" />
-          <p className="text-xs font-medium text-muted-foreground">
-            Gagnant{giveaway.winners.length > 1 ? 's' : ''} :{' '}
-            {giveaway.winners.map(id => <code key={id} className="bg-muted px-1 rounded text-[10px] mr-1">{id}</code>)}
-          </p>
+      {/* People */}
+      {(g.hostId || g.mentionedUserIds?.length > 0) && (
+        <div className="flex flex-wrap gap-1.5">
+          {g.hostId && (
+            <Chip icon={User} color="blue">Host <code className="font-mono text-[9px]">{g.hostId}</code></Chip>
+          )}
+          {g.mentionedUserIds?.map(uid => (
+            <Chip key={uid} icon={MessageCircle} color="blue"><code className="font-mono text-[9px]">{uid}</code></Chip>
+          ))}
         </div>
       )}
 
-      {!active && giveaway.winners.length === 0 && giveaway.endedAt && (
+      {/* Conditions */}
+      {(allowedRoles.length > 0 || (g.forbiddenRoleIds ?? []).length > 0 || g.requiredMinBalance) && (
+        <div className="flex flex-wrap gap-1.5">
+          {allowedRoles.map(rid => (
+            <Chip key={rid} icon={UserCheck} color="green"><code className="font-mono text-[9px]">{rid}</code></Chip>
+          ))}
+          {(g.forbiddenRoleIds ?? []).map(rid => (
+            <Chip key={rid} icon={Ban} color="red"><code className="font-mono text-[9px]">{rid}</code></Chip>
+          ))}
+          {g.requiredMinBalance && (
+            <Chip icon={Coins} color="amber">Min {g.requiredMinBalance.toLocaleString('fr-FR')}</Chip>
+          )}
+        </div>
+      )}
+
+      {/* Rewards */}
+      {g.rewards?.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {g.rewards.map((r, i) => (
+            <Chip key={i} icon={Gift} color="indigo">{rewardLabel(r)}</Chip>
+          ))}
+        </div>
+      )}
+
+      {/* Winners */}
+      {!active && g.winners.length > 0 && (
+        <div className="flex items-start gap-2 pt-1 border-t">
+          <Trophy className="w-3.5 h-3.5 text-yellow-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">
+            {g.winners.map(id => <code key={id} className="bg-muted px-1 rounded text-[10px] mr-1">{id}</code>)}
+          </p>
+        </div>
+      )}
+      {!active && g.winners.length === 0 && g.endedAt && (
         <p className="text-xs text-muted-foreground border-t pt-1">Aucun participant éligible</p>
       )}
     </div>
@@ -158,51 +206,64 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
   const { toast } = useToast();
   const create = useCreateGiveaway();
   const [form, setForm] = useState({
-    prize: '',
-    channelId: '',
-    durationMinutes: 60,
-    winnersCount: 1,
-    requiredRoleId: '',
+    prize: '', channelId: '', durationMinutes: 60, winnersCount: 1,
+    hostId: '', mentionedUserIds: '',
+    requiredRoleIds: '', forbiddenRoleIds: '',
     requiredMinBalance: '',
+    // rewards added as chips
+    rewards: [] as Array<{ type: string; amount?: number; roleId?: string; roleName?: string; itemId?: number; itemName?: string }>,
+    rewardType: 'money' as 'money' | 'role' | 'item',
+    rewardAmount: '', rewardRoleId: '', rewardRoleName: '', rewardItemId: '', rewardItemName: '',
   });
 
   const p = (u: Partial<typeof form>) => setForm(f => ({ ...f, ...u }));
   const valid = form.prize.trim() && form.channelId.trim() && form.durationMinutes >= 1 && form.winnersCount >= 1;
 
+  function addReward() {
+    if (form.rewardType === 'money' && form.rewardAmount) {
+      p({ rewards: [...form.rewards, { type: 'money', amount: Number(form.rewardAmount) }], rewardAmount: '' });
+    } else if (form.rewardType === 'role' && form.rewardRoleId) {
+      p({ rewards: [...form.rewards, { type: 'role', roleId: form.rewardRoleId, roleName: form.rewardRoleName || form.rewardRoleId }], rewardRoleId: '', rewardRoleName: '' });
+    } else if (form.rewardType === 'item' && form.rewardItemId) {
+      p({ rewards: [...form.rewards, { type: 'item', itemId: Number(form.rewardItemId), itemName: form.rewardItemName || `Item #${form.rewardItemId}` }], rewardItemId: '', rewardItemName: '' });
+    }
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return;
-    const data: Parameters<typeof create.mutate>[0]['data'] = {
+    const data: any = {
       prize: form.prize.trim(),
       channelId: form.channelId.trim(),
       durationMinutes: form.durationMinutes,
       winnersCount: form.winnersCount,
+      rewards: form.rewards,
     };
-    if (form.requiredRoleId.trim()) data.requiredRoleId = form.requiredRoleId.trim();
+    if (form.hostId.trim()) data.hostId = form.hostId.trim();
+    if (form.mentionedUserIds.trim()) data.mentionedUserIds = form.mentionedUserIds.split(',').map(s => s.trim()).filter(Boolean);
+    if (form.requiredRoleIds.trim()) data.requiredRoleIds = form.requiredRoleIds.split(',').map(s => s.trim()).filter(Boolean);
+    if (form.forbiddenRoleIds.trim()) data.forbiddenRoleIds = form.forbiddenRoleIds.split(',').map(s => s.trim()).filter(Boolean);
     if (form.requiredMinBalance.trim()) data.requiredMinBalance = Number(form.requiredMinBalance);
 
-    create.mutate(
-      { data },
-      {
-        onSuccess: () => {
-          toast({ title: '🎉 Giveaway créé !' });
-          setForm({ prize: '', channelId: '', durationMinutes: 60, winnersCount: 1, requiredRoleId: '', requiredMinBalance: '' });
-          onCreated();
-        },
-        onError: () => toast({ title: 'Erreur', variant: 'destructive' }),
+    create.mutate({ data }, {
+      onSuccess: () => {
+        toast({ title: '🎉 Giveaway créé !' });
+        setForm({ prize: '', channelId: '', durationMinutes: 60, winnersCount: 1, hostId: '', mentionedUserIds: '', requiredRoleIds: '', forbiddenRoleIds: '', requiredMinBalance: '', rewards: [], rewardType: 'money', rewardAmount: '', rewardRoleId: '', rewardRoleName: '', rewardItemId: '', rewardItemName: '' });
+        onCreated();
       },
-    );
+      onError: () => toast({ title: 'Erreur', variant: 'destructive' }),
+    });
   }
 
   return (
     <form onSubmit={submit} className="rounded-xl border bg-card p-5 space-y-5">
       <p className="text-sm font-semibold">Nouveau giveaway</p>
 
-      {/* Core fields */}
+      {/* Core */}
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Prix 🎁</label>
-          <Input placeholder="ex: 1000 sheckels, Nitro, …" value={form.prize} onChange={e => p({ prize: e.target.value })} />
+          <Input placeholder="ex: 1 000 sheckels, Nitro…" value={form.prize} onChange={e => p({ prize: e.target.value })} />
         </div>
         <div className="col-span-2 space-y-1">
           <label className="text-xs font-medium text-muted-foreground">ID du salon Discord</label>
@@ -213,42 +274,81 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
           <Input type="number" min={1} value={form.durationMinutes} onChange={e => p({ durationMinutes: Number(e.target.value) })} />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Nombre de gagnants</label>
+          <label className="text-xs font-medium text-muted-foreground">Nb gagnants</label>
           <Input type="number" min={1} value={form.winnersCount} onChange={e => p({ winnersCount: Number(e.target.value) })} />
+        </div>
+      </div>
+
+      {/* People */}
+      <div className="rounded-lg border border-dashed p-4 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Personnes</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> ID Host (optionnel)</label>
+            <Input placeholder="ID utilisateur" value={form.hostId} onChange={e => p({ hostId: e.target.value })} className="font-mono text-sm" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><MessageCircle className="w-3 h-3" /> Membres à mentionner</label>
+            <Input placeholder="ID1, ID2, …" value={form.mentionedUserIds} onChange={e => p({ mentionedUserIds: e.target.value })} className="font-mono text-sm" />
+          </div>
         </div>
       </div>
 
       {/* Conditions */}
       <div className="rounded-lg border border-dashed p-4 space-y-3">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conditions facultatives</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conditions d'éligibilité</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <Shield className="w-3 h-3" /> ID de rôle requis
-            </label>
-            <Input
-              placeholder="123456789… (optionnel)"
-              value={form.requiredRoleId}
-              onChange={e => p({ requiredRoleId: e.target.value })}
-              className="font-mono text-sm"
-            />
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Shield className="w-3 h-3" /> Rôles autorisés (IDs, virgule)</label>
+            <Input placeholder="ID1, ID2, …" value={form.requiredRoleIds} onChange={e => p({ requiredRoleIds: e.target.value })} className="font-mono text-sm" />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <Coins className="w-3 h-3" /> Solde minimum
-            </label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="0 (optionnel)"
-              value={form.requiredMinBalance}
-              onChange={e => p({ requiredMinBalance: e.target.value })}
-            />
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Ban className="w-3 h-3" /> Rôles interdits (IDs, virgule)</label>
+            <Input placeholder="ID1, ID2, …" value={form.forbiddenRoleIds} onChange={e => p({ forbiddenRoleIds: e.target.value })} className="font-mono text-sm" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Coins className="w-3 h-3" /> Solde minimum</label>
+            <Input type="number" min={0} placeholder="0" value={form.requiredMinBalance} onChange={e => p({ requiredMinBalance: e.target.value })} />
           </div>
         </div>
+      </div>
+
+      {/* Rewards */}
+      <div className="rounded-lg border border-dashed p-4 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Récompenses supplémentaires</p>
+
+        {form.rewards.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {form.rewards.map((r, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
+                {r.type === 'money' ? `💰 ${r.amount?.toLocaleString('fr-FR')} pièces` : r.type === 'role' ? `🎭 ${r.roleName}` : `📦 ${r.itemName}`}
+                <button type="button" onClick={() => p({ rewards: form.rewards.filter((_, j) => j !== i) })} className="ml-0.5 hover:text-red-600">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2 items-end flex-wrap">
+          <select value={form.rewardType} onChange={e => p({ rewardType: e.target.value as any })} className="text-xs border rounded px-2 py-1.5 bg-background">
+            <option value="money">💰 Argent</option>
+            <option value="role">🎭 Rôle</option>
+            <option value="item">📦 Item</option>
+          </select>
+          {form.rewardType === 'money' && (
+            <Input type="number" placeholder="Montant" className="w-32 text-sm" value={form.rewardAmount} onChange={e => p({ rewardAmount: e.target.value })} />
+          )}
+          {form.rewardType === 'role' && (<>
+            <Input placeholder="ID du rôle" className="w-40 font-mono text-sm" value={form.rewardRoleId} onChange={e => p({ rewardRoleId: e.target.value })} />
+            <Input placeholder="Nom (affichage)" className="w-32 text-sm" value={form.rewardRoleName} onChange={e => p({ rewardRoleName: e.target.value })} />
+          </>)}
+          {form.rewardType === 'item' && (<>
+            <Input type="number" placeholder="ID item" className="w-24 text-sm" value={form.rewardItemId} onChange={e => p({ rewardItemId: e.target.value })} />
+            <Input placeholder="Nom de l'item" className="w-36 text-sm" value={form.rewardItemName} onChange={e => p({ rewardItemName: e.target.value })} />
+          </>)}
+          <Button type="button" variant="outline" size="sm" onClick={addReward} className="shrink-0">+ Ajouter</Button>
+        </div>
         <p className="text-[10px] text-muted-foreground">
-          Si un rôle est renseigné, seuls les membres qui le possèdent peuvent gagner.
-          Si un solde minimum est renseigné, seuls les membres qui l'atteignent peuvent gagner.
+          Depuis Discord, utilisez le panneau interactif de <code>/giveaway start</code> pour configurer les récompenses plus facilement.
         </p>
       </div>
 
@@ -265,23 +365,19 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
 export default function Giveaway() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const { data: giveaways = [], isLoading } = useListGiveaways({
-    query: { refetchInterval: 15000 },
-  });
+  const { data: giveaways = [], isLoading } = useListGiveaways({ query: { refetchInterval: 15000 } });
 
   const refresh = () => qc.invalidateQueries({ queryKey: getListGiveawaysQueryKey() });
-
   const active = (giveaways as Giveaway[]).filter(g => g.status === 'active');
   const past   = (giveaways as Giveaway[]).filter(g => g.status !== 'active');
 
   return (
     <div className="p-8 space-y-8 max-w-3xl">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Giveaways</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Crée et gère les giveaways Discord. Le bot poste l'embed et sélectionne les gagnants automatiquement.
+            Crée via <code className="text-xs bg-muted px-1 rounded">/giveaway start</code> sur Discord pour le panneau interactif complet, ou utilise le formulaire ci-dessous.
           </p>
         </div>
         <Button onClick={() => setShowForm(v => !v)} className="gap-2 shrink-0">
@@ -290,29 +386,26 @@ export default function Giveaway() {
         </Button>
       </div>
 
-      {showForm && (
-        <CreateForm onCreated={() => { refresh(); setShowForm(false); }} />
-      )}
-
+      {showForm && <CreateForm onCreated={() => { refresh(); setShowForm(false); }} />}
       {isLoading && <p className="text-sm text-muted-foreground">Chargement…</p>}
 
       {active.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">En cours ({active.length})</h2>
-          {active.map(g => <GiveawayCard key={g.id} giveaway={g} onDeleted={refresh} />)}
+          {active.map(g => <GiveawayCard key={g.id} g={g} onDeleted={refresh} />)}
         </section>
       )}
 
       {past.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Terminés ({past.length})</h2>
-          {past.map(g => <GiveawayCard key={g.id} giveaway={g} onDeleted={refresh} />)}
+          {past.map(g => <GiveawayCard key={g.id} g={g} onDeleted={refresh} />)}
         </section>
       )}
 
       {!isLoading && active.length === 0 && past.length === 0 && !showForm && (
         <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground text-sm">
-          Aucun giveaway. Clique sur <strong>Nouveau giveaway</strong> pour commencer.
+          Aucun giveaway. Lance <code className="text-xs bg-muted px-1 rounded">/giveaway start</code> sur Discord ou clique sur <strong>Nouveau giveaway</strong>.
         </div>
       )}
     </div>
