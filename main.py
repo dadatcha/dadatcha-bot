@@ -218,28 +218,18 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "rl_black_btn":   {"fr": "Noir  (2x)", "en": "Black  (2x)"},
     "rl_green_btn":   {"fr": "Vert / 0  (14x)", "en": "Green / 0  (14x)"},
     # guess-number
-    "gn_title":        {"fr": "🔢 Devine le nombre", "en": "🔢 Guess the Number"},
-    "gn_win_title":    {"fr": "🎉 Trouvé !", "en": "🎉 Found it!"},
-    "gn_lose_title":   {"fr": "😞 Terminé", "en": "😞 Game over"},
-    "gn_desc":         {"fr": "J'ai choisi un nombre entre **1** et **100**.\n🎯 Tentatives utilisées : **{attempts}** / {max}\nCliquez sur **Deviner** pour proposer un nombre !", "en": "I picked a number between **1** and **100**.\n🎯 Attempts used: **{attempts}** / {max}\nClick **Guess** to submit a number!"},
+    "gn_title":        {"fr": "🔢 Devine le nombre !", "en": "🔢 Guess the Number!"},
+    "gn_desc":         {"fr": "J'ai choisi un nombre entre **1** et **100**.\n📝 Écrivez votre nombre directement dans ce salon pour participer !\nLe premier qui trouve gagne — spam autorisé !", "en": "I picked a number between **1** and **100**.\n📝 Just type your number in this channel to play!\nFirst to find it wins — spam allowed!"},
     "gn_started_footer": {"fr": "Jeu lancé par {starter}", "en": "Game started by {starter}"},
-    "gn_too_high":     {"fr": "trop haut ↓", "en": "too high ↓"},
-    "gn_too_low":      {"fr": "trop bas ↑", "en": "too low ↑"},
-    "gn_history":      {"fr": "Essais", "en": "Guesses"},
-    "gn_hint_label":   {"fr": "Dernier indice", "en": "Latest hint"},
-    "gn_hint_hot":     {"fr": "🔥 Brûlant !", "en": "🔥 Burning hot!"},
-    "gn_hint_warm":    {"fr": "♨️ Chaud", "en": "♨️ Warm"},
-    "gn_hint_cold":    {"fr": "❄️ Froid", "en": "❄️ Cold"},
-    "gn_hint_frozen":  {"fr": "🥶 Glacial", "en": "🥶 Freezing"},
-    "gn_win":          {"fr": "🎉 **{winner}** a trouvé ! C'était bien **{number}**.", "en": "🎉 **{winner}** got it! It was **{number}**."},
-    "gn_lose":         {"fr": "Plus de tentatives… C'était **{number}**. Personne n'a trouvé.", "en": "Out of attempts… It was **{number}**. Nobody found it."},
-    "gn_end":          {"fr": "Jeu terminé par l'admin. C'était **{number}**.", "en": "Game ended by admin. It was **{number}**."},
-    "gn_invalid":      {"fr": "❌ Entre un nombre entier entre **1** et **100**.", "en": "❌ Enter a whole number between **1** and **100**."},
-    "gn_already":      {"fr": "❌ **{guess}** a déjà été essayé !", "en": "❌ **{guess}** was already tried!"},
+    "gn_win_title":    {"fr": "🎉 Trouvé !", "en": "🎉 Found it!"},
+    "gn_win":          {"fr": "{winner} a trouvé le nombre !\nC'était **{number}**.", "en": "{winner} found the number!\nIt was **{number}**."},
+    "gn_win_participants": {"fr": "👥 Participants", "en": "👥 Participants"},
+    "gn_win_attempts": {"fr": "🎯 Tentatives totales", "en": "🎯 Total attempts"},
+    "gn_end_title":    {"fr": "🛑 Jeu arrêté", "en": "🛑 Game stopped"},
+    "gn_end":          {"fr": "Jeu arrêté par un admin.\nC'était **{number}**.", "en": "Game stopped by an admin.\nIt was **{number}**."},
+    "gn_already_running": {"fr": "❌ Une partie est déjà en cours dans ce salon.", "en": "❌ A game is already running in this channel."},
     "gn_guess_btn":    {"fr": "Deviner", "en": "Guess"},
-    "gn_quit_btn":     {"fr": "Abandonner", "en": "Quit"},
-    "gn_modal_label":  {"fr": "Ton nombre (1–100)", "en": "Your number (1–100)"},
-    "gn_bet_range":    {"fr": "La mise doit être entre {min:,} et {max:,} {coin}.", "en": "Bet must be between {min:,} and {max:,} {coin}."},
+    "gn_stop_not_running": {"fr": "❌ Aucune partie en cours dans ce salon.", "en": "❌ No game running in this channel."},
     "err_not_your_game":{"fr": "❌ Ce n'est pas ta partie !", "en": "❌ This isn't your game!"},
     # shop
     "shop_err":       {"fr": "Impossible de charger le shop pour l'instant.", "en": "Could not load the shop right now."},
@@ -642,15 +632,39 @@ def _coin() -> str:
 
 _msg_cooldowns: dict[int, float] = {}  # user_id → last rewarded timestamp (monotonic)
 
+# Active guess-number games: channel_id → game state dict
+_active_guess_games: dict[int, dict] = {}
+
 
 @bot.event
 async def on_message(message: discord.Message) -> None:
-    """Award random coins for chat messages when the feature is enabled."""
+    """Award random coins for chat messages; also handles guess-number game."""
     # Ignore bots and DMs
     if message.author.bot or not message.guild:
         await bot.process_commands(message)
         return
 
+    # ── Guess-number: detect a valid number typed in the channel ──────────────
+    channel_id = message.channel.id
+    if channel_id in _active_guess_games:
+        game = _active_guess_games[channel_id]
+        content = message.content.strip()
+        try:
+            guess = int(content)
+            if 1 <= guess <= 100:
+                game["attempts"] += 1
+                game["participants"].add(message.author.id)
+                if guess == game["secret"]:
+                    # Winner — remove game first to avoid race conditions
+                    _active_guess_games.pop(channel_id, None)
+                    if isinstance(message.channel, discord.TextChannel):
+                        winner = message.author if isinstance(message.author, discord.Member) else None
+                        await _gn_finish(message.channel, game, winner=winner)
+                    return  # skip coins / process_commands for this message
+        except ValueError:
+            pass  # not a number — ignore for the game
+
+    # ── Message reward ────────────────────────────────────────────────────────
     if _eco.get("messageRewardEnabled", False):
         cooldown_secs = int(_eco.get("messageRewardCooldownSeconds", 60))
         now = time.monotonic()
@@ -1470,169 +1484,89 @@ async def roulette(interaction: discord.Interaction, bet: int = 100) -> None:
 
 
 # ── /guess-number ─────────────────────────────────────────────────────────────
-# Admin-only to start; every member can guess; no coins gained or lost.
+# Admin starts the game; members guess by typing in the channel; no coins.
 
 
-class GuessModal(discord.ui.Modal):
-    guess_input: discord.ui.TextInput = discord.ui.TextInput(
-        label="Nombre (1–100)",
-        placeholder="42",
-        min_length=1,
-        max_length=3,
-    )
+async def _gn_finish(channel: discord.TextChannel, game: dict, winner: Optional[discord.Member] = None) -> None:
+    """Lock the channel and post the result embed."""
+    # Lock: deny send_messages for @everyone
+    try:
+        await channel.set_permissions(
+            channel.guild.default_role,
+            send_messages=False,
+            reason="Fin du jeu Devine le nombre",
+        )
+    except Exception:
+        pass
 
-    def __init__(self, game_view: "GuessNumberView") -> None:
-        super().__init__(title=_t("gn_title"))
-        self.guess_input.label = _t("gn_modal_label")
-        self.game_view = game_view
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        await self.game_view.process_guess(interaction, self.guess_input.value.strip())
-
-
-class GuessNumberView(discord.ui.View):
-    def __init__(
-        self,
-        starter: discord.User | discord.Member,
-    ) -> None:
-        super().__init__(timeout=300)  # 5-min public game
-        self.starter        = starter
-        self.secret         = random.randint(1, 100)
-        # list of (guess: int, guesser_name: str)
-        self.attempts: list[tuple[int, str]] = []
-        self.ended          = False
-        self.max_attempts   = max(1, min(20, _eco.get("guessMaxAttempts", 7)))
-        self.guess_btn.label = _t("gn_guess_btn")
-        self.quit_btn.label  = _t("gn_quit_btn")
-
-    # ── Helpers ───────────────────────────────────────────────────────────────
-
-    def _hint(self, guess: int) -> str:
-        diff = abs(guess - self.secret)
-        if diff <= 3:  return _t("gn_hint_hot")
-        if diff <= 10: return _t("gn_hint_warm")
-        if diff <= 25: return _t("gn_hint_cold")
-        return _t("gn_hint_frozen")
-
-    # ── Embed builders ────────────────────────────────────────────────────────
-
-    def build_embed(self) -> discord.Embed:
-        used = len(self.attempts)
+    if winner:
         embed = discord.Embed(
-            title=_t("gn_title"),
-            description=_t("gn_desc", attempts=used, max=self.max_attempts),
-            colour=0x6366F1,
+            title=_t("gn_win_title"),
+            description=_t("gn_win", winner=winner.mention, number=game["secret"]),
+            colour=0x22C55E,
         )
-        if self.attempts:
-            lines = []
-            for g, name in self.attempts[-7:]:
-                tag = _t("gn_too_low") if g < self.secret else _t("gn_too_high")
-                lines.append(f"**{g}** ({name}) — {tag}")
-            embed.add_field(name=_t("gn_history"), value="\n".join(lines), inline=True)
-            last_g, _ = self.attempts[-1]
-            embed.add_field(name=_t("gn_hint_label"), value=self._hint(last_g), inline=True)
-        embed.set_footer(text=_t("gn_started_footer", starter=str(self.starter)))
-        return embed
-
-    def build_result_embed(self, won: bool, winner: str = "", ended_by_admin: bool = False) -> discord.Embed:
-        if won:
-            embed = discord.Embed(
-                title=_t("gn_win_title"),
-                description=_t("gn_win", winner=winner, number=self.secret),
-                colour=0x22C55E,
-            )
-        elif ended_by_admin:
-            embed = discord.Embed(
-                title=_t("gn_lose_title"),
-                description=_t("gn_end", number=self.secret),
-                colour=0xEF4444,
-            )
-        else:
-            embed = discord.Embed(
-                title=_t("gn_lose_title"),
-                description=_t("gn_lose", number=self.secret),
-                colour=0xEF4444,
-            )
-        embed.set_footer(text=_t("gn_started_footer", starter=str(self.starter)))
-        return embed
-
-    # ── Core guess logic ──────────────────────────────────────────────────────
-
-    async def process_guess(self, interaction: discord.Interaction, raw: str) -> None:
-        if self.ended:
-            await interaction.response.defer()
-            return
-
-        try:
-            guess = int(raw)
-            if not 1 <= guess <= 100:
-                raise ValueError
-        except ValueError:
-            await interaction.response.send_message(_t("gn_invalid"), ephemeral=True)
-            return
-
-        guessed_values = [g for g, _ in self.attempts]
-        if guess in guessed_values:
-            await interaction.response.send_message(_t("gn_already", guess=guess), ephemeral=True)
-            return
-
-        guesser_name = interaction.user.display_name
-        self.attempts.append((guess, guesser_name))
-
-        if guess == self.secret:
-            self.ended = True
-            for child in self.children:
-                child.disabled = True  # type: ignore[attr-defined]
-            await interaction.response.edit_message(
-                embed=self.build_result_embed(won=True, winner=guesser_name), view=self
-            )
-
-        elif len(self.attempts) >= self.max_attempts:
-            self.ended = True
-            for child in self.children:
-                child.disabled = True  # type: ignore[attr-defined]
-            await interaction.response.edit_message(
-                embed=self.build_result_embed(won=False), view=self
-            )
-
-        else:
-            await interaction.response.edit_message(embed=self.build_embed(), view=self)
-
-    # ── Buttons ───────────────────────────────────────────────────────────────
-
-    @discord.ui.button(label="Deviner", style=discord.ButtonStyle.primary, emoji="🔢")
-    async def guess_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        # Any member can guess — no ownership check
-        await interaction.response.send_modal(GuessModal(game_view=self))
-
-    @discord.ui.button(label="Terminer", style=discord.ButtonStyle.secondary, emoji="🚪")
-    async def quit_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        # Only an admin can end the game early
-        if not is_admin(interaction):
-            await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
-            return
-        self.ended = True
-        for child in self.children:
-            child.disabled = True  # type: ignore[attr-defined]
-        await interaction.response.edit_message(
-            embed=self.build_result_embed(won=False, ended_by_admin=True), view=self
+    else:
+        embed = discord.Embed(
+            title=_t("gn_end_title"),
+            description=_t("gn_end", number=game["secret"]),
+            colour=0xEF4444,
         )
 
-    async def on_timeout(self) -> None:
-        self.ended = True
-        for child in self.children:
-            child.disabled = True  # type: ignore[attr-defined]
+    embed.add_field(name=_t("gn_win_participants"), value=str(len(game["participants"])), inline=True)
+    embed.add_field(name=_t("gn_win_attempts"),     value=str(game["attempts"]),          inline=True)
+    embed.set_footer(text=_t("gn_started_footer", starter=game["starter_name"]))
+
+    try:
+        await channel.send(embed=embed)
+    except Exception:
+        pass
 
 
-@bot.tree.command(name="guess-number", description="[Admin] Lance une partie publique — tout le monde peut deviner le nombre")
+@bot.tree.command(name="guess-number", description="[Admin] Lance une partie — les membres devinent en écrivant dans le salon")
 async def guess_number(interaction: discord.Interaction) -> None:
     if not await check_cmd(interaction, "guess-number"):
         return
     if not is_admin(interaction):
         await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
         return
-    view = GuessNumberView(starter=interaction.user)
-    await interaction.response.send_message(embed=view.build_embed(), view=view)
+
+    channel_id = interaction.channel_id
+    if channel_id in _active_guess_games:
+        await interaction.response.send_message(_t("gn_already_running"), ephemeral=True)
+        return
+
+    secret = random.randint(1, 100)
+    _active_guess_games[channel_id] = {
+        "secret":       secret,
+        "starter_name": str(interaction.user),
+        "attempts":     0,
+        "participants": set(),   # set of user_id int
+    }
+
+    embed = discord.Embed(
+        title=_t("gn_title"),
+        description=_t("gn_desc"),
+        colour=0x6366F1,
+    )
+    embed.set_footer(text=_t("gn_started_footer", starter=str(interaction.user)))
+    await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name="guess-stop", description="[Admin] Arrête la partie en cours dans ce salon")
+async def guess_stop(interaction: discord.Interaction) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+
+    channel_id = interaction.channel_id
+    game = _active_guess_games.pop(channel_id, None)
+    if game is None:
+        await interaction.response.send_message(_t("gn_stop_not_running"), ephemeral=True)
+        return
+
+    await interaction.response.send_message("🛑 Partie arrêtée.", ephemeral=True)
+    if isinstance(interaction.channel, discord.TextChannel):
+        await _gn_finish(interaction.channel, game, winner=None)
 
 
 # ── Cooldown reset endpoints (internal — called by bot itself) ─────────────────
@@ -2778,6 +2712,8 @@ _CMD_CATEGORY: dict[str, str] = {
     "roulette": "games", "guess-number": "games",
     # Tickets
     "ticket-setup": "tickets", "ticket-close": "tickets", "ticket-add": "tickets",
+    # Guess-number control
+    "guess-stop": "games",
     # Shop
     "shop": "shop", "buy": "shop", "inventory": "shop", "give-item": "shop",
     # Giveaway (group prefix applied below)
