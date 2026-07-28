@@ -76,7 +76,8 @@ _reminder_tasks: dict[int, asyncio.Task] = {}  # id → running asyncio.Task
 _role_rewards: list[dict] = []  # list of {triggerRoleId, rewardRoleId, enabled}
 
 # Command configs — overwritten at runtime by refresh_command_configs()
-_cmd_cfg: dict[str, dict] = {}  # commandName → {enabled, adminOnly}
+_cmd_cfg: dict[str, dict] = {}  # commandName → {enabled, adminOnly, label}
+_last_synced_labels: dict[str, str] = {}  # commandName → label at last Discord sync
 
 # ── Bot setup ─────────────────────────────────────────────────────────────────
 
@@ -254,6 +255,19 @@ async def refresh_command_configs() -> None:
     if data is not None:
         _cmd_cfg = {entry["name"]: entry for entry in data}
         logger.info("Command configs refreshed — %d commands", len(_cmd_cfg))
+
+
+def _apply_command_labels() -> bool:
+    """Update registered command descriptions from _cmd_cfg labels.
+    Returns True if any description actually changed."""
+    changed = False
+    for cmd in bot.tree.get_commands():
+        cfg = _cmd_cfg.get(cmd.name)
+        label = cfg.get("label") if cfg else None
+        if label and cmd.description != label:
+            cmd.description = label
+            changed = True
+    return changed
 
 
 def _coin() -> str:
@@ -1095,6 +1109,14 @@ async def config_refresh_loop() -> None:
     await refresh_economy_config()
     await refresh_role_rewards()
     await refresh_command_configs()
+    if _apply_command_labels():
+        try:
+            synced = await bot.tree.sync()
+            global _last_synced_labels
+            _last_synced_labels = {name: cfg.get("label", "") for name, cfg in _cmd_cfg.items()}
+            logger.info("Slash commands re-synced after label change — %d commands", len(synced))
+        except Exception:
+            logger.exception("Failed to re-sync slash commands after label change")
 
 
 @tasks.loop(seconds=10)
@@ -1180,9 +1202,12 @@ async def on_ready() -> None:
     await refresh_economy_config()
     await refresh_role_rewards()
     await refresh_command_configs()
+    _apply_command_labels()
 
     try:
         synced = await bot.tree.sync()
+        global _last_synced_labels
+        _last_synced_labels = {name: cfg.get("label", "") for name, cfg in _cmd_cfg.items()}
         logger.info("Slash commands synced — %d commands", len(synced))
     except Exception:
         logger.exception("Failed to sync slash commands")

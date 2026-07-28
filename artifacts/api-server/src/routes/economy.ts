@@ -156,7 +156,11 @@ router.patch("/economy/players/:userId", async (req, res): Promise<void> => {
   if (parsed.data.wallet !== undefined) updates.wallet = parsed.data.wallet;
   if (parsed.data.bank !== undefined) updates.bank = parsed.data.bank;
   const [updated] = await db.update(userEconomyTable).set(updates).where(eq(userEconomyTable.userId, params.data.userId)).returning();
-  res.json(UpdatePlayerBalanceResponse.parse(toPlayer(updated)));
+  const [rankRow] = await db
+    .select({ rank: sql<number>`cast(count(*) + 1 as int)` })
+    .from(userEconomyTable)
+    .where(sql`(${userEconomyTable.wallet} + ${userEconomyTable.bank}) > (${updated.wallet + updated.bank})`);
+  res.json(UpdatePlayerBalanceResponse.parse({ ...toPlayer(updated), rank: rankRow?.rank ?? 1 }));
 });
 
 // ── Internal bot cooldown endpoints ──────────────────────────────────────────
