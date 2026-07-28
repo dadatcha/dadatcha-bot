@@ -870,6 +870,9 @@ async def _handle_custom_commands(message: discord.Message) -> None:
     if not _custom_commands:
         return
 
+    logger.info("DBG _handle_custom_commands called: msg_id=%s author=%s content=%r",
+                message.id, message.author, message.content[:80])
+
     now = time.monotonic()
 
     for cmd in _custom_commands:
@@ -915,6 +918,9 @@ async def _handle_custom_commands(message: discord.Message) -> None:
             continue
 
         _cc_cooldowns[key] = now
+
+        logger.info("DBG Custom command matched: trigger=%r cmd_id=%s msg_id=%s",
+                    trigger, cmd_id, message.id)
 
         # Optionally delete the trigger message
         if cmd.get("deleteUserMessage", False):
