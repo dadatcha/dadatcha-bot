@@ -144,6 +144,18 @@ export const shopItemsTable = pgTable("shop_items", {
 
 export type ShopItem = typeof shopItemsTable.$inferSelect;
 
+// User inventory — tracks items owned by each Discord user
+export const userInventoryTable = pgTable("user_inventory", {
+  id:          serial("id").primaryKey(),
+  userId:      text("user_id").notNull(),
+  itemId:      integer("item_id").notNull().references(() => shopItemsTable.id, { onDelete: "cascade" }),
+  quantity:    integer("quantity").notNull().default(1),
+  source:      text("source").notNull().default("buy"), // "buy" | "giveaway" | "admin"
+  acquiredAt:  timestamp("acquired_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("inv_user_idx").on(t.userId)]);
+
+export type UserInventory = typeof userInventoryTable.$inferSelect;
+
 // Role rewards — automatically assign/remove roles when member gains triggerRoleId
 export const roleRewardsTable = pgTable("role_rewards", {
   id: serial("id").primaryKey(),

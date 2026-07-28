@@ -8,6 +8,7 @@ import roleRewardsSyncRouter from "./role-rewards-sync";
 import commandConfigsRouter from "./command-configs";
 import commandSyncRouter from "./command-sync";
 import giveawaysRouter from "./giveaways";
+import inventoryRouter from "./inventory";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(roleRewardsRouter);
 router.use(commandSyncRouter);
 router.use(commandConfigsRouter);
 router.use(giveawaysRouter);
+router.use(inventoryRouter);
 
 export default router;

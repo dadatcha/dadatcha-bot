@@ -1375,9 +1375,32 @@ async def _deliver_rewards(winners: list[discord.User], giveaway: dict, guild: O
                     if role and member:
                         await member.add_roles(role, reason=f"Giveaway #{giveaway['id']} reward")
                         logger.info("Giveaway reward: role %s → %s", role.name, winner.id)
-                elif reward["type"] == "item":
-                    logger.info("Giveaway reward: item '%s' (#%s) → %s (manual delivery)",
-                                reward.get("itemName", "?"), reward.get("itemId", "?"), winner.id)
+                elif reward["type"] == "item" and reward.get("itemId"):
+                    item_id = reward["itemId"]
+                    # Add to inventory
+                    await api_post("/inventory", {
+                        "userId": str(winner.id),
+                        "itemId": item_id,
+                        "quantity": 1,
+                        "source": "giveaway",
+                    })
+                    # Grant associated role if configured
+                    item_data = await api_get_json(f"/shop/items")
+                    if isinstance(item_data, list):
+                        item_obj = next((it for it in item_data if it["id"] == item_id), None)
+                    else:
+                        item_obj = None
+                    if item_obj and item_obj.get("roleId") and guild:
+                        try:
+                            member = guild.get_member(winner.id) or await guild.fetch_member(winner.id)
+                            role = guild.get_role(int(item_obj["roleId"]))
+                            if role and member:
+                                await member.add_roles(role, reason=f"Giveaway #{giveaway['id']} item reward")
+                                logger.info("Giveaway reward: item #%s + role %s → %s", item_id, role.name, winner.id)
+                        except Exception as exc:
+                            logger.warning("Could not grant role for item #%s: %s", item_id, exc)
+                    else:
+                        logger.info("Giveaway reward: item #%s added to inventory of %s", item_id, winner.id)
             except Exception as exc:
                 logger.error("Giveaway reward delivery error for %s: %s", winner.id, exc)
 
@@ -2214,6 +2237,14 @@ async def buy_cmd(interaction: discord.Interaction, item: str) -> None:
     new_wallet = eco["wallet"] - price
     await set_wallet(interaction.user.id, new_wallet)
 
+    # Record in inventory
+    await api_post("/inventory", {
+        "userId": str(interaction.user.id),
+        "itemId": target["id"],
+        "quantity": 1,
+        "source": "buy",
+    })
+
     # Grant Discord role if configured
     role_granted = False
     role_id = target.get("roleId")
@@ -2238,6 +2269,37 @@ async def buy_cmd(interaction: discord.Interaction, item: str) -> None:
         embed.add_field(name="Role granted", value=f"<@&{role_id}>", inline=True)
     await interaction.response.send_message(embed=embed)
     await log_to_api("INFO", f"{interaction.user} bought '{name}' for {price} {_coin()} (wallet → {new_wallet})")
+
+
+# ── /inventory ────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="inventory", description="View your item inventory")
+async def inventory_cmd(interaction: discord.Interaction) -> None:
+    if not await check_cmd(interaction, "inventory"): return
+    await interaction.response.defer(ephemeral=True)
+    entries = await api_get_list(f"/inventory/{interaction.user.id}")
+    if not entries:
+        await interaction.followup.send("📦 Ton inventaire est vide.", ephemeral=True)
+        return
+
+    lines: list[str] = []
+    for e in entries:
+        item = e.get("item") or {}
+        emoji = item.get("emoji", "📦")
+        name  = item.get("name") or f"Item #{e['itemId']}"
+        qty   = e.get("quantity", 1)
+        src   = e.get("source", "buy")
+        src_label = {"buy": "achat", "giveaway": "giveaway", "admin": "admin"}.get(src, src)
+        qty_str = f" ×{qty}" if qty > 1 else ""
+        lines.append(f"{emoji} **{name}**{qty_str}  ·  _{src_label}_")
+
+    embed = discord.Embed(
+        title=f"📦 Inventaire de {interaction.user.display_name}",
+        description="\n".join(lines),
+        colour=0x9B59B6,
+    )
+    embed.set_footer(text=f"{len(entries)} item{'s' if len(entries) > 1 else ''}")
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
