@@ -2452,13 +2452,17 @@ async def buy_cmd(interaction: discord.Interaction, item: str) -> None:
 
 # ── /inventory ────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="inventory", description="View your item inventory")
-async def inventory_cmd(interaction: discord.Interaction) -> None:
+@bot.tree.command(name="inventory", description="View your item inventory (or another member's)")
+@app_commands.describe(member="Member whose inventory to view (leave empty for your own)")
+async def inventory_cmd(interaction: discord.Interaction, member: Optional[discord.Member] = None) -> None:
     if not await check_cmd(interaction, "inventory"): return
     await interaction.response.defer(ephemeral=True)
-    entries = await api_get_list(f"/inventory/{interaction.user.id}")
+
+    target = member or interaction.user
+    entries = await api_get_list(f"/inventory/{target.id}")
     if not entries:
-        await interaction.followup.send("📦 Ton inventaire est vide.", ephemeral=True)
+        msg = f"📦 {target.display_name} n'a aucun item." if member else "📦 Ton inventaire est vide."
+        await interaction.followup.send(msg, ephemeral=True)
         return
 
     lines: list[str] = []
@@ -2473,7 +2477,7 @@ async def inventory_cmd(interaction: discord.Interaction) -> None:
         lines.append(f"{emoji} **{name}**{qty_str}  ·  _{src_label}_")
 
     embed = discord.Embed(
-        title=f"📦 Inventaire de {interaction.user.display_name}",
+        title=f"📦 Inventaire de {target.display_name}",
         description="\n".join(lines),
         colour=0x9B59B6,
     )
