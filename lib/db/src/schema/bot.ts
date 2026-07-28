@@ -339,3 +339,29 @@ export const welcomeConfigTable = pgTable("welcome_config", {
 });
 
 export type WelcomeConfig = typeof welcomeConfigTable.$inferSelect;
+
+// ── Custom commands ───────────────────────────────────────────────────────────
+
+export const customCommandsTable = pgTable("custom_commands", {
+  id:                serial("id").primaryKey(),
+  trigger:           text("trigger").notNull(),
+  matchMode:         text("match_mode").notNull().default("exact"),       // exact | startswith | contains
+  caseSensitive:     boolean("case_sensitive").notNull().default(false),
+  responseType:      text("response_type").notNull().default("message"),  // message | embed
+  response:          text("response").notNull().default(""),
+  embedTitle:        text("embed_title").notNull().default(""),
+  embedColor:        text("embed_color").notNull().default("5865F2"),
+  embedFooter:       text("embed_footer").notNull().default(""),
+  enabled:           boolean("enabled").notNull().default(true),
+  deleteUserMessage: boolean("delete_user_message").notNull().default(false),
+  replyToUser:       boolean("reply_to_user").notNull().default(false),
+  allowedChannels:   text("allowed_channels").notNull().default(""),  // comma-separated channel IDs
+  allowedRoles:      text("allowed_roles").notNull().default(""),     // comma-separated role IDs
+  cooldownSeconds:   integer("cooldown_seconds").notNull().default(0),
+  createdAt:         timestamp("created_at",  { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:         timestamp("updated_at",  { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export const insertCustomCommandSchema = createInsertSchema(customCommandsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCustomCommand = z.infer<typeof insertCustomCommandSchema>;
+export type CustomCommand = typeof customCommandsTable.$inferSelect;

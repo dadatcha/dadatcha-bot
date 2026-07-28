@@ -117,6 +117,11 @@ _tkts_cfg: dict = {
     "welcomeMessage": "Bonjour {user} ! Un membre du staff va vous répondre bientôt.",
 }
 
+# Custom commands — overwritten at runtime by refresh_custom_commands()
+_custom_commands: list[dict] = []
+# Per-(command_id, user_id) cooldown tracker
+_cc_cooldowns: dict[tuple[int, int], float] = {}
+
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
@@ -577,6 +582,15 @@ async def refresh_welcome_config() -> None:
         )
 
 
+async def refresh_custom_commands() -> None:
+    global _custom_commands
+    data = await api_get_json("/custom-commands")
+    if isinstance(data, list):
+        _custom_commands = data
+        active = sum(1 for c in _custom_commands if c.get("enabled", True))
+        logger.info("Custom commands refreshed — %d total, %d active", len(_custom_commands), active)
+
+
 def _label_to_discord_name(label: str) -> str:
     """Convert a human label to a valid Discord slash command name (lowercase, hyphens)."""
     name = label.lower().replace(" ", "-").replace("_", "-")
@@ -686,7 +700,115 @@ async def on_message(message: discord.Message) -> None:
             except Exception:
                 pass  # never let a reward error crash on_message
 
+    # ── Custom commands ────────────────────────────────────────────────────────
+    await _handle_custom_commands(message)
+
     await bot.process_commands(message)
+
+
+# ── Custom command handler ─────────────────────────────────────────────────────
+
+def _apply_custom_vars(template: str, message: discord.Message) -> str:
+    """Replace custom command variables with runtime values."""
+    author = message.author
+    guild  = message.guild
+    ch     = message.channel
+    return (
+        template
+        .replace("{user}",    author.mention)
+        .replace("{tag}",     str(author))
+        .replace("{name}",    author.display_name)
+        .replace("{server}",  guild.name if guild else "")
+        .replace("{channel}", ch.mention if hasattr(ch, "mention") else "")
+    )
+
+
+async def _handle_custom_commands(message: discord.Message) -> None:
+    """Check all custom commands and respond if one matches."""
+    if not _custom_commands:
+        return
+
+    now = time.monotonic()
+
+    for cmd in _custom_commands:
+        if not cmd.get("enabled", True):
+            continue
+
+        trigger      = cmd.get("trigger", "")
+        match_mode   = cmd.get("matchMode", "exact")
+        case_sens    = cmd.get("caseSensitive", False)
+
+        cmp_content = message.content if case_sens else message.content.lower()
+        cmp_trigger = trigger          if case_sens else trigger.lower()
+
+        if match_mode == "exact":
+            matched = cmp_content == cmp_trigger
+        elif match_mode == "startswith":
+            matched = cmp_content.startswith(cmp_trigger)
+        elif match_mode == "contains":
+            matched = cmp_trigger in cmp_content
+        else:
+            matched = False
+
+        if not matched:
+            continue
+
+        # Check allowed channels (empty = all)
+        allowed_channels = [c.strip() for c in cmd.get("allowedChannels", "").split(",") if c.strip()]
+        if allowed_channels and str(message.channel.id) not in allowed_channels:
+            continue
+
+        # Check allowed roles (empty = all)
+        allowed_roles = [r.strip() for r in cmd.get("allowedRoles", "").split(",") if r.strip()]
+        if allowed_roles and isinstance(message.author, discord.Member):
+            user_role_ids = {str(r.id) for r in message.author.roles}
+            if not any(r in user_role_ids for r in allowed_roles):
+                continue
+
+        # Check per-user cooldown
+        cooldown = int(cmd.get("cooldownSeconds", 0))
+        cmd_id   = cmd["id"]
+        key      = (cmd_id, message.author.id)
+        if cooldown > 0 and now - _cc_cooldowns.get(key, 0.0) < cooldown:
+            continue
+
+        _cc_cooldowns[key] = now
+
+        # Optionally delete the trigger message
+        if cmd.get("deleteUserMessage", False):
+            try:
+                await message.delete()
+            except Exception:
+                pass
+
+        response_text = _apply_custom_vars(cmd.get("response", ""), message)
+        reply_mode    = cmd.get("replyToUser", False) and not cmd.get("deleteUserMessage", False)
+
+        if cmd.get("responseType", "message") == "embed":
+            raw_color = cmd.get("embedColor", "5865F2").lstrip("#")
+            try:
+                color = int(raw_color, 16)
+            except ValueError:
+                color = 0x5865F2
+            embed = discord.Embed(
+                title       = cmd.get("embedTitle") or None,
+                description = response_text or None,
+                colour      = color,
+            )
+            footer_text = cmd.get("embedFooter", "")
+            if footer_text:
+                embed.set_footer(text=_apply_custom_vars(footer_text, message))
+            if reply_mode:
+                await message.reply(embed=embed)
+            else:
+                await message.channel.send(embed=embed)
+        else:
+            if reply_mode:
+                await message.reply(response_text)
+            else:
+                await message.channel.send(response_text)
+
+        break  # Only the first matching command fires
 
 
 # ── Welcome / Leave embeds ────────────────────────────────────────────────────
@@ -1615,6 +1737,7 @@ async def config_refresh_loop() -> None:
     await refresh_ticket_config()
     await refresh_welcome_config()
     await refresh_random_activity()
+    await refresh_custom_commands()
     if _apply_command_labels():
         try:
             synced = await bot.tree.sync()
@@ -2817,6 +2940,7 @@ async def on_ready() -> None:
     await refresh_ticket_config()
     await refresh_welcome_config()
     await refresh_random_activity()
+    await refresh_custom_commands()
     _apply_command_labels()
 
     try:

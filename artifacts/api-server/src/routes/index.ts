@@ -13,6 +13,7 @@ import temporaryRolesRouter from "./temporary-roles";
 import randomActivityRouter from "./random-activity";
 import ticketsRouter from "./tickets";
 import welcomeRouter from "./welcome";
+import customCommandsRouter from "./custom-commands";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(temporaryRolesRouter);
 router.use(randomActivityRouter);
 router.use(ticketsRouter);
 router.use(welcomeRouter);
+router.use(customCommandsRouter);
 
 export default router;
