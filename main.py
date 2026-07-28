@@ -1226,6 +1226,32 @@ async def before_config_refresh() -> None:
 
 GIVEAWAY_EMOJI = "🎉"
 
+# ── Duration helpers (shared by giveaway + temp-role display) ─────────────────
+
+def _parse_duration(s: str) -> Optional[int]:
+    """Parse '7j'/'7d', '24h', '30m', or a plain number into minutes. Returns None for empty."""
+    s = s.strip().lower()
+    if not s:
+        return None
+    if s.endswith("j") or s.endswith("d"):
+        return int(s[:-1]) * 1440
+    if s.endswith("h"):
+        return int(s[:-1]) * 60
+    if s.endswith("m"):
+        return int(s[:-1])
+    return int(s)
+
+
+def _fmt_duration(minutes: int) -> str:
+    """Format a minute count as a human-readable string."""
+    if minutes < 60:
+        return f"{minutes} min"
+    if minutes < 1440:
+        h, m = divmod(minutes, 60)
+        return f"{h}h{m:02d}" if m else f"{h}h"
+    d = minutes // 1440
+    return f"{d} jour{'s' if d > 1 else ''}"
+
 
 async def _filter_eligible(
     users: list[discord.User],
@@ -1302,7 +1328,9 @@ def _build_giveaway_embed(giveaway: dict, ends_ts: int) -> discord.Embed:
             if r["type"] == "money":
                 reward_lines.append(f"💰 {r['amount']:,} pièces")
             elif r["type"] == "role":
-                reward_lines.append(f"🎭 <@&{r['roleId']}>")
+                dur = r.get("roleDurationMinutes")
+                dur_str = f" ⏱ {_fmt_duration(dur)}" if dur else ""
+                reward_lines.append(f"🎭 <@&{r['roleId']}>{dur_str}")
             elif r["type"] == "item":
                 item_label = r.get("itemName") or f"Item #{r.get('itemId', '?')}"
                 reward_lines.append(f"📦 {item_label}")
@@ -1375,6 +1403,17 @@ async def _deliver_rewards(winners: list[discord.User], giveaway: dict, guild: O
                     if role and member:
                         await member.add_roles(role, reason=f"Giveaway #{giveaway['id']} reward")
                         logger.info("Giveaway reward: role %s → %s", role.name, winner.id)
+                        dur_min = reward.get("roleDurationMinutes")
+                        if dur_min and isinstance(dur_min, int):
+                            expires = datetime.now(timezone.utc) + timedelta(minutes=dur_min)
+                            await api_post("/temporary-roles", {
+                                "userId":    str(winner.id),
+                                "guildId":   str(guild.id),
+                                "roleId":    str(role.id),
+                                "expiresAt": expires.isoformat(),
+                                "reason":    f"Giveaway #{giveaway['id']} — {_fmt_duration(dur_min)}",
+                            })
+                            logger.info("Temp role scheduled: %s → %s (expires in %s)", role.name, winner.id, _fmt_duration(dur_min))
                 elif reward["type"] == "item" and reward.get("itemId"):
                     item_id = reward["itemId"]
                     # Add to inventory
@@ -1513,6 +1552,35 @@ async def before_giveaway_poll() -> None:
     await bot.wait_until_ready()
 
 
+@tasks.loop(minutes=1)
+async def temp_role_poll_loop() -> None:
+    """Remove expired temporary roles."""
+    pending = await api_get_list("/temporary-roles/pending")
+    if not pending:
+        return
+    for entry in pending:
+        try:
+            guild = bot.get_guild(int(entry["guildId"]))
+            if guild is None:
+                guild = await bot.fetch_guild(int(entry["guildId"]))
+            member = guild.get_member(int(entry["userId"]))
+            if member is None:
+                member = await guild.fetch_member(int(entry["userId"]))
+            role = guild.get_role(int(entry["roleId"]))
+            if role and member and role in member.roles:
+                await member.remove_roles(role, reason=f"Rôle temporaire expiré (entrée #{entry['id']})")
+                logger.info("Temp role #%s expired: removed %s from %s", entry["id"], role.name, member)
+        except Exception as exc:
+            logger.warning("Temp role #%s removal error: %s", entry["id"], exc)
+        # Always mark as removed so we don't retry indefinitely
+        await api_patch(f"/temporary-roles/{entry['id']}/removed", {})
+
+
+@temp_role_poll_loop.before_loop
+async def before_temp_role_poll() -> None:
+    await bot.wait_until_ready()
+
+
 # ── Giveaway interactive setup ─────────────────────────────────────────────────
 
 class _GiveawayCfg:
@@ -1597,7 +1665,9 @@ class _GiveawayCfg:
                 if r["type"] == "money":
                     r_parts.append(f"💰 {r['amount']:,} pièces")
                 elif r["type"] == "role":
-                    r_parts.append(f"🎭 <@&{r['roleId']}>")
+                    dur = r.get("roleDurationMinutes")
+                    dur_str = f" ⏱ {_fmt_duration(dur)}" if dur else ""
+                    r_parts.append(f"🎭 <@&{r['roleId']}>{dur_str}")
                 elif r["type"] == "item":
                     item_label = r.get("itemName") or f"Item #{r.get('itemId', '?')}"
                     r_parts.append(f"📦 {item_label}")
@@ -1902,9 +1972,28 @@ class _RoleRewardView(_SubView):
     def __init__(self, parent: GiveawaySetupView) -> None:
         super().__init__(parent)
         self._role: Optional[discord.Role] = None
+        self._duration_minutes: Optional[int] = None
+
         sel = discord.ui.RoleSelect(placeholder="Rôle à attribuer au gagnant", min_values=1, max_values=1)
         sel.callback = self._on_select
         self.add_item(sel)
+
+        # Duration toggle — dynamic so we can update label/style after modal submit
+        self._dur_btn = discord.ui.Button(
+            label="⏱ Permanent  ·  cliquer pour rendre temporaire",
+            style=discord.ButtonStyle.secondary,
+            row=1,
+        )
+        self._dur_btn.callback = self._on_duration
+        self.add_item(self._dur_btn)
+
+        confirm_btn = discord.ui.Button(label="✅ Ajouter ce rôle", style=discord.ButtonStyle.green, row=1)
+        confirm_btn.callback = self._on_confirm
+        self.add_item(confirm_btn)
+
+        back_btn = discord.ui.Button(label="↩️ Retour", style=discord.ButtonStyle.secondary, row=1)
+        back_btn.callback = self._on_back
+        self.add_item(back_btn)
 
     async def _on_select(self, interaction: discord.Interaction) -> None:
         for child in self.children:
@@ -1912,24 +2001,56 @@ class _RoleRewardView(_SubView):
                 self._role = child.values[0] if child.values else None
         await interaction.response.defer()
 
-    @discord.ui.button(label="✅ Ajouter ce rôle", style=discord.ButtonStyle.green, row=1)
-    async def confirm(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+    async def _on_duration(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_modal(_RoleDurationModal(self))
+
+    async def _on_confirm(self, interaction: discord.Interaction) -> None:
         if self._role:
-            self.parent.cfg.rewards.append({
-                "type": "role",
-                "roleId": str(self._role.id),
-                "roleName": self._role.name,
-            })
+            reward: dict = {"type": "role", "roleId": str(self._role.id), "roleName": self._role.name}
+            if self._duration_minutes:
+                reward["roleDurationMinutes"] = self._duration_minutes
+            self.parent.cfg.rewards.append(reward)
         await self._back(interaction)
 
-    @discord.ui.button(label="↩️ Retour", style=discord.ButtonStyle.secondary, row=1)
-    async def back(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+    async def _on_back(self, interaction: discord.Interaction) -> None:
         await interaction.response.edit_message(
             embed=self.parent.cfg.summary_embed(), view=_RewardTypeView(self.parent)
         )
 
 
 # ── Modals ─────────────────────────────────────────────────────────────────────
+
+class _RoleDurationModal(discord.ui.Modal, title="Durée du rôle temporaire"):
+    dur_f = discord.ui.TextInput(
+        label="Durée  (ex: 7j · 24h · 30m — vide = permanent)",
+        placeholder="ex: 7j",
+        max_length=10,
+        required=False,
+    )
+
+    def __init__(self, view: "_RoleRewardView") -> None:
+        super().__init__()
+        self._role_view = view
+        if view._duration_minutes:
+            self.dur_f.default = f"{view._duration_minutes}m"
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        raw = self.dur_f.value.strip()
+        try:
+            self._role_view._duration_minutes = _parse_duration(raw) if raw else None
+        except (ValueError, TypeError):
+            self._role_view._duration_minutes = None
+        dur = self._role_view._duration_minutes
+        if dur:
+            self._role_view._dur_btn.label = f"⏱ {_fmt_duration(dur)}  ·  cliquer pour modifier"
+            self._role_view._dur_btn.style = discord.ButtonStyle.primary
+        else:
+            self._role_view._dur_btn.label = "⏱ Permanent  ·  cliquer pour rendre temporaire"
+            self._role_view._dur_btn.style = discord.ButtonStyle.secondary
+        await interaction.response.edit_message(
+            embed=self._role_view.parent.cfg.summary_embed(), view=self._role_view
+        )
+
 
 class _BaseInfoModal(discord.ui.Modal, title="Infos de base du giveaway"):
     prize_f    = discord.ui.TextInput(label="Prix à gagner", placeholder="ex: 1 000 sheckels, Nitro…", max_length=200)
@@ -2161,6 +2282,8 @@ async def on_ready() -> None:
         command_sync_poll_loop.start()
     if not giveaway_poll_loop.is_running():
         giveaway_poll_loop.start()
+    if not temp_role_poll_loop.is_running():
+        temp_role_poll_loop.start()
 
     await send_heartbeat(connected=True)
     await log_to_api("INFO", f"Bot connected as {bot.user}")

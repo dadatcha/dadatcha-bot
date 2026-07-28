@@ -217,7 +217,21 @@ export const giveawaysTable = pgTable("giveaways", {
 
 export type GiveawayReward =
   | { type: "money"; amount: number }
-  | { type: "role"; roleId: string; roleName: string }
+  | { type: "role"; roleId: string; roleName: string; roleDurationMinutes?: number }
   | { type: "item"; itemId: number; itemName: string };
+
+// Temporary roles — track roles that must be removed after a delay
+export const temporaryRolesTable = pgTable("temporary_roles", {
+  id:        serial("id").primaryKey(),
+  userId:    text("user_id").notNull(),
+  guildId:   text("guild_id").notNull(),
+  roleId:    text("role_id").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  removedAt: timestamp("removed_at", { withTimezone: true }),
+  reason:    text("reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("tmp_role_expires_idx").on(t.expiresAt)]);
+
+export type TemporaryRole = typeof temporaryRolesTable.$inferSelect;
 
 export type Giveaway = typeof giveawaysTable.$inferSelect;
