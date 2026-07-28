@@ -29,8 +29,12 @@ const KNOWN_COMMANDS = [
   { name: "blackjack",    label: "Blackjack",     description: "Jouer au blackjack",                category: "games" },
   { name: "higher-lower", label: "Higher / Lower", description: "Deviner si le chiffre suivant est plus haut ou plus bas", category: "games" },
   { name: "roulette",     label: "Roulette",      description: "Jouer à la roulette",               category: "games" },
-  { name: "shop",         label: "Shop",          description: "Voir les items disponibles",         category: "shop" },
-  { name: "buy",          label: "Buy",           description: "Acheter un item du shop",            category: "shop" },
+  { name: "shop",            label: "Shop",            description: "Voir les items disponibles",                   category: "shop" },
+  { name: "buy",             label: "Buy",             description: "Acheter un item du shop",                      category: "shop" },
+  { name: "inventory",       label: "Inventory",       description: "Voir son inventaire d'items",                  category: "shop" },
+  { name: "giveaway-start",  label: "Giveaway Start",  description: "Ouvrir le panneau de création de giveaway [Admin]", category: "giveaway" },
+  { name: "giveaway-end",    label: "Giveaway End",    description: "Terminer un giveaway immédiatement [Admin]",   category: "giveaway" },
+  { name: "giveaway-reroll", label: "Giveaway Reroll", description: "Retirer un nouveau gagnant [Admin]",           category: "giveaway" },
 ] as const;
 
 const KNOWN_COMMAND_NAMES = new Set(KNOWN_COMMANDS.map(c => c.name));
