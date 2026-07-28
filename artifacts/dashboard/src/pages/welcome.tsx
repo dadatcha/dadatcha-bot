@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { UserPlus, UserMinus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { MentionTextarea } from '@/components/ui/mention-textarea';
 import { Switch } from '@/components/ui/switch';
 import { ModuleCard } from '@/components/ui/module-card';
 import { FieldRow } from '@/components/ui/field-row';
@@ -111,9 +112,12 @@ function SectionCard({
           <Input value={title} onChange={e => onTitle(e.target.value)} placeholder="Titre de l'embed" />
         </FieldRow>
         <FieldRow label="Description" hint="Variables : {server}, {user}, {mention}, {count}, {tag}">
-          <textarea value={description} onChange={e => onDescription(e.target.value)} rows={3}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-            placeholder="Texte de l'embed…" />
+          <MentionTextarea
+            value={description}
+            onChange={onDescription}
+            rows={3}
+            placeholder="Texte de l'embed…"
+          />
         </FieldRow>
         <FieldRow label="Couleur" hint="Hex sans #">
           <div className="flex items-center gap-2">

@@ -247,4 +247,18 @@ router.get("/bot/channels", (_req, res): void => {
   res.json(_channelsCache);
 });
 
+// ── Roles cache ───────────────────────────────────────────────────────────────
+// In-memory — repopulated by the bot on every on_ready event.
+
+let _rolesCache: Array<{ id: string; name: string; color: number; guildId: string; guildName: string }> = [];
+
+router.post("/bot/roles", (req, res): void => {
+  if (Array.isArray(req.body)) _rolesCache = req.body;
+  res.sendStatus(204);
+});
+
+router.get("/bot/roles", (_req, res): void => {
+  res.json(_rolesCache);
+});
+
 export default router;

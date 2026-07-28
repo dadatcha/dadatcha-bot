@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ModuleCard } from '@/components/ui/module-card';
 import { FieldRow, NumberField } from '@/components/ui/field-row';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { MentionTextarea } from '@/components/ui/mention-textarea';
 import { Button } from '@/components/ui/button';
 import { Bell, Plus, Trash2 } from 'lucide-react';
 
@@ -128,12 +128,12 @@ function ReminderCard({ reminder, onDeleted }: { reminder: RemoteReminder; onDel
           <p className="text-xs text-muted-foreground">
             Sent when the last message in the channel is not from the bot.
           </p>
-          <Textarea
+          <MentionTextarea
             value={form.message}
-            onChange={e => p({ message: e.target.value })}
+            onChange={v => p({ message: v })}
             rows={7}
-            className="font-mono text-sm resize-none"
             placeholder="Enter reminder message…"
+            className="font-mono text-sm"
           />
         </div>
       </div>

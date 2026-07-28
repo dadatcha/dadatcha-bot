@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MessageSquareCode, Plus, Pencil, Trash2, ChevronDown, CheckCircle2, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { MentionTextarea } from '@/components/ui/mention-textarea';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -277,17 +278,11 @@ function CommandForm({
             hint="Variables disponibles ci-dessous"
           >
             <>
-              <textarea
+              <MentionTextarea
                 value={form.response}
-                onChange={e => set('response', e.target.value)}
+                onChange={v => set('response', v)}
                 rows={4}
-                placeholder={form.responseType === 'embed' ? 'Contenu de l\'embed…' : 'Texte envoyé par le bot…'}
-                className="w-full rounded-md border px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                style={{
-                  background: 'hsl(var(--input))',
-                  borderColor: 'hsl(var(--border))',
-                  color: 'hsl(var(--foreground))',
-                }}
+                placeholder={form.responseType === 'embed' ? "Contenu de l'embed…" : 'Texte envoyé par le bot…'}
               />
               <VarChips onInsert={insertVar('response')} />
             </>

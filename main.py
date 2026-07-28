@@ -3646,6 +3646,27 @@ async def on_ready() -> None:
     # Pre-warm the shared HTTP session
     await get_http_session()
 
+    # Push channels & roles to API cache (used by dashboard mention picker)
+    try:
+        s = await get_http_session()
+        channels = [
+            {"id": str(ch.id), "name": ch.name, "guildId": str(guild.id), "guildName": guild.name}
+            for guild in bot.guilds
+            for ch in guild.text_channels
+        ]
+        await s.post(f"{API_BASE}/bot/channels", json=channels, timeout=aiohttp.ClientTimeout(total=5))
+        roles = [
+            {"id": str(role.id), "name": role.name, "color": role.color.value,
+             "guildId": str(guild.id), "guildName": guild.name}
+            for guild in bot.guilds
+            for role in guild.roles
+            if not role.is_default()
+        ]
+        await s.post(f"{API_BASE}/bot/roles", json=roles, timeout=aiohttp.ClientTimeout(total=5))
+        logger.info("Channel/role lists pushed — %d channels, %d roles", len(channels), len(roles))
+    except Exception:
+        logger.warning("Failed to push channel/role lists to API", exc_info=True)
+
 
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:

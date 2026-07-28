@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Button }   from '@/components/ui/button';
 import { Input }    from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { MentionTextarea } from '@/components/ui/mention-textarea';
 import { Switch }   from '@/components/ui/switch';
 import { Label }    from '@/components/ui/label';
 import { cn }       from '@/lib/utils';
@@ -290,11 +290,11 @@ function MessageCard({ msg }: { msg: { id: number; content: string; enabled: boo
     )}>
       {editing ? (
         <div className="p-3 space-y-2">
-          <Textarea
+          <MentionTextarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={setDraft}
             rows={3}
-            className="text-sm resize-none"
+            className="text-sm"
             autoFocus
           />
           <div className="flex items-center justify-between">
@@ -373,13 +373,13 @@ function AddMessageForm() {
 
   return (
     <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 p-3 space-y-2">
-      <Textarea
+      <MentionTextarea
         placeholder="Nouveau message… (Ctrl+Entrée pour ajouter)"
         value={content}
-        onChange={(e) => setContent(e.target.value.slice(0, MAX))}
-        onKeyDown={handleKey}
+        onChange={v => setContent(v.slice(0, MAX))}
         rows={2}
-        className="text-sm resize-none bg-transparent border-none focus-visible:ring-0 p-0 placeholder:text-muted-foreground/50"
+        className="text-sm bg-transparent border-none focus-visible:ring-0 p-0 placeholder:text-muted-foreground/50"
+        hideHint
       />
       <div className="flex items-center justify-between">
         <span className={cn('text-xs', content.length > MAX * 0.9 ? 'text-amber-400' : 'text-muted-foreground')}>
