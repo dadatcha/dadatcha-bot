@@ -12,6 +12,7 @@ import inventoryRouter from "./inventory";
 import temporaryRolesRouter from "./temporary-roles";
 import randomActivityRouter from "./random-activity";
 import ticketsRouter from "./tickets";
+import welcomeRouter from "./welcome";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(inventoryRouter);
 router.use(temporaryRolesRouter);
 router.use(randomActivityRouter);
 router.use(ticketsRouter);
+router.use(welcomeRouter);
 
 export default router;

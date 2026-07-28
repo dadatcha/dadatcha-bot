@@ -13,6 +13,7 @@ import Reminder from '@/pages/reminder';
 import Giveaway from '@/pages/giveaway';
 import RandomActivity from '@/pages/random-activity';
 import Tickets from '@/pages/tickets';
+import Welcome from '@/pages/welcome';
 import Logs from '@/pages/logs';
 import NotFound from '@/pages/not-found';
 
@@ -36,6 +37,7 @@ function Router() {
           <Route path="/giveaway" component={Giveaway} />
           <Route path="/random-activity" component={RandomActivity} />
           <Route path="/tickets" component={Tickets} />
+          <Route path="/welcome" component={Welcome} />
           <Route path="/logs" component={Logs} />
           <Route component={NotFound} />
         </Switch>

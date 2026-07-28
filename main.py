@@ -95,6 +95,18 @@ _rdm_cfg: dict = {
 _rdm_messages: list[dict] = []   # [{id, content, enabled}, ...]
 _rdm_next_send: Optional[datetime] = None  # UTC datetime for next message
 
+# Welcome / Leave embeds — overwritten at runtime by refresh_welcome_config()
+_welcome_cfg: dict = {
+    "joinEnabled": False, "joinChannelId": "",
+    "joinEmbedTitle": "Bienvenue sur {server} ! 🎉",
+    "joinEmbedDescription": "Bienvenue {mention}, tu es le **{count}ème** membre !",
+    "joinEmbedColor": "57F287", "joinEmbedFooter": "", "joinShowAvatar": True,
+    "leaveEnabled": False, "leaveChannelId": "",
+    "leaveEmbedTitle": "{user} a quitté le serveur. 👋",
+    "leaveEmbedDescription": "Nous sommes maintenant **{count}** membres.",
+    "leaveEmbedColor": "ED4245", "leaveEmbedFooter": "", "leaveShowAvatar": True,
+}
+
 # Ticket system — overwritten at runtime by refresh_ticket_config()
 _tkts_cfg: dict = {
     "enabled": False,
@@ -564,6 +576,17 @@ async def refresh_ticket_config() -> None:
         logger.info("Ticket config refreshed — enabled: %s", _tkts_cfg.get("enabled", False))
 
 
+async def refresh_welcome_config() -> None:
+    global _welcome_cfg
+    data = await api_get_json("/welcome/config")
+    if data:
+        _welcome_cfg.update(data)
+        logger.info(
+            "Welcome config refreshed — join: %s, leave: %s",
+            _welcome_cfg.get("joinEnabled"), _welcome_cfg.get("leaveEnabled"),
+        )
+
+
 def _label_to_discord_name(label: str) -> str:
     """Convert a human label to a valid Discord slash command name (lowercase, hyphens)."""
     name = label.lower().replace(" ", "-").replace("_", "-")
@@ -648,6 +671,78 @@ async def on_message(message: discord.Message) -> None:
                 pass  # never let a reward error crash on_message
 
     await bot.process_commands(message)
+
+
+# ── Welcome / Leave embeds ────────────────────────────────────────────────────
+
+def _apply_vars(template: str, member: discord.Member) -> str:
+    """Replace embed variables with actual member/server values."""
+    guild = member.guild
+    count = guild.member_count or 0
+    return (
+        template
+        .replace("{mention}", member.mention)
+        .replace("{user}",    member.display_name)
+        .replace("{tag}",     str(member))
+        .replace("{server}",  guild.name)
+        .replace("{count}",   str(count))
+    )
+
+
+async def _send_welcome_embed(member: discord.Member, kind: str) -> None:
+    """Send a join or leave embed for *member*. kind = 'join' | 'leave'."""
+    prefix = "join" if kind == "join" else "leave"
+    if not _welcome_cfg.get(f"{prefix}Enabled"):
+        return
+
+    channel_id = _welcome_cfg.get(f"{prefix}ChannelId", "")
+    if not channel_id:
+        return
+
+    try:
+        channel = member.guild.get_channel(int(channel_id))
+        if channel is None or not hasattr(channel, "send"):
+            return
+    except (ValueError, TypeError):
+        return
+
+    raw_color = _welcome_cfg.get(f"{prefix}EmbedColor", "")
+    try:
+        color_int = int(raw_color.lstrip("#"), 16) if raw_color else (0x57F287 if kind == "join" else 0xED4245)
+    except ValueError:
+        color_int = 0x57F287 if kind == "join" else 0xED4245
+
+    title  = _apply_vars(_welcome_cfg.get(f"{prefix}EmbedTitle",       ""), member)
+    desc   = _apply_vars(_welcome_cfg.get(f"{prefix}EmbedDescription",  ""), member)
+    footer = _apply_vars(_welcome_cfg.get(f"{prefix}EmbedFooter",       ""), member)
+
+    embed = discord.Embed(colour=color_int)
+    if title:
+        embed.title = title
+    if desc:
+        embed.description = desc
+    if footer:
+        embed.set_footer(text=footer)
+
+    show_avatar = _welcome_cfg.get(f"{prefix}ShowAvatar", True)
+    if show_avatar:
+        avatar_url = member.display_avatar.url
+        embed.set_thumbnail(url=avatar_url)
+
+    try:
+        await channel.send(embed=embed)
+    except Exception:
+        logger.exception("Failed to send %s embed for %s", kind, member)
+
+
+@bot.event
+async def on_member_join(member: discord.Member) -> None:
+    await _send_welcome_embed(member, "join")
+
+
+@bot.event
+async def on_member_remove(member: discord.Member) -> None:
+    await _send_welcome_embed(member, "leave")
 
 
 # ── Role reward automation ────────────────────────────────────────────────────
@@ -2776,6 +2871,7 @@ async def on_ready() -> None:
     await refresh_role_rewards()
     await refresh_command_configs()
     await refresh_ticket_config()
+    await refresh_welcome_config()
     await refresh_random_activity()
     _apply_command_labels()
 

@@ -314,3 +314,28 @@ export const ticketsTable = pgTable("tickets", {
 });
 
 export type Ticket = typeof ticketsTable.$inferSelect;
+
+// ── Welcome / Leave embeds ────────────────────────────────────────────────────
+
+export const welcomeConfigTable = pgTable("welcome_config", {
+  id:                    serial("id").primaryKey(),
+  // join
+  joinEnabled:           boolean("join_enabled").notNull().default(false),
+  joinChannelId:         text("join_channel_id").notNull().default(""),
+  joinEmbedTitle:        text("join_embed_title").notNull().default("Bienvenue sur {server} ! 🎉"),
+  joinEmbedDescription:  text("join_embed_description").notNull().default("Bienvenue {mention}, tu es le **{count}ème** membre !"),
+  joinEmbedColor:        text("join_embed_color").notNull().default("57F287"),
+  joinEmbedFooter:       text("join_embed_footer").notNull().default(""),
+  joinShowAvatar:        boolean("join_show_avatar").notNull().default(true),
+  // leave
+  leaveEnabled:          boolean("leave_enabled").notNull().default(false),
+  leaveChannelId:        text("leave_channel_id").notNull().default(""),
+  leaveEmbedTitle:       text("leave_embed_title").notNull().default("{user} a quitté le serveur. 👋"),
+  leaveEmbedDescription: text("leave_embed_description").notNull().default("Nous sommes maintenant **{count}** membres."),
+  leaveEmbedColor:       text("leave_embed_color").notNull().default("ED4245"),
+  leaveEmbedFooter:      text("leave_embed_footer").notNull().default(""),
+  leaveShowAvatar:       boolean("leave_show_avatar").notNull().default(true),
+  updatedAt:             timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type WelcomeConfig = typeof welcomeConfigTable.$inferSelect;
