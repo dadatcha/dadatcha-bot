@@ -315,6 +315,44 @@ export interface GiveawayWinnersInput {
   winners: string[];
 }
 
+export interface RandomActivityConfig {
+  id: number;
+  enabled: boolean;
+  channelId: string;
+  topic: string;
+  minIntervalMinutes: number;
+  maxIntervalMinutes: number;
+  includeCommandSuggestions: boolean;
+  /** @nullable */
+  nextSendAt: string | null;
+}
+
+export interface RandomActivityConfigInput {
+  enabled?: boolean;
+  channelId?: string;
+  topic?: string;
+  minIntervalMinutes?: number;
+  maxIntervalMinutes?: number;
+  includeCommandSuggestions?: boolean;
+}
+
+export interface RandomMessage {
+  id: number;
+  content: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface RandomMessageInput {
+  content: string;
+  enabled?: boolean;
+}
+
+export interface RandomMessageUpdateInput {
+  content?: string;
+  enabled?: boolean;
+}
+
 export type GetLogsParams = {
 limit?: number;
 };

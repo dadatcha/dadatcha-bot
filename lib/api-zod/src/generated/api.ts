@@ -803,6 +803,103 @@ export const EndGiveawayResponse = zod.object({
 
 
 /**
+ * @summary Get random activity configuration
+ */
+export const GetRandomActivityConfigResponse = zod.object({
+  "id": zod.number(),
+  "enabled": zod.boolean(),
+  "channelId": zod.string(),
+  "topic": zod.string(),
+  "minIntervalMinutes": zod.number(),
+  "maxIntervalMinutes": zod.number(),
+  "includeCommandSuggestions": zod.boolean(),
+  "nextSendAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update random activity configuration
+ */
+export const UpdateRandomActivityConfigBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "channelId": zod.string().optional(),
+  "topic": zod.string().optional(),
+  "minIntervalMinutes": zod.number().optional(),
+  "maxIntervalMinutes": zod.number().optional(),
+  "includeCommandSuggestions": zod.boolean().optional()
+})
+
+export const UpdateRandomActivityConfigResponse = zod.object({
+  "id": zod.number(),
+  "enabled": zod.boolean(),
+  "channelId": zod.string(),
+  "topic": zod.string(),
+  "minIntervalMinutes": zod.number(),
+  "maxIntervalMinutes": zod.number(),
+  "includeCommandSuggestions": zod.boolean(),
+  "nextSendAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary List random messages
+ */
+export const ListRandomMessagesResponseItem = zod.object({
+  "id": zod.number(),
+  "content": zod.string(),
+  "enabled": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListRandomMessagesResponse = zod.array(ListRandomMessagesResponseItem)
+
+
+/**
+ * @summary Add a random message
+ */
+export const CreateRandomMessageBody = zod.object({
+  "content": zod.string(),
+  "enabled": zod.boolean().optional()
+})
+
+export const CreateRandomMessageResponse = zod.object({
+  "id": zod.number(),
+  "content": zod.string(),
+  "enabled": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a random message
+ */
+export const UpdateRandomMessageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateRandomMessageBody = zod.object({
+  "content": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
+
+export const UpdateRandomMessageResponse = zod.object({
+  "id": zod.number(),
+  "content": zod.string(),
+  "enabled": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a random message
+ */
+export const DeleteRandomMessageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteRandomMessageResponse = zod.void()
+
+
+/**
  * @summary Reroll winners for an ended giveaway
  */
 export const RerollGiveawayParams = zod.object({

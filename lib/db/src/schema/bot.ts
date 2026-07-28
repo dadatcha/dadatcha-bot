@@ -237,3 +237,26 @@ export const temporaryRolesTable = pgTable("temporary_roles", {
 export type TemporaryRole = typeof temporaryRolesTable.$inferSelect;
 
 export type Giveaway = typeof giveawaysTable.$inferSelect;
+
+// Random activity — periodic random messages + command suggestions
+export const randomActivityConfigTable = pgTable("random_activity_config", {
+  id:                       serial("id").primaryKey(),
+  enabled:                  boolean("enabled").notNull().default(false),
+  channelId:                text("channel_id").notNull().default(""),
+  topic:                    text("topic").notNull().default(""),
+  minIntervalMinutes:       integer("min_interval_minutes").notNull().default(30),
+  maxIntervalMinutes:       integer("max_interval_minutes").notNull().default(120),
+  includeCommandSuggestions: boolean("include_command_suggestions").notNull().default(true),
+  nextSendAt:               timestamp("next_send_at", { withTimezone: true }),
+});
+
+export type RandomActivityConfig = typeof randomActivityConfigTable.$inferSelect;
+
+export const randomMessagesTable = pgTable("random_messages", {
+  id:        serial("id").primaryKey(),
+  content:   text("content").notNull(),
+  enabled:   boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type RandomMessage = typeof randomMessagesTable.$inferSelect;

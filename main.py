@@ -84,6 +84,15 @@ _cmd_name_map: dict[str, str] = {}  # current discord name → original name
 # Bot language — overwritten at runtime from economy config
 _lang: str = "fr"
 
+# Random activity — overwritten at runtime by refresh_random_activity()
+_rdm_cfg: dict = {
+    "enabled": False, "channelId": "", "topic": "",
+    "minIntervalMinutes": 30, "maxIntervalMinutes": 120,
+    "includeCommandSuggestions": True,
+}
+_rdm_messages: list[dict] = []   # [{id, content, enabled}, ...]
+_rdm_next_send: Optional[datetime] = None  # UTC datetime for next message
+
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
@@ -209,6 +218,31 @@ STRINGS: dict[str, dict[str, str] | list] = {
     # /config
     "config_lang_set":     {"fr": "✅ Langue changée en **Français** 🇫🇷", "en": "✅ Language changed to **English** 🇬🇧"},
     "config_lang_already": {"fr": "La langue est déjà réglée sur **{lang}**.", "en": "The language is already set to **{lang}**."},
+    # /set-rdm-msg
+    "rdm_cfg_saved":       {"fr": "✅ Messages aléatoires configurés !", "en": "✅ Random messages configured!"},
+    "rdm_cfg_enabled":     {"fr": "✅ Messages aléatoires **activés**.", "en": "✅ Random messages **enabled**."},
+    "rdm_cfg_disabled":    {"fr": "✅ Messages aléatoires **désactivés**.", "en": "✅ Random messages **disabled**."},
+    # command suggestion templates (random picks, {coin} substituted)
+    "rdm_cmd_suggestions_fr": [
+        "💰 Rappel : tu n'as pas encore fait ton `/daily` aujourd'hui !",
+        "⚒️ Un peu de travail ? Lance `/work` pour gagner des {coin} !",
+        "🔫 Tente ta chance avec `/crime` — ça peut rapporter gros.",
+        "🃏 Envie de jouer ? `/blackjack`, `/roulette` ou `/higher-lower` t'attendent !",
+        "🏦 Pense à déposer tes {coin} avec `/deposit` pour les garder en sécurité.",
+        "🛒 Découvre les objets disponibles dans le `/shop` !",
+        "🏆 Consulte le `/leaderboard` pour voir où tu te classes !",
+        "🎁 Des giveaways sont peut-être en cours — reste à l'affût !",
+    ],
+    "rdm_cmd_suggestions_en": [
+        "💰 Reminder: you haven't claimed your `/daily` yet today!",
+        "⚒️ Need coins? Run `/work` to earn some!",
+        "🔫 Feeling lucky? Try `/crime` — it can pay off big.",
+        "🃏 Up for a game? `/blackjack`, `/roulette` or `/higher-lower` are waiting!",
+        "🏦 Remember to `/deposit` your {coin} to keep them safe.",
+        "🛒 Check out what's available in the `/shop`!",
+        "🏆 Check the `/leaderboard` to see where you stand!",
+        "🎁 Giveaways might be running — stay tuned!",
+    ],
 }
 
 
@@ -264,6 +298,19 @@ async def api_patch(path: str, payload: dict) -> Optional[dict]:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.patch(
+                f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.content_type == "application/json":
+                    return await resp.json()
+    except Exception:
+        pass
+    return None
+
+
+async def api_put(path: str, payload: dict) -> Optional[dict]:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.put(
                 f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
             ) as resp:
                 if resp.content_type == "application/json":
@@ -385,6 +432,24 @@ async def refresh_reminders() -> None:
             _reminder_tasks[rid].cancel()
             del _reminder_tasks[rid]
     logger.info("Reminders refreshed — %d configured", len(new))
+
+
+async def refresh_random_activity() -> None:
+    global _rdm_cfg, _rdm_messages, _rdm_next_send
+    cfg = await api_get_json("/random-activity/config")
+    if cfg:
+        _rdm_cfg.update(cfg)
+    msgs = await api_get_list("/random-activity/messages")
+    if msgs is not None:
+        _rdm_messages = msgs
+    # Schedule first send if enabled and not yet scheduled
+    if _rdm_cfg.get("enabled") and _rdm_next_send is None:
+        delay = random.randint(
+            _rdm_cfg.get("minIntervalMinutes", 30),
+            max(_rdm_cfg.get("minIntervalMinutes", 30), _rdm_cfg.get("maxIntervalMinutes", 120)),
+        )
+        _rdm_next_send = datetime.now(timezone.utc) + timedelta(minutes=delay)
+        logger.info("Random activity: first message scheduled in %d min", delay)
 
 
 async def refresh_economy_config() -> None:
@@ -1223,6 +1288,7 @@ async def config_refresh_loop() -> None:
     await refresh_economy_config()
     await refresh_role_rewards()
     await refresh_command_configs()
+    await refresh_random_activity()
     if _apply_command_labels():
         try:
             synced = await bot.tree.sync()
@@ -2342,6 +2408,7 @@ async def on_ready() -> None:
     await refresh_economy_config()
     await refresh_role_rewards()
     await refresh_command_configs()
+    await refresh_random_activity()
     _apply_command_labels()
 
     try:
@@ -2364,6 +2431,8 @@ async def on_ready() -> None:
         giveaway_poll_loop.start()
     if not temp_role_poll_loop.is_running():
         temp_role_poll_loop.start()
+    if not random_activity_loop.is_running():
+        random_activity_loop.start()
 
     await send_heartbeat(connected=True)
     await log_to_api("INFO", f"Bot connected as {bot.user}")
@@ -2559,6 +2628,139 @@ async def inventory_cmd(interaction: discord.Interaction, member: Optional[disco
     )
     embed.set_footer(text=f"{n} item{'s' if n > 1 else ''}")
     await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+# ── Random activity loop ──────────────────────────────────────────────────────
+
+@tasks.loop(minutes=1)
+async def random_activity_loop() -> None:
+    global _rdm_next_send
+    if not _rdm_cfg.get("enabled"):
+        return
+
+    channel_id_str = _rdm_cfg.get("channelId", "")
+    if not channel_id_str:
+        return
+
+    now = datetime.now(timezone.utc)
+    if _rdm_next_send is None or now < _rdm_next_send:
+        return
+
+    # Pick a message: from pool or a command suggestion
+    pool = [m for m in _rdm_messages if m.get("enabled", True)]
+    include_suggestions = _rdm_cfg.get("includeCommandSuggestions", True)
+
+    candidates: list[str] = [m["content"] for m in pool]
+    if include_suggestions:
+        suggestions = _tl("rdm_cmd_suggestions")
+        candidates += [s.format(coin=_coin()) for s in suggestions]
+
+    if not candidates:
+        # Nothing to send — reschedule anyway
+        _rdm_next_send = _next_rdm_time()
+        return
+
+    text = random.choice(candidates)
+    topic = _rdm_cfg.get("topic", "").strip()
+    if topic:
+        text = f"**[{topic}]**\n{text}"
+
+    try:
+        channel_id = int(channel_id_str)
+        channel = bot.get_channel(channel_id)
+        if channel and hasattr(channel, "send"):
+            await channel.send(text)  # type: ignore[union-attr]
+            logger.info("Random activity: message sent to channel %s", channel_id)
+        else:
+            logger.warning("Random activity: channel %s not found", channel_id)
+    except Exception as exc:
+        logger.error("Random activity: failed to send message: %s", exc)
+
+    _rdm_next_send = _next_rdm_time()
+
+
+def _next_rdm_time() -> datetime:
+    lo = max(1, _rdm_cfg.get("minIntervalMinutes", 30))
+    hi = max(lo,    _rdm_cfg.get("maxIntervalMinutes", 120))
+    delay = random.randint(lo, hi)
+    return datetime.now(timezone.utc) + timedelta(minutes=delay)
+
+
+@random_activity_loop.before_loop
+async def before_random_activity_loop() -> None:
+    await bot.wait_until_ready()
+
+
+# ── /set-rdm-msg ──────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="set-rdm-msg", description="[Admin] Configure les messages aléatoires du bot")
+@app_commands.describe(
+    enabled="Activer ou désactiver les messages aléatoires",
+    channel="Salon Discord où envoyer les messages",
+    topic="Sujet / contexte des messages",
+    min_interval="Intervalle minimum en minutes",
+    max_interval="Intervalle maximum en minutes",
+    command_suggestions="Inclure des suggestions de commandes aléatoires",
+)
+async def set_rdm_msg(
+    interaction: discord.Interaction,
+    enabled: Optional[bool] = None,
+    channel: Optional[discord.TextChannel] = None,
+    topic: Optional[str] = None,
+    min_interval: Optional[app_commands.Range[int, 1, 10080]] = None,
+    max_interval: Optional[app_commands.Range[int, 1, 10080]] = None,
+    command_suggestions: Optional[bool] = None,
+) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+
+    # Build partial update from provided args
+    update: dict = {}
+    if enabled is not None:
+        update["enabled"] = enabled
+    if channel is not None:
+        update["channelId"] = str(channel.id)
+    if topic is not None:
+        update["topic"] = topic
+    if min_interval is not None:
+        update["minIntervalMinutes"] = min_interval
+    if max_interval is not None:
+        update["maxIntervalMinutes"] = max_interval
+    if command_suggestions is not None:
+        update["includeCommandSuggestions"] = command_suggestions
+
+    if not update:
+        # No args — show current config
+        lines = [
+            f"**Activé :** {_rdm_cfg.get('enabled', False)}",
+            f"**Salon :** <#{_rdm_cfg.get('channelId', '?')}>" if _rdm_cfg.get('channelId') else "**Salon :** non défini",
+            f"**Sujet :** {_rdm_cfg.get('topic') or '—'}",
+            f"**Intervalle :** {_rdm_cfg.get('minIntervalMinutes', 30)}–{_rdm_cfg.get('maxIntervalMinutes', 120)} min",
+            f"**Suggestions de commandes :** {_rdm_cfg.get('includeCommandSuggestions', True)}",
+            f"**Messages dans le pool :** {len([m for m in _rdm_messages if m.get('enabled', True)])} / {len(_rdm_messages)}",
+        ]
+        embed = discord.Embed(title="🔀 Messages aléatoires — Config", description="\n".join(lines), colour=0x9B59B6)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    # Merge with current config before sending full PUT
+    merged = {
+        "enabled":                  update.get("enabled",                 _rdm_cfg.get("enabled", False)),
+        "channelId":                update.get("channelId",               _rdm_cfg.get("channelId", "")),
+        "topic":                    update.get("topic",                   _rdm_cfg.get("topic", "")),
+        "minIntervalMinutes":       update.get("minIntervalMinutes",      _rdm_cfg.get("minIntervalMinutes", 30)),
+        "maxIntervalMinutes":       update.get("maxIntervalMinutes",      _rdm_cfg.get("maxIntervalMinutes", 120)),
+        "includeCommandSuggestions": update.get("includeCommandSuggestions", _rdm_cfg.get("includeCommandSuggestions", True)),
+    }
+    await api_put("/random-activity/config", merged)
+    await refresh_random_activity()
+
+    if "enabled" in update and len(update) == 1:
+        msg = _t("rdm_cfg_enabled") if enabled else _t("rdm_cfg_disabled")
+    else:
+        msg = _t("rdm_cfg_saved")
+    await interaction.response.send_message(msg, ephemeral=True)
 
 
 # ── /config ───────────────────────────────────────────────────────────────────

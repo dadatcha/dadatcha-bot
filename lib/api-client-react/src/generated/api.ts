@@ -39,6 +39,11 @@ import type {
   LogEntryInput,
   Player,
   PlayerBalancePatch,
+  RandomActivityConfig,
+  RandomActivityConfigInput,
+  RandomMessage,
+  RandomMessageInput,
+  RandomMessageUpdateInput,
   Reminder,
   ReminderInput,
   RoleReward,
@@ -2669,6 +2674,445 @@ export const useEndGiveaway = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getEndGiveawayMutationOptions(options));
+    }
+
+export const getGetRandomActivityConfigUrl = () => {
+
+
+
+
+  return `/api/random-activity/config`
+}
+
+/**
+ * @summary Get random activity configuration
+ */
+export const getRandomActivityConfig = async ( options?: RequestInit): Promise<RandomActivityConfig> => {
+
+  return customFetch<RandomActivityConfig>(getGetRandomActivityConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRandomActivityConfigQueryKey = () => {
+    return [
+    `/api/random-activity/config`
+    ] as const;
+    }
+
+
+export const getGetRandomActivityConfigQueryOptions = <TData = Awaited<ReturnType<typeof getRandomActivityConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRandomActivityConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRandomActivityConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRandomActivityConfig>>> = ({ signal }) => getRandomActivityConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRandomActivityConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRandomActivityConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getRandomActivityConfig>>>
+export type GetRandomActivityConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get random activity configuration
+ */
+
+export function useGetRandomActivityConfig<TData = Awaited<ReturnType<typeof getRandomActivityConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRandomActivityConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRandomActivityConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateRandomActivityConfigUrl = () => {
+
+
+
+
+  return `/api/random-activity/config`
+}
+
+/**
+ * @summary Update random activity configuration
+ */
+export const updateRandomActivityConfig = async (randomActivityConfigInput: RandomActivityConfigInput, options?: RequestInit): Promise<RandomActivityConfig> => {
+
+  return customFetch<RandomActivityConfig>(getUpdateRandomActivityConfigUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(randomActivityConfigInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateRandomActivityConfigMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRandomActivityConfig>>, TError,{data: BodyType<RandomActivityConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRandomActivityConfig>>, TError,{data: BodyType<RandomActivityConfigInput>}, TContext> => {
+
+const mutationKey = ['updateRandomActivityConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRandomActivityConfig>>, {data: BodyType<RandomActivityConfigInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateRandomActivityConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRandomActivityConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateRandomActivityConfig>>>
+    export type UpdateRandomActivityConfigMutationBody = BodyType<RandomActivityConfigInput>
+    export type UpdateRandomActivityConfigMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update random activity configuration
+ */
+export const useUpdateRandomActivityConfig = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRandomActivityConfig>>, TError,{data: BodyType<RandomActivityConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRandomActivityConfig>>,
+        TError,
+        {data: BodyType<RandomActivityConfigInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateRandomActivityConfigMutationOptions(options));
+    }
+
+export const getListRandomMessagesUrl = () => {
+
+
+
+
+  return `/api/random-activity/messages`
+}
+
+/**
+ * @summary List random messages
+ */
+export const listRandomMessages = async ( options?: RequestInit): Promise<RandomMessage[]> => {
+
+  return customFetch<RandomMessage[]>(getListRandomMessagesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRandomMessagesQueryKey = () => {
+    return [
+    `/api/random-activity/messages`
+    ] as const;
+    }
+
+
+export const getListRandomMessagesQueryOptions = <TData = Awaited<ReturnType<typeof listRandomMessages>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRandomMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRandomMessagesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRandomMessages>>> = ({ signal }) => listRandomMessages({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRandomMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRandomMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof listRandomMessages>>>
+export type ListRandomMessagesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List random messages
+ */
+
+export function useListRandomMessages<TData = Awaited<ReturnType<typeof listRandomMessages>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRandomMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRandomMessagesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateRandomMessageUrl = () => {
+
+
+
+
+  return `/api/random-activity/messages`
+}
+
+/**
+ * @summary Add a random message
+ */
+export const createRandomMessage = async (randomMessageInput: RandomMessageInput, options?: RequestInit): Promise<RandomMessage> => {
+
+  return customFetch<RandomMessage>(getCreateRandomMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(randomMessageInput)
+  }
+);}
+
+
+
+
+
+export const getCreateRandomMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRandomMessage>>, TError,{data: BodyType<RandomMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRandomMessage>>, TError,{data: BodyType<RandomMessageInput>}, TContext> => {
+
+const mutationKey = ['createRandomMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRandomMessage>>, {data: BodyType<RandomMessageInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createRandomMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRandomMessageMutationResult = NonNullable<Awaited<ReturnType<typeof createRandomMessage>>>
+    export type CreateRandomMessageMutationBody = BodyType<RandomMessageInput>
+    export type CreateRandomMessageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a random message
+ */
+export const useCreateRandomMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRandomMessage>>, TError,{data: BodyType<RandomMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRandomMessage>>,
+        TError,
+        {data: BodyType<RandomMessageInput>},
+        TContext
+      > => {
+      return useMutation(getCreateRandomMessageMutationOptions(options));
+    }
+
+export const getUpdateRandomMessageUrl = (id: number,) => {
+
+
+
+
+  return `/api/random-activity/messages/${id}`
+}
+
+/**
+ * @summary Update a random message
+ */
+export const updateRandomMessage = async (id: number,
+    randomMessageUpdateInput: RandomMessageUpdateInput, options?: RequestInit): Promise<RandomMessage> => {
+
+  return customFetch<RandomMessage>(getUpdateRandomMessageUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(randomMessageUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateRandomMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRandomMessage>>, TError,{id: number;data: BodyType<RandomMessageUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRandomMessage>>, TError,{id: number;data: BodyType<RandomMessageUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateRandomMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRandomMessage>>, {id: number;data: BodyType<RandomMessageUpdateInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateRandomMessage(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRandomMessageMutationResult = NonNullable<Awaited<ReturnType<typeof updateRandomMessage>>>
+    export type UpdateRandomMessageMutationBody = BodyType<RandomMessageUpdateInput>
+    export type UpdateRandomMessageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a random message
+ */
+export const useUpdateRandomMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRandomMessage>>, TError,{id: number;data: BodyType<RandomMessageUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRandomMessage>>,
+        TError,
+        {id: number;data: BodyType<RandomMessageUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateRandomMessageMutationOptions(options));
+    }
+
+export const getDeleteRandomMessageUrl = (id: number,) => {
+
+
+
+
+  return `/api/random-activity/messages/${id}`
+}
+
+/**
+ * @summary Delete a random message
+ */
+export const deleteRandomMessage = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteRandomMessageUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteRandomMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRandomMessage>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteRandomMessage>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteRandomMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRandomMessage>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteRandomMessage(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteRandomMessageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteRandomMessage>>>
+
+    export type DeleteRandomMessageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a random message
+ */
+export const useDeleteRandomMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRandomMessage>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteRandomMessage>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteRandomMessageMutationOptions(options));
     }
 
 export const getRerollGiveawayUrl = (id: number,) => {

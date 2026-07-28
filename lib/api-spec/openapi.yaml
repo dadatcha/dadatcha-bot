@@ -14,6 +14,7 @@ tags:
   - name: roles
   - name: commands
   - name: logs
+  - name: random-activity
 
 paths:
   /healthz:
@@ -626,6 +627,106 @@ paths:
               schema:
                 $ref: "#/components/schemas/Giveaway"
 
+  /random-activity/config:
+    get:
+      operationId: getRandomActivityConfig
+      tags: [random-activity]
+      summary: Get random activity configuration
+      responses:
+        "200":
+          description: Config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RandomActivityConfig"
+    put:
+      operationId: updateRandomActivityConfig
+      tags: [random-activity]
+      summary: Update random activity configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RandomActivityConfigInput"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RandomActivityConfig"
+
+  /random-activity/messages:
+    get:
+      operationId: listRandomMessages
+      tags: [random-activity]
+      summary: List random messages
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RandomMessage"
+    post:
+      operationId: createRandomMessage
+      tags: [random-activity]
+      summary: Add a random message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RandomMessageInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RandomMessage"
+
+  /random-activity/messages/{id}:
+    put:
+      operationId: updateRandomMessage
+      tags: [random-activity]
+      summary: Update a random message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RandomMessageUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RandomMessage"
+    delete:
+      operationId: deleteRandomMessage
+      tags: [random-activity]
+      summary: Delete a random message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /giveaways/{id}/reroll:
     post:
       operationId: rerollGiveaway
@@ -1226,3 +1327,70 @@ components:
           items:
             type: string
       required: [winners]
+
+    RandomActivityConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        enabled:
+          type: boolean
+        channelId:
+          type: string
+        topic:
+          type: string
+        minIntervalMinutes:
+          type: integer
+        maxIntervalMinutes:
+          type: integer
+        includeCommandSuggestions:
+          type: boolean
+        nextSendAt:
+          type: ["string", "null"]
+      required: [id, enabled, channelId, topic, minIntervalMinutes, maxIntervalMinutes, includeCommandSuggestions, nextSendAt]
+
+    RandomActivityConfigInput:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        channelId:
+          type: string
+        topic:
+          type: string
+        minIntervalMinutes:
+          type: integer
+        maxIntervalMinutes:
+          type: integer
+        includeCommandSuggestions:
+          type: boolean
+
+    RandomMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, content, enabled, createdAt]
+
+    RandomMessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+        enabled:
+          type: boolean
+      required: [content]
+
+    RandomMessageUpdateInput:
+      type: object
+      properties:
+        content:
+          type: string
+        enabled:
+          type: boolean

@@ -10,6 +10,7 @@ import commandSyncRouter from "./command-sync";
 import giveawaysRouter from "./giveaways";
 import inventoryRouter from "./inventory";
 import temporaryRolesRouter from "./temporary-roles";
+import randomActivityRouter from "./random-activity";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(commandConfigsRouter);
 router.use(giveawaysRouter);
 router.use(inventoryRouter);
 router.use(temporaryRolesRouter);
+router.use(randomActivityRouter);
 
 export default router;
