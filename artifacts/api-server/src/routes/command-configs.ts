@@ -41,7 +41,7 @@ function merge(
 ) {
   return {
     name:        known.name,
-    label:       known.label,
+    label:       row?.label ?? known.label,
     description: known.description,
     category:    known.category,
     enabled:     row?.enabled  ?? true,
