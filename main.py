@@ -260,6 +260,39 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "gn_guess_btn":    {"fr": "Deviner", "en": "Guess"},
     "gn_stop_not_running": {"fr": "❌ Aucune partie en cours dans ce salon.", "en": "❌ No game running in this channel."},
     "err_not_your_game":{"fr": "❌ Ce n'est pas ta partie !", "en": "❌ This isn't your game!"},
+    # pile-ou-face
+    "pof_title":          {"fr": "🪙 Pile ou Face",  "en": "🪙 Coin Flip"},
+    "pof_desc":           {"fr": "Mise : **{amount:,} {coin}**\nChoisis Pile ou Face !", "en": "Bet: **{amount:,} {coin}**\nChoose Heads or Tails!"},
+    "pof_heads":          {"fr": "Pile", "en": "Heads"},
+    "pof_tails":          {"fr": "Face", "en": "Tails"},
+    "pof_win":            {"fr": "{result_emoji} **{result}** ! Tu gagnes **{amount:,} {coin}** !", "en": "{result_emoji} **{result}**! You win **{amount:,} {coin}**!"},
+    "pof_lose":           {"fr": "{result_emoji} **{result}** ! Tu perds **{amount:,} {coin}**.", "en": "{result_emoji} **{result}**! You lose **{amount:,} {coin}**."},
+    "pof_heads_btn":      {"fr": "🪙 Pile", "en": "🪙 Heads"},
+    "pof_tails_btn":      {"fr": "🎭 Face", "en": "🎭 Tails"},
+    "pof_bet_range":      {"fr": "La mise doit être entre {min:,} et {max:,} {coin}.", "en": "Bet must be between {min:,} and {max:,} {coin}."},
+    "pof_wallet_footer":  {"fr": "Portefeuille : {wallet:,} {coin}", "en": "Wallet: {wallet:,} {coin}"},
+    # slots
+    "sl_title":           {"fr": "🎰 Machines à sous", "en": "🎰 Slot Machine"},
+    "sl_desc":            {"fr": "Mise : **{amount:,} {coin}**\nLes rouleaux tournent…", "en": "Bet: **{amount:,} {coin}**\nReels are spinning…"},
+    "sl_jackpot":         {"fr": "🎉 JACKPOT ! {display}\n3× {sym} — Tu gagnes **{win:,} {coin}** ({multiplier}x) !", "en": "🎉 JACKPOT! {display}\n3× {sym} — You win **{win:,} {coin}** ({multiplier}x)!"},
+    "sl_two_kind":        {"fr": "😐 Paire ! {display}\nTu perds seulement **{loss:,} {coin}**.", "en": "😐 Two of a kind! {display}\nYou only lose **{loss:,} {coin}**."},
+    "sl_lose":            {"fr": "💸 Raté ! {display}\nTu perds **{amount:,} {coin}**.", "en": "💸 Miss! {display}\nYou lose **{amount:,} {coin}**."},
+    "sl_bet_range":       {"fr": "La mise doit être entre {min:,} et {max:,} {coin}.", "en": "Bet must be between {min:,} and {max:,} {coin}."},
+    "sl_wallet_footer":   {"fr": "Portefeuille : {wallet:,} {coin}", "en": "Wallet: {wallet:,} {coin}"},
+    "sl_payouts":         {"fr": "💡 Gains possibles", "en": "💡 Possible Payouts"},
+    "sl_payouts_desc":    {"fr": "💎×3 → 20x · ⭐×3 → 10x · 🍀×3 → 6x\n🍇×3 → 4x · 🍊×3 → 3x · 🍋×3 → 2.5x · 🍒×3 → 2x\nPaire → perd 50%", "en": "💎×3 → 20x · ⭐×3 → 10x · 🍀×3 → 6x\n🍇×3 → 4x · 🍊×3 → 3x · 🍋×3 → 2.5x · 🍒×3 → 2x\nTwo of a kind → lose 50%"},
+    # dice
+    "dice_title":         {"fr": "🎲 Jeu de Dés", "en": "🎲 Dice Game"},
+    "dice_desc":          {"fr": "Mise : **{amount:,} {coin}**\nChoisis ta zone avant le lancer !", "en": "Bet: **{amount:,} {coin}**\nChoose your zone before the roll!"},
+    "dice_win":           {"fr": "🎲 {dice}\n💰 Tu gagnes **{amount:,} {coin}** !", "en": "🎲 {dice}\n💰 You win **{amount:,} {coin}**!"},
+    "dice_lose":          {"fr": "🎲 {dice}\n😞 Tu perds **{amount:,} {coin}**.", "en": "🎲 {dice}\n😞 You lose **{amount:,} {coin}**."},
+    "dice_bet_range":     {"fr": "La mise doit être entre {min:,} et {max:,} {coin}.", "en": "Bet must be between {min:,} and {max:,} {coin}."},
+    "dice_wallet_footer": {"fr": "Portefeuille : {wallet:,} {coin}", "en": "Wallet: {wallet:,} {coin}"},
+    "dice_payouts":       {"fr": "📊 Gains", "en": "📊 Payouts"},
+    "dice_payouts_desc":  {"fr": "**Bas (≤6)** → ×2  ·  **7 exact** → ×4  ·  **Haut (≥8)** → ×2", "en": "**Low (≤6)** → ×2  ·  **Lucky 7** → ×4  ·  **High (≥8)** → ×2"},
+    "dice_low_btn":       {"fr": "⬇️ Bas (≤6)  ×2", "en": "⬇️ Low (≤6)  ×2"},
+    "dice_seven_btn":     {"fr": "🍀 7 exact  ×4", "en": "🍀 Lucky 7  ×4"},
+    "dice_high_btn":      {"fr": "⬆️ Haut (≥8)  ×2", "en": "⬆️ High (≥8)  ×2"},
     # shop
     "shop_err":       {"fr": "Impossible de charger le shop pour l'instant.", "en": "Could not load the shop right now."},
     "shop_empty":     {"fr": "Le shop est vide pour l'instant.", "en": "The shop is empty for now."},
@@ -1689,8 +1722,10 @@ async def level_top(interaction: discord.Interaction) -> None:
 
 # Active-game guards — prevent the same user from running two concurrent games
 # and betting the same coins twice before either resolves.
-_active_bj: set[int] = set()   # user IDs with a live blackjack game
-_active_rl: set[int] = set()   # user IDs with a live roulette game
+_active_bj:   set[int] = set()   # user IDs with a live blackjack game
+_active_rl:   set[int] = set()   # user IDs with a live roulette game
+_active_pof:  set[int] = set()   # user IDs with a live pile-ou-face game
+_active_dice: set[int] = set()   # user IDs with a live dice game
 
 SUITS = ["\u2660", "\u2665", "\u2666", "\u2663"]
 RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
@@ -2112,6 +2147,250 @@ async def guess_stop(interaction: discord.Interaction) -> None:
         await _gn_finish(interaction.channel, game, winner=None)
 
 
+# ── /pile-ou-face ─────────────────────────────────────────────────────────────
+
+class CoinFlipView(discord.ui.View):
+    def __init__(self, bet: int, player_user: discord.User | discord.Member, initial_wallet: int):
+        super().__init__(timeout=60)
+        self.bet = bet
+        self.player_user = player_user
+        self.initial_wallet = initial_wallet
+        self.ended = False
+        self.pile_btn.label = _t("pof_heads_btn")
+        self.face_btn.label = _t("pof_tails_btn")
+
+    async def on_timeout(self) -> None:
+        _active_pof.discard(self.player_user.id)
+
+    async def _flip(self, interaction: discord.Interaction, choice: str) -> None:
+        if self.ended:
+            return
+        if interaction.user.id != self.player_user.id:
+            await interaction.response.send_message(_t("err_not_your_game"), ephemeral=True)
+            return
+        self.ended = True
+        _active_pof.discard(self.player_user.id)
+        for child in self.children:
+            child.disabled = True  # type: ignore[attr-defined]
+
+        result = random.choice(["pile", "face"])
+        result_emoji = "🪙" if result == "pile" else "🎭"
+        result_label = _t("pof_heads") if result == "pile" else _t("pof_tails")
+        won = choice == result
+
+        if won:
+            new_wallet = self.initial_wallet + self.bet
+            title = _t("pof_win", result_emoji=result_emoji, result=result_label, amount=self.bet, coin=_coin())
+            colour = 0x2ECC71
+        else:
+            new_wallet = max(0, self.initial_wallet - self.bet)
+            title = _t("pof_lose", result_emoji=result_emoji, result=result_label, amount=self.bet, coin=_coin())
+            colour = 0xE74C3C
+
+        await set_wallet(self.player_user.id, new_wallet)
+        embed = discord.Embed(
+            title=title,
+            description=_t("pof_wallet_footer", wallet=new_wallet, coin=_coin()),
+            colour=colour,
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="🪙 Pile", style=discord.ButtonStyle.primary)
+    async def pile_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._flip(interaction, "pile")
+
+    @discord.ui.button(label="🎭 Face", style=discord.ButtonStyle.secondary)
+    async def face_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._flip(interaction, "face")
+
+
+@bot.tree.command(name="pile-ou-face", description="Lance une pièce et double ta mise — Pile ou Face ?")
+@app_commands.describe(bet="Montant à miser")
+async def pile_ou_face(interaction: discord.Interaction, bet: int = 100) -> None:
+    if not await check_cmd(interaction, "pile-ou-face"): return
+    min_bet = 10
+    max_bet = _eco.get("blackjackMaxBet", 10000)
+    if bet < min_bet or bet > max_bet:
+        await interaction.response.send_message(_t("pof_bet_range", min=min_bet, max=max_bet, coin=_coin()), ephemeral=True)
+        return
+    if interaction.user.id in _active_pof:
+        await interaction.response.send_message("❌ Tu as déjà un jeu de pile ou face en cours !", ephemeral=True)
+        return
+    eco = await get_economy(interaction.user)
+    if eco["wallet"] < bet:
+        await interaction.response.send_message(_t("err_not_enough_wallet", amount=eco["wallet"], coin=_coin()), ephemeral=True)
+        return
+    _active_pof.add(interaction.user.id)
+    view = CoinFlipView(bet=bet, player_user=interaction.user, initial_wallet=eco["wallet"])
+    embed = discord.Embed(
+        title=_t("pof_title"),
+        description=_t("pof_desc", amount=bet, coin=_coin()),
+        colour=0xF1C40F,
+    )
+    await interaction.response.send_message(embed=embed, view=view)
+
+
+# ── /slots ────────────────────────────────────────────────────────────────────
+
+# Symbol pool: (emoji, weight) — lower weight = rarer
+_SLOT_SYMBOLS = [
+    ("🍒", 30), ("🍋", 25), ("🍊", 20), ("🍇", 15), ("🍀", 8), ("⭐", 5), ("💎", 2),
+]
+# Net multiplier on top of the bet (e.g. 20 means you receive 20× your bet back, net gain = 19×)
+_SLOT_JACKPOTS: dict[str, float] = {
+    "💎": 20, "⭐": 10, "🍀": 6, "🍇": 4, "🍊": 3, "🍋": 2.5, "🍒": 2,
+}
+_SLOT_POOL = [sym for sym, w in _SLOT_SYMBOLS for _ in range(w)]
+
+
+@bot.tree.command(name="slots", description="Tente ta chance aux machines à sous — Jackpot jusqu'à 20x !")
+@app_commands.describe(bet="Montant à miser")
+async def slots_cmd(interaction: discord.Interaction, bet: int = 100) -> None:
+    if not await check_cmd(interaction, "slots"): return
+    min_bet = 10
+    max_bet = _eco.get("blackjackMaxBet", 10000)
+    if bet < min_bet or bet > max_bet:
+        await interaction.response.send_message(_t("sl_bet_range", min=min_bet, max=max_bet, coin=_coin()), ephemeral=True)
+        return
+    eco = await get_economy(interaction.user)
+    if eco["wallet"] < bet:
+        await interaction.response.send_message(_t("err_not_enough_wallet", amount=eco["wallet"], coin=_coin()), ephemeral=True)
+        return
+
+    reels = [random.choice(_SLOT_POOL) for _ in range(3)]
+    display = f"[ {reels[0]} | {reels[1]} | {reels[2]} ]"
+
+    if reels[0] == reels[1] == reels[2]:
+        sym = reels[0]
+        multiplier = _SLOT_JACKPOTS.get(sym, 2)
+        winnings = int(bet * multiplier)
+        net = winnings - bet
+        new_wallet = eco["wallet"] + net
+        title = _t("sl_jackpot", display=display, sym=sym, win=winnings, multiplier=multiplier, coin=_coin())
+        colour = 0xF1C40F
+    elif reels[0] == reels[1] or reels[1] == reels[2] or reels[0] == reels[2]:
+        loss = max(1, bet // 2)
+        net = -loss
+        new_wallet = max(0, eco["wallet"] - loss)
+        title = _t("sl_two_kind", display=display, loss=loss, coin=_coin())
+        colour = 0xF39C12
+    else:
+        net = -bet
+        new_wallet = max(0, eco["wallet"] - bet)
+        title = _t("sl_lose", display=display, amount=bet, coin=_coin())
+        colour = 0xE74C3C
+
+    await set_wallet(interaction.user.id, new_wallet)
+    embed = discord.Embed(
+        title=title,
+        description=_t("sl_wallet_footer", wallet=new_wallet, coin=_coin()),
+        colour=colour,
+    )
+    embed.add_field(name=_t("sl_payouts"), value=_t("sl_payouts_desc"), inline=False)
+    await interaction.response.send_message(embed=embed)
+    await log_to_api("INFO", f"{interaction.user} slots: {display} bet={bet} net={net:+d} wallet→{new_wallet}")
+
+
+# ── /dice ─────────────────────────────────────────────────────────────────────
+
+class DiceView(discord.ui.View):
+    def __init__(self, bet: int, player_user: discord.User | discord.Member, initial_wallet: int):
+        super().__init__(timeout=60)
+        self.bet = bet
+        self.player_user = player_user
+        self.initial_wallet = initial_wallet
+        self.ended = False
+        self.low_btn.label  = _t("dice_low_btn")
+        self.seven_btn.label = _t("dice_seven_btn")
+        self.high_btn.label = _t("dice_high_btn")
+
+    async def on_timeout(self) -> None:
+        _active_dice.discard(self.player_user.id)
+
+    async def _roll(self, interaction: discord.Interaction, choice: str) -> None:
+        if self.ended:
+            return
+        if interaction.user.id != self.player_user.id:
+            await interaction.response.send_message(_t("err_not_your_game"), ephemeral=True)
+            return
+        self.ended = True
+        _active_dice.discard(self.player_user.id)
+        for child in self.children:
+            child.disabled = True  # type: ignore[attr-defined]
+
+        d1 = random.randint(1, 6)
+        d2 = random.randint(1, 6)
+        total = d1 + d2
+        dice_display = f"🎲 **{d1}** + **{d2}** = **{total}**"
+
+        if choice == "low":
+            won = total <= 6
+            multiplier = 2
+        elif choice == "seven":
+            won = total == 7
+            multiplier = 4
+        else:  # high
+            won = total >= 8
+            multiplier = 2
+
+        if won:
+            gain = self.bet * (multiplier - 1)
+            new_wallet = self.initial_wallet + gain
+            title = _t("dice_win", dice=dice_display, amount=gain, coin=_coin())
+            colour = 0x2ECC71
+        else:
+            new_wallet = max(0, self.initial_wallet - self.bet)
+            title = _t("dice_lose", dice=dice_display, amount=self.bet, coin=_coin())
+            colour = 0xE74C3C
+
+        await set_wallet(self.player_user.id, new_wallet)
+        embed = discord.Embed(
+            title=title,
+            description=_t("dice_wallet_footer", wallet=new_wallet, coin=_coin()),
+            colour=colour,
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="⬇️ Bas (≤6)  ×2", style=discord.ButtonStyle.primary)
+    async def low_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._roll(interaction, "low")
+
+    @discord.ui.button(label="🍀 7 exact  ×4", style=discord.ButtonStyle.success)
+    async def seven_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._roll(interaction, "seven")
+
+    @discord.ui.button(label="⬆️ Haut (≥8)  ×2", style=discord.ButtonStyle.danger)
+    async def high_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._roll(interaction, "high")
+
+
+@bot.tree.command(name="dice", description="Lance 2 dés — mise sur Bas (≤6), 7 exact, ou Haut (≥8) !")
+@app_commands.describe(bet="Montant à miser")
+async def dice_cmd(interaction: discord.Interaction, bet: int = 100) -> None:
+    if not await check_cmd(interaction, "dice"): return
+    min_bet = 10
+    max_bet = _eco.get("blackjackMaxBet", 10000)
+    if bet < min_bet or bet > max_bet:
+        await interaction.response.send_message(_t("dice_bet_range", min=min_bet, max=max_bet, coin=_coin()), ephemeral=True)
+        return
+    if interaction.user.id in _active_dice:
+        await interaction.response.send_message("❌ Tu as déjà un jeu de dés en cours !", ephemeral=True)
+        return
+    eco = await get_economy(interaction.user)
+    if eco["wallet"] < bet:
+        await interaction.response.send_message(_t("err_not_enough_wallet", amount=eco["wallet"], coin=_coin()), ephemeral=True)
+        return
+    _active_dice.add(interaction.user.id)
+    view = DiceView(bet=bet, player_user=interaction.user, initial_wallet=eco["wallet"])
+    embed = discord.Embed(
+        title=_t("dice_title"),
+        description=_t("dice_desc", amount=bet, coin=_coin()),
+        colour=0x3498DB,
+    )
+    embed.add_field(name=_t("dice_payouts"), value=_t("dice_payouts_desc"), inline=False)
+    await interaction.response.send_message(embed=embed, view=view)
+
+
 # ── Cooldown reset endpoints (internal — called by bot itself) ─────────────────
 # These are handled directly by the economy route on the API server
 
@@ -2391,7 +2670,7 @@ async def _deliver_rewards(winners: list[discord.User], giveaway: dict, guild: O
                         await member.add_roles(role, reason=f"Giveaway #{giveaway['id']} reward")
                         logger.info("Giveaway reward: role %s → %s", role.name, winner.id)
                         dur_min = reward.get("roleDurationMinutes")
-                        if dur_min and isinstance(dur_min, int):
+                        if dur_min and isinstance(dur_min, (int, float)):
                             expires = datetime.now(timezone.utc) + timedelta(minutes=dur_min)
                             await api_post("/temporary-roles", {
                                 "userId":    str(winner.id),
@@ -3255,6 +3534,7 @@ _CMD_CATEGORY: dict[str, str] = {
     # Games
     "blackjack": "games", "higher-lower": "games",
     "roulette": "games", "guess-number": "games",
+    "pile-ou-face": "games", "slots": "games", "dice": "games",
     # Tickets
     "ticket-setup": "tickets", "ticket-close": "tickets", "ticket-add": "tickets",
     # Guess-number control
