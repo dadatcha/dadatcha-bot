@@ -732,7 +732,9 @@ async def on_message(message: discord.Message) -> None:
     # ── Custom commands ────────────────────────────────────────────────────────
     await _handle_custom_commands(message)
 
+    logger.info("DBG process_commands start msg_id=%s content=%r", message.id, message.content[:40])
     await bot.process_commands(message)
+    logger.info("DBG process_commands done  msg_id=%s", message.id)
 
 
 # ── Custom command handler ─────────────────────────────────────────────────────
@@ -957,18 +959,24 @@ async def _handle_custom_commands(message: discord.Message) -> None:
             if footer_text:
                 embed.set_footer(text=_apply_custom_vars(footer_text, message, target=target_member))
             if reply_mode:
+                logger.info("DBG send: reply embed cmd_id=%s msg_id=%s", cmd_id, message.id)
                 await message.reply(embed=embed)
             else:
+                logger.info("DBG send: channel.send embed cmd_id=%s msg_id=%s", cmd_id, message.id)
                 await message.channel.send(embed=embed)
         else:
             if reply_mode:
+                logger.info("DBG send: reply text cmd_id=%s msg_id=%s", cmd_id, message.id)
                 await message.reply(response_text)
             else:
+                logger.info("DBG send: channel.send text cmd_id=%s msg_id=%s", cmd_id, message.id)
                 await message.channel.send(response_text)
 
         # Apply rewards after sending the response
         if cmd.get("rewardEnabled", False) and target_member is not None:
+            logger.info("DBG _apply_rewards start cmd_id=%s msg_id=%s", cmd_id, message.id)
             await _apply_rewards(cmd, target_member, message)
+            logger.info("DBG _apply_rewards done cmd_id=%s msg_id=%s", cmd_id, message.id)
 
         break  # Only the first matching command fires
 
