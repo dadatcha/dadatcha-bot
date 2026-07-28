@@ -66,7 +66,8 @@ function EconomySettings() {
     setSyncing(true);
     await queryClient.invalidateQueries({ queryKey: getGetEconomyConfigQueryKey() });
     await queryClient.refetchQueries({ queryKey: getGetEconomyConfigQueryKey() });
-    setForm(null);
+    const fresh = queryClient.getQueryData<Cfg>(getGetEconomyConfigQueryKey());
+    if (fresh) { setForm(fresh); setSaved(fresh); }
     setSyncing(false);
     toast({ title: 'Configuration synchronisée' });
   };
