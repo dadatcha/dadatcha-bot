@@ -223,7 +223,7 @@ function CommandRow({ cmd, onSaved }: { cmd: CmdConfig; onSaved: () => void }) {
 
 export default function Commands() {
   const queryClient = useQueryClient();
-  const { data: configs = [], isLoading } = useListCommandConfigs({
+  const { data: configs = [], isLoading, isFetching } = useListCommandConfigs({
     query: { queryKey: getListCommandConfigsQueryKey() },
   });
 
@@ -259,11 +259,11 @@ export default function Commands() {
             variant="outline"
             size="sm"
             onClick={refresh}
-            disabled={isLoading}
+            disabled={isFetching}
             className="gap-2"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Rafraîchir
+            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+            {isFetching ? 'Actualisation…' : 'Rafraîchir'}
           </Button>
           <SyncBanner />
         </div>
