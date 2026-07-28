@@ -9,7 +9,7 @@ import { ModuleCard } from '@/components/ui/module-card';
 import { FieldRow } from '@/components/ui/field-row';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShoppingBag, Plus, Trash2, Package, Search, Gift, ShoppingCart } from 'lucide-react';
+import { ShoppingBag, Plus, Trash2, Package, Search, Gift, ShoppingCart, PackagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -43,31 +43,35 @@ function fmt(iso: string) {
 
 // ── Inventory panel ───────────────────────────────────────────────────────────
 
-function InventoryPanel() {
+function InventoryPanel({ shopItems, currency }: { shopItems: Item[]; currency: string }) {
   const [userId, setUserId] = useState('');
   const [searched, setSearched] = useState('');
   const [entries, setEntries] = useState<InventoryEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [addItemId, setAddItemId] = useState<number | ''>('');
+  const [addQty, setAddQty] = useState(1);
+  const [adding, setAdding] = useState(false);
   const { toast } = useToast();
 
-  async function search() {
-    const uid = userId.trim();
-    if (!uid) return;
-    setLoading(true); setError(''); setEntries(null); setSearched(uid);
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+  async function search(uid?: string) {
+    const id = (uid ?? userId).trim();
+    if (!id) return;
+    setLoading(true); setError(''); setEntries(null); setSearched(id); setShowAdd(false);
     try {
-      const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-      const r = await fetch(`${base}/api/inventory/${uid}`);
+      const r = await fetch(`${base}/api/inventory/${id}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setEntries(await r.json());
-    } catch (e: any) {
-      setError('Impossible de charger l\'inventaire.');
+    } catch {
+      setError("Impossible de charger l'inventaire.");
     } finally { setLoading(false); }
   }
 
   async function remove(id: number) {
     try {
-      const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       await fetch(`${base}/api/inventory/${id}`, { method: 'DELETE' });
       setEntries(prev => prev ? prev.filter(e => e.id !== id) : prev);
       toast({ title: 'Entrée supprimée' });
@@ -75,6 +79,29 @@ function InventoryPanel() {
       toast({ title: 'Erreur', variant: 'destructive' });
     }
   }
+
+  async function addItem() {
+    if (!addItemId || !searched) return;
+    setAdding(true);
+    try {
+      const r = await fetch(`${base}/api/inventory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: searched, itemId: addItemId, quantity: addQty, source: 'admin' }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      toast({ title: 'Item ajouté ✓' });
+      setShowAdd(false);
+      setAddItemId('');
+      setAddQty(1);
+      // Refresh
+      await search(searched);
+    } catch {
+      toast({ title: 'Erreur lors de l\'ajout', variant: 'destructive' });
+    } finally { setAdding(false); }
+  }
+
+  const allItems = [...shopItems].sort((a, b) => a.position - b.position || a.id - b.id);
 
   return (
     <div className="rounded-xl border bg-card p-5 space-y-4">
@@ -91,7 +118,7 @@ function InventoryPanel() {
           onKeyDown={e => e.key === 'Enter' && search()}
           className="font-mono text-sm flex-1"
         />
-        <Button onClick={search} disabled={loading || !userId.trim()} className="gap-2 shrink-0">
+        <Button onClick={() => search()} disabled={loading || !userId.trim()} className="gap-2 shrink-0">
           <Search className="w-4 h-4" />
           {loading ? 'Chargement…' : 'Rechercher'}
         </Button>
@@ -100,12 +127,61 @@ function InventoryPanel() {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {entries !== null && (
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">
-            {entries.length === 0
-              ? `Aucun item pour ${searched}`
-              : `${entries.length} item${entries.length > 1 ? 's' : ''} · <@${searched}>`}
-          </p>
+        <div className="space-y-3">
+          {/* Header row */}
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {entries.length === 0
+                ? `Aucun item pour ${searched}`
+                : `${entries.length} item${entries.length > 1 ? 's' : ''} · ${searched}`}
+            </p>
+            {!showAdd && (
+              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setShowAdd(true)}>
+                <PackagePlus className="w-3.5 h-3.5" /> Ajouter un item
+              </Button>
+            )}
+          </div>
+
+          {/* Add item form */}
+          {showAdd && (
+            <div className="rounded-lg border border-violet-200 bg-violet-50/40 dark:bg-violet-950/20 p-4 space-y-3">
+              <p className="text-xs font-medium text-violet-700 dark:text-violet-300">Ajouter un item à {searched}</p>
+              <div className="flex gap-2 flex-wrap">
+                <select
+                  value={addItemId}
+                  onChange={e => setAddItemId(Number(e.target.value) || '')}
+                  className="flex-1 min-w-[180px] text-sm border rounded-md px-3 py-1.5 bg-background"
+                >
+                  <option value="">— Choisir un item —</option>
+                  {allItems.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {item.emoji} {item.name}{!item.enabled ? ' [off]' : ''} — {item.price.toLocaleString()} {currency}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Qté</span>
+                  <Input
+                    type="number" min={1} max={99}
+                    value={addQty}
+                    onChange={e => setAddQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-16 text-center font-mono text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowAdd(false); setAddItemId(''); setAddQty(1); }}>
+                  Annuler
+                </Button>
+                <Button size="sm" className="h-7 gap-1.5 text-xs" disabled={!addItemId || adding} onClick={addItem}>
+                  <Plus className="w-3.5 h-3.5" />
+                  {adding ? 'Ajout…' : 'Confirmer'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Entries list */}
           {entries.map(e => {
             const src = sourceLabel(e.source);
             return (
@@ -314,7 +390,7 @@ export default function Shop() {
       )}
 
       {/* Inventory tab */}
-      {tab === 'inventory' && <InventoryPanel />}
+      {tab === 'inventory' && <InventoryPanel shopItems={items as Item[]} currency={currency} />}
     </div>
   );
 }
