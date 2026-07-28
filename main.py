@@ -1222,6 +1222,241 @@ async def before_config_refresh() -> None:
     await bot.wait_until_ready()
 
 
+# ── Giveaway helpers ──────────────────────────────────────────────────────────
+
+GIVEAWAY_EMOJI = "🎉"
+
+async def _post_giveaway_embed(giveaway: dict) -> None:
+    """Post the giveaway embed to the target channel and update the API with messageId/guildId."""
+    channel_id = int(giveaway["channelId"])
+    giveaway_id = giveaway["id"]
+
+    channel = bot.get_channel(channel_id)
+    if channel is None:
+        try:
+            channel = await bot.fetch_channel(channel_id)
+        except Exception as exc:
+            logger.error("Giveaway #%d: cannot find channel %s: %s", giveaway_id, channel_id, exc)
+            return
+
+    ends_at = datetime.fromisoformat(giveaway["endsAt"].replace("Z", "+00:00"))
+    ends_ts = int(ends_at.timestamp())
+
+    embed = discord.Embed(
+        title=f"{GIVEAWAY_EMOJI}  GIVEAWAY  {GIVEAWAY_EMOJI}",
+        description=(
+            f"**Prix :** {giveaway['prize']}\n\n"
+            f"Réagis avec {GIVEAWAY_EMOJI} pour participer !\n\n"
+            f"**Fin :** <t:{ends_ts}:R>  (<t:{ends_ts}:f>)\n"
+            f"**Gagnants :** {giveaway['winnersCount']}"
+        ),
+        color=discord.Color.gold(),
+    )
+    embed.set_footer(text=f"Giveaway #{giveaway_id}")
+
+    try:
+        msg = await channel.send(embed=embed)
+        await msg.add_reaction(GIVEAWAY_EMOJI)
+        await api_patch(f"/giveaways/{giveaway_id}", {
+            "messageId": str(msg.id),
+            "guildId": str(channel.guild.id),
+        })
+        logger.info("Giveaway #%d posted in channel %s (msg %s)", giveaway_id, channel_id, msg.id)
+    except Exception as exc:
+        logger.error("Giveaway #%d: failed to post: %s", giveaway_id, exc)
+
+
+async def _end_giveaway(giveaway: dict) -> None:
+    """Pick winners from reactors and announce them."""
+    giveaway_id = giveaway["id"]
+    channel_id = int(giveaway["channelId"])
+    message_id = int(giveaway["messageId"])
+    winners_count = giveaway["winnersCount"]
+
+    try:
+        channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+        message = await channel.fetch_message(message_id)
+    except Exception as exc:
+        logger.error("Giveaway #%d: cannot fetch message: %s", giveaway_id, exc)
+        await api_post(f"/giveaways/{giveaway_id}/end", {"winners": []})
+        return
+
+    # Collect reactors (exclude the bot itself)
+    reactors: list[discord.User] = []
+    for reaction in message.reactions:
+        if str(reaction.emoji) == GIVEAWAY_EMOJI:
+            async for user in reaction.users():
+                if not user.bot:
+                    reactors.append(user)
+            break
+
+    winners: list[discord.User] = []
+    if reactors:
+        winners = random.sample(reactors, min(winners_count, len(reactors)))
+
+    winner_ids = [str(w.id) for w in winners]
+    await api_post(f"/giveaways/{giveaway_id}/end", {"winners": winner_ids})
+
+    # Update the original embed
+    ends_ts = int(datetime.fromisoformat(giveaway["endsAt"].replace("Z", "+00:00")).timestamp())
+    ended_embed = discord.Embed(
+        title=f"🎊  GIVEAWAY TERMINÉ  🎊",
+        description=(
+            f"**Prix :** {giveaway['prize']}\n\n"
+            + (
+                "**Gagnant(s) :** " + ", ".join(w.mention for w in winners)
+                if winners else "Aucun participant 😔"
+            )
+            + f"\n\n**Fin :** <t:{ends_ts}:f>"
+        ),
+        color=discord.Color.greyple(),
+    )
+    ended_embed.set_footer(text=f"Giveaway #{giveaway_id} — terminé")
+    try:
+        await message.edit(embed=ended_embed)
+    except Exception:
+        pass
+
+    # Announce winners
+    if winners:
+        mention_str = " ".join(w.mention for w in winners)
+        await channel.send(
+            f"🎉 Félicitations {mention_str} ! Vous avez gagné **{giveaway['prize']}** !"
+        )
+    else:
+        await channel.send(f"Le giveaway **{giveaway['prize']}** s'est terminé sans participants.")
+
+    logger.info("Giveaway #%d ended — %d winner(s): %s", giveaway_id, len(winners), winner_ids)
+
+
+@tasks.loop(seconds=30)
+async def giveaway_poll_loop() -> None:
+    """Post pending giveaway embeds and end expired ones."""
+    active = await api_get_list("/giveaways?status=active")
+    if not active:
+        return
+    now = datetime.now(timezone.utc)
+    for giveaway in active:
+        # Post embed if not yet posted
+        if not giveaway.get("messageId"):
+            await _post_giveaway_embed(giveaway)
+            continue
+        # End if expired
+        ends_at = datetime.fromisoformat(giveaway["endsAt"].replace("Z", "+00:00"))
+        if now >= ends_at:
+            await _end_giveaway(giveaway)
+
+
+@giveaway_poll_loop.before_loop
+async def before_giveaway_poll() -> None:
+    await bot.wait_until_ready()
+
+
+# ── /giveaway command group ───────────────────────────────────────────────────
+
+giveaway_group = app_commands.Group(name="giveaway", description="Gestion des giveaways [Admin]")
+
+
+@giveaway_group.command(name="start", description="Lancer un giveaway")
+@app_commands.describe(
+    prize="Prix à gagner",
+    duration="Durée en minutes",
+    channel="Salon où poster le giveaway",
+    winners="Nombre de gagnants (défaut: 1)",
+)
+async def giveaway_start(
+    interaction: discord.Interaction,
+    prize: str,
+    duration: int,
+    channel: discord.TextChannel,
+    winners: int = 1,
+) -> None:
+    if not interaction.user.guild_permissions.administrator:  # type: ignore[union-attr]
+        await interaction.response.send_message("❌ Commande réservée aux administrateurs.", ephemeral=True)
+        return
+    result = await api_post("/giveaways", {
+        "prize": prize,
+        "channelId": str(channel.id),
+        "winnersCount": winners,
+        "durationMinutes": duration,
+    })
+    if result:
+        await interaction.response.send_message(
+            f"✅ Giveaway **{prize}** créé ! Il sera posté dans {channel.mention} dans quelques secondes.",
+            ephemeral=True,
+        )
+    else:
+        await interaction.response.send_message("❌ Erreur lors de la création du giveaway.", ephemeral=True)
+
+
+@giveaway_group.command(name="end", description="Terminer un giveaway immédiatement")
+@app_commands.describe(giveaway_id="ID du giveaway")
+async def giveaway_end(interaction: discord.Interaction, giveaway_id: int) -> None:
+    if not interaction.user.guild_permissions.administrator:  # type: ignore[union-attr]
+        await interaction.response.send_message("❌ Commande réservée aux administrateurs.", ephemeral=True)
+        return
+    giveaway = await api_get_json(f"/giveaways/{giveaway_id}")
+    if not giveaway or giveaway.get("status") != "active":
+        await interaction.response.send_message("❌ Giveaway introuvable ou déjà terminé.", ephemeral=True)
+        return
+    await interaction.response.defer(ephemeral=True)
+    await _end_giveaway(giveaway)
+    await interaction.followup.send(f"✅ Giveaway #{giveaway_id} terminé.", ephemeral=True)
+
+
+@giveaway_group.command(name="reroll", description="Retirer un nouveau gagnant")
+@app_commands.describe(giveaway_id="ID du giveaway")
+async def giveaway_reroll(interaction: discord.Interaction, giveaway_id: int) -> None:
+    if not interaction.user.guild_permissions.administrator:  # type: ignore[union-attr]
+        await interaction.response.send_message("❌ Commande réservée aux administrateurs.", ephemeral=True)
+        return
+    giveaway = await api_get_json(f"/giveaways/{giveaway_id}")
+    if not giveaway or giveaway.get("status") != "ended":
+        await interaction.response.send_message("❌ Giveaway introuvable ou pas encore terminé.", ephemeral=True)
+        return
+    await interaction.response.defer(ephemeral=True)
+
+    channel_id = int(giveaway["channelId"])
+    message_id = int(giveaway["messageId"]) if giveaway.get("messageId") else None
+    winners_count = giveaway["winnersCount"]
+
+    reactors: list[discord.User] = []
+    if message_id:
+        try:
+            channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+            message = await channel.fetch_message(message_id)
+            for reaction in message.reactions:
+                if str(reaction.emoji) == GIVEAWAY_EMOJI:
+                    async for user in reaction.users():
+                        if not user.bot:
+                            reactors.append(user)
+                    break
+        except Exception as exc:
+            logger.error("Reroll giveaway #%d: %s", giveaway_id, exc)
+
+    new_winners: list[discord.User] = []
+    if reactors:
+        new_winners = random.sample(reactors, min(winners_count, len(reactors)))
+
+    winner_ids = [str(w.id) for w in new_winners]
+    await api_post(f"/giveaways/{giveaway_id}/reroll", {"winners": winner_ids})
+
+    if new_winners:
+        prize = giveaway["prize"]
+        mention_str = " ".join(w.mention for w in new_winners)
+        try:
+            channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+            await channel.send(f"🎲 **Reroll !** Nouveau(x) gagnant(s) : {mention_str} pour **{prize}** !")
+        except Exception:
+            pass
+        await interaction.followup.send(f"✅ Reroll effectué : {mention_str}", ephemeral=True)
+    else:
+        await interaction.followup.send("❌ Aucun participant pour le reroll.", ephemeral=True)
+
+
+bot.tree.add_command(giveaway_group)
+
+
 @tasks.loop(seconds=10)
 async def command_sync_poll_loop() -> None:
     """Check for a pending command sync request and re-sync with Discord."""
@@ -1281,6 +1516,8 @@ async def on_ready() -> None:
         sync_poll_loop.start()
     if not command_sync_poll_loop.is_running():
         command_sync_poll_loop.start()
+    if not giveaway_poll_loop.is_running():
+        giveaway_poll_loop.start()
 
     await send_heartbeat(connected=True)
     await log_to_api("INFO", f"Bot connected as {bot.user}")

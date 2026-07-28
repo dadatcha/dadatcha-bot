@@ -236,7 +236,44 @@ export interface LogEntryInput {
   message: string;
 }
 
+export interface Giveaway {
+  id: number;
+  channelId: string;
+  /** @nullable */
+  messageId: string | null;
+  guildId: string;
+  prize: string;
+  winnersCount: number;
+  endsAt: string;
+  /** @nullable */
+  endedAt: string | null;
+  winners: string[];
+  status: string;
+  createdAt: string;
+}
+
+export interface GiveawayInput {
+  channelId: string;
+  prize: string;
+  winnersCount: number;
+  durationMinutes: number;
+}
+
+export interface GiveawayPatch {
+  messageId?: string;
+  guildId?: string;
+  status?: string;
+}
+
+export interface GiveawayWinnersInput {
+  winners: string[];
+}
+
 export type GetLogsParams = {
 limit?: number;
+};
+
+export type ListGiveawaysParams = {
+status?: string;
 };
 

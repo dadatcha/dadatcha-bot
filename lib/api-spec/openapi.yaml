@@ -509,6 +509,148 @@ paths:
         "404":
           description: Not found
 
+  /giveaways:
+    get:
+      operationId: listGiveaways
+      tags: [giveaways]
+      summary: List all giveaways
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of giveaways
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Giveaway"
+    post:
+      operationId: createGiveaway
+      tags: [giveaways]
+      summary: Create a new giveaway
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GiveawayInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Giveaway"
+
+  /giveaways/{id}:
+    get:
+      operationId: getGiveaway
+      tags: [giveaways]
+      summary: Get a single giveaway
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Giveaway
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Giveaway"
+    patch:
+      operationId: updateGiveaway
+      tags: [giveaways]
+      summary: Update a giveaway (bot sets messageId / guildId)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GiveawayPatch"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Giveaway"
+    delete:
+      operationId: deleteGiveaway
+      tags: [giveaways]
+      summary: Delete a giveaway
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /giveaways/{id}/end:
+    post:
+      operationId: endGiveaway
+      tags: [giveaways]
+      summary: End a giveaway and record winners
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GiveawayWinnersInput"
+      responses:
+        "200":
+          description: Ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Giveaway"
+
+  /giveaways/{id}/reroll:
+    post:
+      operationId: rerollGiveaway
+      tags: [giveaways]
+      summary: Reroll winners for an ended giveaway
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GiveawayWinnersInput"
+      responses:
+        "200":
+          description: Rerolled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Giveaway"
+
 components:
   schemas:
     HealthStatus:
@@ -945,3 +1087,64 @@ components:
         message:
           type: string
       required: [level, message]
+
+    Giveaway:
+      type: object
+      properties:
+        id:
+          type: integer
+        channelId:
+          type: string
+        messageId:
+          type: ["string", "null"]
+        guildId:
+          type: string
+        prize:
+          type: string
+        winnersCount:
+          type: integer
+        endsAt:
+          type: string
+        endedAt:
+          type: ["string", "null"]
+        winners:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+      required: [id, channelId, messageId, guildId, prize, winnersCount, endsAt, endedAt, winners, status, createdAt]
+
+    GiveawayInput:
+      type: object
+      properties:
+        channelId:
+          type: string
+        prize:
+          type: string
+        winnersCount:
+          type: integer
+        durationMinutes:
+          type: integer
+      required: [channelId, prize, winnersCount, durationMinutes]
+
+    GiveawayPatch:
+      type: object
+      properties:
+        messageId:
+          type: string
+        guildId:
+          type: string
+        status:
+          type: string
+
+    GiveawayWinnersInput:
+      type: object
+      properties:
+        winners:
+          type: array
+          items:
+            type: string
+      required: [winners]

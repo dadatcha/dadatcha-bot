@@ -179,3 +179,20 @@ export const commandConfigsTable = pgTable("command_configs", {
 });
 
 export type CommandConfig = typeof commandConfigsTable.$inferSelect;
+
+// Giveaways
+export const giveawaysTable = pgTable("giveaways", {
+  id:           serial("id").primaryKey(),
+  channelId:    text("channel_id").notNull(),
+  messageId:    text("message_id"),
+  guildId:      text("guild_id").notNull().default(""),
+  prize:        text("prize").notNull(),
+  winnersCount: integer("winners_count").notNull().default(1),
+  endsAt:       timestamp("ends_at", { withTimezone: true }).notNull(),
+  endedAt:      timestamp("ended_at", { withTimezone: true }),
+  winners:      text("winners").array().notNull().default([]),
+  status:       text("status").notNull().default("active"), // active | ended | cancelled
+  createdAt:    timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Giveaway = typeof giveawaysTable.$inferSelect;

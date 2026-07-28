@@ -10,6 +10,7 @@ import RoleRewards from '@/pages/role-rewards';
 import Commands from '@/pages/commands';
 import Games from '@/pages/games';
 import Reminder from '@/pages/reminder';
+import Giveaway from '@/pages/giveaway';
 import Logs from '@/pages/logs';
 import NotFound from '@/pages/not-found';
 
@@ -30,6 +31,7 @@ function Router() {
           <Route path="/commands" component={Commands} />
           <Route path="/games" component={Games} />
           <Route path="/reminder" component={Reminder} />
+          <Route path="/giveaway" component={Giveaway} />
           <Route path="/logs" component={Logs} />
           <Route component={NotFound} />
         </Switch>

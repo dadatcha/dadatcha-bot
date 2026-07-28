@@ -575,3 +575,163 @@ export const DeleteRoleRewardParams = zod.object({
 export const DeleteRoleRewardResponse = zod.void()
 
 
+/**
+ * @summary List all giveaways
+ */
+export const ListGiveawaysQueryParams = zod.object({
+  "status": zod.coerce.string().optional()
+})
+
+export const ListGiveawaysResponseItem = zod.object({
+  "id": zod.number(),
+  "channelId": zod.string(),
+  "messageId": zod.string().nullable(),
+  "guildId": zod.string(),
+  "prize": zod.string(),
+  "winnersCount": zod.number(),
+  "endsAt": zod.string(),
+  "endedAt": zod.string().nullable(),
+  "winners": zod.array(zod.string()),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListGiveawaysResponse = zod.array(ListGiveawaysResponseItem)
+
+
+/**
+ * @summary Create a new giveaway
+ */
+export const CreateGiveawayBody = zod.object({
+  "channelId": zod.string(),
+  "prize": zod.string(),
+  "winnersCount": zod.number(),
+  "durationMinutes": zod.number()
+})
+
+export const CreateGiveawayResponse = zod.object({
+  "id": zod.number(),
+  "channelId": zod.string(),
+  "messageId": zod.string().nullable(),
+  "guildId": zod.string(),
+  "prize": zod.string(),
+  "winnersCount": zod.number(),
+  "endsAt": zod.string(),
+  "endedAt": zod.string().nullable(),
+  "winners": zod.array(zod.string()),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Get a single giveaway
+ */
+export const GetGiveawayParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetGiveawayResponse = zod.object({
+  "id": zod.number(),
+  "channelId": zod.string(),
+  "messageId": zod.string().nullable(),
+  "guildId": zod.string(),
+  "prize": zod.string(),
+  "winnersCount": zod.number(),
+  "endsAt": zod.string(),
+  "endedAt": zod.string().nullable(),
+  "winners": zod.array(zod.string()),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a giveaway (bot sets messageId / guildId)
+ */
+export const UpdateGiveawayParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateGiveawayBody = zod.object({
+  "messageId": zod.string().optional(),
+  "guildId": zod.string().optional(),
+  "status": zod.string().optional()
+})
+
+export const UpdateGiveawayResponse = zod.object({
+  "id": zod.number(),
+  "channelId": zod.string(),
+  "messageId": zod.string().nullable(),
+  "guildId": zod.string(),
+  "prize": zod.string(),
+  "winnersCount": zod.number(),
+  "endsAt": zod.string(),
+  "endedAt": zod.string().nullable(),
+  "winners": zod.array(zod.string()),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a giveaway
+ */
+export const DeleteGiveawayParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteGiveawayResponse = zod.void()
+
+
+/**
+ * @summary End a giveaway and record winners
+ */
+export const EndGiveawayParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const EndGiveawayBody = zod.object({
+  "winners": zod.array(zod.string())
+})
+
+export const EndGiveawayResponse = zod.object({
+  "id": zod.number(),
+  "channelId": zod.string(),
+  "messageId": zod.string().nullable(),
+  "guildId": zod.string(),
+  "prize": zod.string(),
+  "winnersCount": zod.number(),
+  "endsAt": zod.string(),
+  "endedAt": zod.string().nullable(),
+  "winners": zod.array(zod.string()),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Reroll winners for an ended giveaway
+ */
+export const RerollGiveawayParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RerollGiveawayBody = zod.object({
+  "winners": zod.array(zod.string())
+})
+
+export const RerollGiveawayResponse = zod.object({
+  "id": zod.number(),
+  "channelId": zod.string(),
+  "messageId": zod.string().nullable(),
+  "guildId": zod.string(),
+  "prize": zod.string(),
+  "winnersCount": zod.number(),
+  "endsAt": zod.string(),
+  "endedAt": zod.string().nullable(),
+  "winners": zod.array(zod.string()),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+
