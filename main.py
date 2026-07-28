@@ -748,15 +748,15 @@ def _resolve_reward_target(
     reward_target: str,
 ) -> Optional[discord.Member]:
     """Return the Member who should receive rewards.
-    'mentioned' → first @mention in the message (fallback: author)
+    'mentioned' → first @mention in the message; returns None if no valid mention
+                  (no fallback — reward is skipped when nobody is mentioned)
     'author'    → the message author
     """
     if reward_target == "mentioned":
-        # discord.py populates message.mentions with resolved Member objects
         for m in message.mentions:
             if isinstance(m, discord.Member) and not m.bot:
                 return m
-        # fallback to author if no valid mention
+        return None  # no valid mention → no reward
     if isinstance(message.author, discord.Member):
         return message.author
     return None
