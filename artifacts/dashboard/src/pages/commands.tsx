@@ -6,7 +6,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Terminal, Coins, Gamepad2, ShoppingBag, Gift, Settings, Lock, Eye, EyeOff, Pencil, Check, X, RefreshCw } from 'lucide-react';
+import { Terminal, Coins, Gamepad2, ShoppingBag, Gift, Settings, Shuffle, Lock, Eye, EyeOff, Pencil, Check, X, RefreshCw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,11 +80,12 @@ function SyncBanner() {
 // ── Category meta ──────────────────────────────────────────────────────────────
 
 const CATEGORY_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  economy:  { label: 'Économie',  icon: Coins,        color: 'text-yellow-500' },
-  games:    { label: 'Jeux',      icon: Gamepad2,     color: 'text-purple-500' },
-  shop:     { label: 'Shop',      icon: ShoppingBag,  color: 'text-violet-500' },
-  giveaway: { label: 'Giveaway',  icon: Gift,         color: 'text-pink-500'   },
-  config:   { label: 'Config',   icon: Settings,     color: 'text-slate-500'  },
+  economy:          { label: 'Économie',          icon: Coins,        color: 'text-yellow-500' },
+  games:            { label: 'Jeux',              icon: Gamepad2,     color: 'text-purple-500' },
+  shop:             { label: 'Shop',              icon: ShoppingBag,  color: 'text-violet-500' },
+  giveaway:         { label: 'Giveaway',          icon: Gift,         color: 'text-pink-500'   },
+  config:           { label: 'Config',            icon: Settings,     color: 'text-slate-500'  },
+  'random-activity':{ label: 'Msgs aléatoires',  icon: Shuffle,      color: 'text-indigo-500' },
 };
 
 // ── Single command row ─────────────────────────────────────────────────────────
@@ -237,7 +238,7 @@ export default function Commands() {
     return acc;
   }, {});
 
-  const categoryOrder = ['economy', 'games', 'shop', 'giveaway', 'config'];
+  const categoryOrder = ['economy', 'games', 'shop', 'giveaway', 'config', 'random-activity'];
 
   return (
     <div className="p-8 space-y-8 max-w-4xl">

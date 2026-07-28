@@ -35,7 +35,8 @@ const KNOWN_COMMANDS = [
   { name: "giveaway-start",  label: "Giveaway Start",  description: "Ouvrir le panneau de création de giveaway [Admin]", category: "giveaway" },
   { name: "giveaway-end",    label: "Giveaway End",    description: "Terminer un giveaway immédiatement [Admin]",          category: "giveaway" },
   { name: "giveaway-reroll", label: "Giveaway Reroll", description: "Retirer un nouveau gagnant [Admin]",                  category: "giveaway" },
-  { name: "config-language", label: "Config Language", description: "Changer la langue du bot [Admin]",                    category: "config"   },
+  { name: "config-language", label: "Config Language", description: "Changer la langue du bot [Admin]",                    category: "config"         },
+  { name: "set-rdm-msg",    label: "Set Random Msg",  description: "Configurer les messages aléatoires du bot [Admin]",  category: "random-activity" },
 ] as const;
 
 const KNOWN_COMMAND_NAMES = new Set(KNOWN_COMMANDS.map(c => c.name));

@@ -703,7 +703,7 @@ async def balance(interaction: discord.Interaction, player: Optional[discord.Mem
 
 # ── /addmoney ─────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="addmoney", description="[Admin] Add {_coin()} to a player's wallet or bank")
+@bot.tree.command(name="addmoney", description="[Admin] Add coins to a player's wallet or bank")
 @app_commands.describe(player="Target player", amount="Amount to add", location="Where to add the coins")
 @app_commands.choices(location=[
     app_commands.Choice(name="Wallet", value="wallet"),
@@ -736,7 +736,7 @@ async def addmoney(
 
 # ── /removemoney ──────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="removemoney", description="[Admin] Remove {_coin()} from a player's wallet or bank")
+@bot.tree.command(name="removemoney", description="[Admin] Remove coins from a player's wallet or bank")
 @app_commands.describe(player="Target player", amount="Amount to remove", location="Where to remove the coins from")
 @app_commands.choices(location=[
     app_commands.Choice(name="Wallet", value="wallet"),
@@ -884,7 +884,7 @@ async def crime(interaction: discord.Interaction) -> None:
 
 # ── /deposit ──────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="deposit", description="Deposit {_coin()} from your wallet into the bank")
+@bot.tree.command(name="deposit", description="Deposit coins from your wallet into the bank")
 @app_commands.describe(amount="Amount to deposit")
 async def deposit(interaction: discord.Interaction, amount: int) -> None:
     if not await check_cmd(interaction, "deposit"): return
@@ -909,7 +909,7 @@ async def deposit(interaction: discord.Interaction, amount: int) -> None:
 
 # ── /withdraw ─────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="withdraw", description="Withdraw {_coin()} from the bank into your wallet")
+@bot.tree.command(name="withdraw", description="Withdraw coins from the bank into your wallet")
 @app_commands.describe(amount="Amount to withdraw")
 async def withdraw(interaction: discord.Interaction, amount: int) -> None:
     if not await check_cmd(interaction, "withdraw"): return
@@ -934,7 +934,7 @@ async def withdraw(interaction: discord.Interaction, amount: int) -> None:
 
 # ── /give ─────────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="give", description="Give {_coin()} from your wallet to another player")
+@bot.tree.command(name="give", description="Give coins from your wallet to another player")
 @app_commands.describe(player="Who to give to", amount="How many coins")
 async def give(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
     if not await check_cmd(interaction, "give"): return
