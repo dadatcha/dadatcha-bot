@@ -141,7 +141,7 @@ type ReminderBodyType = {
 function parseReminderBody(body: unknown): { data: ReminderBodyType } | { error: string } {
   const b = body as Record<string, unknown>;
   if (typeof b.name !== "string" || b.name.trim() === "") return { error: "name is required" };
-  if (typeof b.channelId !== "string" || b.channelId.trim() === "") return { error: "channelId is required" };
+  if (typeof b.channelId !== "string") return { error: "channelId must be a string" };
   if (typeof b.intervalMinutes !== "number" || b.intervalMinutes < 1) return { error: "intervalMinutes must be >= 1" };
   if (typeof b.message !== "string") return { error: "message is required" };
   return {
