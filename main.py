@@ -3515,7 +3515,7 @@ class TicketOpenView(discord.ui.View):
         embed.set_footer(text=f"Ouvert par {interaction.user} · {interaction.user.id}")
         try:
             await ticket_channel.send(
-                content=interaction.user.mention,
+                content=f"{interaction.user.mention} <@&1528407563190800435>",
                 embed=embed,
                 view=TicketCloseView(),
             )
