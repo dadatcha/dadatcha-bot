@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, botConfigTable, botLogsTable, botStatusTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { db, botConfigTable, botLogsTable, botStatusTable, remindersTable } from "@workspace/db";
 import {
   GetBotStatusResponse,
   GetBotConfigResponse,
@@ -126,6 +126,76 @@ router.put("/bot/config", async (req, res): Promise<void> => {
     reminderIntervalMinutes: updated.reminderIntervalMinutes,
     reminderMessage: updated.reminderMessage,
   }));
+});
+
+// ── Reminders ─────────────────────────────────────────────────────────────────
+
+type ReminderBodyType = {
+  name: string;
+  channelId: string;
+  enabled?: boolean;
+  intervalMinutes: number;
+  message: string;
+};
+
+function parseReminderBody(body: unknown): { data: ReminderBodyType } | { error: string } {
+  const b = body as Record<string, unknown>;
+  if (typeof b.name !== "string" || b.name.trim() === "") return { error: "name is required" };
+  if (typeof b.channelId !== "string" || b.channelId.trim() === "") return { error: "channelId is required" };
+  if (typeof b.intervalMinutes !== "number" || b.intervalMinutes < 1) return { error: "intervalMinutes must be >= 1" };
+  if (typeof b.message !== "string") return { error: "message is required" };
+  return {
+    data: {
+      name: b.name.trim(),
+      channelId: b.channelId.trim(),
+      enabled: typeof b.enabled === "boolean" ? b.enabled : true,
+      intervalMinutes: Math.floor(b.intervalMinutes),
+      message: b.message,
+    },
+  };
+}
+
+function formatReminder(r: typeof remindersTable.$inferSelect) {
+  return {
+    id: r.id,
+    name: r.name,
+    channelId: r.channelId,
+    enabled: r.enabled,
+    intervalMinutes: r.intervalMinutes,
+    message: r.message,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  };
+}
+
+router.get("/bot/reminders", async (req, res): Promise<void> => {
+  const rows = await db.select().from(remindersTable).orderBy(remindersTable.createdAt);
+  res.json(rows.map(formatReminder));
+});
+
+router.post("/bot/reminders", async (req, res): Promise<void> => {
+  const parsed = parseReminderBody(req.body);
+  if ("error" in parsed) { res.status(400).json({ error: parsed.error }); return; }
+  const [row] = await db.insert(remindersTable).values(parsed.data).returning();
+  res.status(201).json(formatReminder(row));
+});
+
+router.put("/bot/reminders/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const parsed = parseReminderBody(req.body);
+  if ("error" in parsed) { res.status(400).json({ error: parsed.error }); return; }
+  const [row] = await db.update(remindersTable).set(parsed.data).where(eq(remindersTable.id, id)).returning();
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(formatReminder(row));
+});
+
+router.delete("/bot/reminders/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [row] = await db.delete(remindersTable).where(eq(remindersTable.id, id)).returning();
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  res.sendStatus(204);
 });
 
 // ── Logs ──────────────────────────────────────────────────────────────────────

@@ -63,13 +63,13 @@ logger = logging.getLogger("lotto-bot")
 
 # ── Runtime state ─────────────────────────────────────────────────────────────
 
-_channel_id: int = DEFAULT_CHANNEL_ID
-_reminder_enabled: bool = True
-_reminder_interval: int = 1
-_reminder_message: str = DEFAULT_REMINDER_MESSAGE
 _started_at: datetime = datetime.now(timezone.utc)
 _last_reminder_at: Optional[datetime] = None
 _reminders_today: int = 0
+
+# Multi-reminder state
+_reminders: dict[int, dict] = {}          # id → reminder dict from API
+_reminder_tasks: dict[int, asyncio.Task] = {}  # id → running asyncio.Task
 
 # ── Bot setup ─────────────────────────────────────────────────────────────────
 
@@ -120,6 +120,19 @@ async def api_get_json(path: str) -> Optional[dict]:
     return None
 
 
+async def api_get_list(path: str) -> Optional[list]:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+    except Exception:
+        pass
+    return None
+
+
 async def log_to_api(level: str, message: str) -> None:
     await api_post("/bot/logs", {"level": level, "message": message})
 
@@ -136,18 +149,76 @@ async def send_heartbeat(connected: bool) -> None:
     await api_post("/bot/heartbeat", payload)
 
 
-async def refresh_config() -> None:
-    global _channel_id, _reminder_enabled, _reminder_interval, _reminder_message
-    data = await api_get_json("/bot/config")
-    if data:
-        _channel_id = int(data.get("channelId", _channel_id))
-        _reminder_enabled = bool(data.get("reminderEnabled", _reminder_enabled))
-        _reminder_interval = int(data.get("reminderIntervalMinutes", _reminder_interval))
-        _reminder_message = data.get("reminderMessage", _reminder_message)
-        logger.info(
-            "Config refreshed — channel=%s reminder=%s interval=%dmin",
-            _channel_id, _reminder_enabled, _reminder_interval,
-        )
+async def _do_send_reminder(r: dict) -> None:
+    """Send one reminder if the last message in the channel is not from the bot."""
+    global _last_reminder_at, _reminders_today
+    try:
+        channel_id = int(r["channelId"])
+    except (ValueError, KeyError):
+        return
+    channel = bot.get_channel(channel_id)
+    if channel is None:
+        try:
+            channel = await bot.fetch_channel(channel_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
+            logger.error("Reminder '%s': cannot access channel %s — %s", r["name"], channel_id, exc)
+            await log_to_api("ERROR", f"Reminder '{r['name']}': cannot access channel {channel_id}")
+            return
+    if not hasattr(channel, "history"):
+        return
+    try:
+        async for msg in channel.history(limit=1):  # type: ignore[union-attr]
+            if bot.user and msg.author.id == bot.user.id:
+                return
+            await channel.send(r["message"])  # type: ignore[union-attr]
+            _last_reminder_at = datetime.now(timezone.utc)
+            _reminders_today += 1
+            info = f"Reminder '{r['name']}' sent to channel {channel_id}."
+            logger.info(info)
+            await log_to_api("INFO", info)
+            return
+    except discord.Forbidden:
+        logger.error("Reminder '%s': no permission for channel %s", r["name"], channel_id)
+    except discord.HTTPException:
+        logger.exception("Reminder '%s': Discord HTTP error", r["name"])
+
+
+async def _run_reminder_loop(reminder_id: int) -> None:
+    """Long-running asyncio task for one reminder."""
+    # Small initial delay so all tasks don't fire at the same second on startup
+    await asyncio.sleep(5)
+    while True:
+        r = _reminders.get(reminder_id)
+        if r is None:
+            break  # reminder was deleted — exit
+        interval_secs = max(1, r["intervalMinutes"]) * 60
+        if r["enabled"] and r.get("channelId") and r.get("message"):
+            await _do_send_reminder(r)
+        try:
+            await asyncio.sleep(interval_secs)
+        except asyncio.CancelledError:
+            break
+
+
+async def refresh_reminders() -> None:
+    """Fetch reminder list from API and start/stop/update per-reminder tasks."""
+    global _reminders
+    data = await api_get_list("/bot/reminders")
+    if data is None:
+        return
+    new: dict[int, dict] = {r["id"]: r for r in data}
+    _reminders = new
+    # Start tasks for new or finished reminders
+    for rid in new:
+        task = _reminder_tasks.get(rid)
+        if task is None or task.done():
+            _reminder_tasks[rid] = asyncio.create_task(_run_reminder_loop(rid))
+    # Cancel tasks for deleted reminders
+    for rid in list(_reminder_tasks.keys()):
+        if rid not in new:
+            _reminder_tasks[rid].cancel()
+            del _reminder_tasks[rid]
+    logger.info("Reminders refreshed — %d configured", len(new))
 
 
 async def refresh_economy_config() -> None:
@@ -839,55 +910,7 @@ async def roulette(interaction: discord.Interaction, bet: int = 100) -> None:
 # These are handled directly by the economy route on the API server
 
 
-# ── Reminder loop ─────────────────────────────────────────────────────────────
-
-async def get_lotto_channel() -> Optional[discord.abc.Messageable]:
-    channel = bot.get_channel(_channel_id)
-    if channel is not None:
-        return channel
-    try:
-        return await bot.fetch_channel(_channel_id)
-    except discord.NotFound:
-        logger.error("Channel %s was not found.", _channel_id)
-    except discord.Forbidden:
-        logger.error("The bot cannot access channel %s.", _channel_id)
-    except discord.HTTPException:
-        logger.exception("Discord failed while fetching channel %s.", _channel_id)
-    return None
-
-
-@tasks.loop(minutes=1)
-async def verifier_et_envoyer() -> None:
-    global _last_reminder_at, _reminders_today
-
-    if not _reminder_enabled:
-        return
-
-    channel = await get_lotto_channel()
-    if channel is None or not hasattr(channel, "history"):
-        msg = f"Configured channel {_channel_id} is not a readable text channel."
-        logger.error(msg)
-        await log_to_api("ERROR", msg)
-        return
-
-    try:
-        async for message in channel.history(limit=1):  # type: ignore[union-attr]
-            if bot.user is not None and message.author.id == bot.user.id:
-                return
-            await channel.send(_reminder_message)  # type: ignore[union-attr]
-            _last_reminder_at = datetime.now(timezone.utc)
-            _reminders_today += 1
-            msg = f"Reminder sent to channel {_channel_id}."
-            logger.info(msg)
-            await log_to_api("INFO", msg)
-            return
-    except discord.Forbidden:
-        msg = f"The bot cannot read or send messages in channel {_channel_id}."
-        logger.error(msg)
-        await log_to_api("ERROR", msg)
-    except discord.HTTPException:
-        logger.exception("Discord failed while processing channel %s.", _channel_id)
-
+# ── Reminder loops (dynamic, one asyncio.Task per reminder) ───────────────────
 
 @tasks.loop(seconds=30)
 async def heartbeat_loop() -> None:
@@ -896,17 +919,8 @@ async def heartbeat_loop() -> None:
 
 @tasks.loop(minutes=2)
 async def config_refresh_loop() -> None:
-    await refresh_config()
+    await refresh_reminders()
     await refresh_economy_config()
-    if verifier_et_envoyer.is_running():
-        current = verifier_et_envoyer.minutes  # type: ignore[attr-defined]
-        if current != _reminder_interval:
-            verifier_et_envoyer.change_interval(minutes=_reminder_interval)
-
-
-@verifier_et_envoyer.before_loop
-async def avant_envoi() -> None:
-    await bot.wait_until_ready()
 
 
 @heartbeat_loop.before_loop
@@ -926,7 +940,7 @@ async def on_ready() -> None:
     if bot.user is not None:
         logger.info("Bot connected as %s (ID: %s)", bot.user, bot.user.id)
 
-    await refresh_config()
+    await refresh_reminders()
     await refresh_economy_config()
 
     try:
@@ -935,8 +949,6 @@ async def on_ready() -> None:
     except Exception:
         logger.exception("Failed to sync slash commands")
 
-    if not verifier_et_envoyer.is_running():
-        verifier_et_envoyer.start()
     if not heartbeat_loop.is_running():
         heartbeat_loop.start()
     if not config_refresh_loop.is_running():

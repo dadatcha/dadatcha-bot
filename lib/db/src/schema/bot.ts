@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, integer, timestamp, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, integer, timestamp, bigint, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -33,6 +33,22 @@ And more!`),
 export const insertBotConfigSchema = createInsertSchema(botConfigTable).omit({ id: true, updatedAt: true });
 export type InsertBotConfig = z.infer<typeof insertBotConfigSchema>;
 export type BotConfig = typeof botConfigTable.$inferSelect;
+
+// Multiple reminders
+export const remindersTable = pgTable("reminders", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().default("Reminder"),
+  channelId: text("channel_id").notNull().default(""),
+  enabled: boolean("enabled").notNull().default(true),
+  intervalMinutes: integer("interval_minutes").notNull().default(60),
+  message: text("message").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export const insertReminderSchema = createInsertSchema(remindersTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertReminder = z.infer<typeof insertReminderSchema>;
+export type Reminder = typeof remindersTable.$inferSelect;
 
 // Activity logs
 export const botLogsTable = pgTable("bot_logs", {

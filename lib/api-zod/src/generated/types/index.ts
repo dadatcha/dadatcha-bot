@@ -17,3 +17,5 @@ export * from './logEntry';
 export * from './logEntryInput';
 export * from './player';
 export * from './playerBalancePatch';
+export * from './reminder';
+export * from './reminderInput';

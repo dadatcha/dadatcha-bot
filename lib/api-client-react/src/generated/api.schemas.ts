@@ -38,6 +38,25 @@ export interface BotConfigInput {
   reminderMessage?: string;
 }
 
+export interface Reminder {
+  id: number;
+  name: string;
+  channelId: string;
+  enabled: boolean;
+  intervalMinutes: number;
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReminderInput {
+  name: string;
+  channelId: string;
+  enabled?: boolean;
+  intervalMinutes: number;
+  message: string;
+}
+
 export interface EconomyConfig {
   startingWallet: number;
   balanceEnabled: boolean;

@@ -69,6 +69,80 @@ paths:
               schema:
                 $ref: "#/components/schemas/BotConfig"
 
+  /bot/reminders:
+    get:
+      operationId: listReminders
+      tags: [bot]
+      summary: List all reminders
+      responses:
+        "200":
+          description: Reminders list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reminder"
+    post:
+      operationId: createReminder
+      tags: [bot]
+      summary: Create a new reminder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReminderInput"
+      responses:
+        "201":
+          description: Created reminder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+
+  /bot/reminders/{id}:
+    put:
+      operationId: updateReminder
+      tags: [bot]
+      summary: Update a reminder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReminderInput"
+      responses:
+        "200":
+          description: Updated reminder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteReminder
+      tags: [bot]
+      summary: Delete a reminder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
   /bot/logs:
     get:
       operationId: getLogs
@@ -246,6 +320,42 @@ components:
           type: integer
         reminderMessage:
           type: string
+
+    Reminder:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        channelId:
+          type: string
+        enabled:
+          type: boolean
+        intervalMinutes:
+          type: integer
+        message:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, channelId, enabled, intervalMinutes, message, createdAt, updatedAt]
+
+    ReminderInput:
+      type: object
+      properties:
+        name:
+          type: string
+        channelId:
+          type: string
+        enabled:
+          type: boolean
+        intervalMinutes:
+          type: integer
+        message:
+          type: string
+      required: [name, channelId, intervalMinutes, message]
 
     EconomyConfig:
       type: object

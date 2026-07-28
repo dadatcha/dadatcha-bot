@@ -60,6 +60,82 @@ export const UpdateBotConfigResponse = zod.object({
 
 
 /**
+ * @summary List all reminders
+ */
+export const ListRemindersResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "channelId": zod.string(),
+  "enabled": zod.boolean(),
+  "intervalMinutes": zod.number(),
+  "message": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListRemindersResponse = zod.array(ListRemindersResponseItem)
+
+
+/**
+ * @summary Create a new reminder
+ */
+export const CreateReminderBody = zod.object({
+  "name": zod.string(),
+  "channelId": zod.string(),
+  "enabled": zod.boolean().optional(),
+  "intervalMinutes": zod.number(),
+  "message": zod.string()
+})
+
+export const CreateReminderResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "channelId": zod.string(),
+  "enabled": zod.boolean(),
+  "intervalMinutes": zod.number(),
+  "message": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update a reminder
+ */
+export const UpdateReminderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateReminderBody = zod.object({
+  "name": zod.string(),
+  "channelId": zod.string(),
+  "enabled": zod.boolean().optional(),
+  "intervalMinutes": zod.number(),
+  "message": zod.string()
+})
+
+export const UpdateReminderResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "channelId": zod.string(),
+  "enabled": zod.boolean(),
+  "intervalMinutes": zod.number(),
+  "message": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a reminder
+ */
+export const DeleteReminderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteReminderResponse = zod.void()
+
+
+/**
  * @summary Get recent bot activity logs
  */
 export const getLogsQueryLimitDefault = 100;

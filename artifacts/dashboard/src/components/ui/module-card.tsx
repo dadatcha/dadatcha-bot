@@ -14,11 +14,13 @@ type ModuleCardProps = {
   saving?: boolean;
   dirty?: boolean;
   children?: React.ReactNode;
+  /** Optional element placed between the toggle and the card edge (e.g. a delete button). */
+  extra?: React.ReactNode;
 };
 
 export function ModuleCard({
   title, description, icon: Icon, iconColor = 'text-indigo-500',
-  enabled, onToggle, onSave, saving = false, dirty = false, children,
+  enabled, onToggle, onSave, saving = false, dirty = false, children, extra,
 }: ModuleCardProps) {
   return (
     <div className={cn(
@@ -36,7 +38,10 @@ export function ModuleCard({
             <p className="text-xs text-muted-foreground mt-0.5 max-w-xs">{description}</p>
           </div>
         </div>
-        <Switch checked={enabled} onCheckedChange={onToggle} />
+        <div className="flex items-center gap-2">
+          {extra}
+          <Switch checked={enabled} onCheckedChange={onToggle} />
+        </div>
       </div>
 
       {/* Body */}
