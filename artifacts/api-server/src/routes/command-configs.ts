@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, commandConfigsTable } from "@workspace/db";
+import { triggerSync } from "./command-sync";
 import {
   ListCommandConfigsResponse,
   UpdateCommandConfigBody,
@@ -93,6 +94,7 @@ router.put("/command-configs/:name", async (req, res): Promise<void> => {
     .returning();
 
   const known = KNOWN_COMMANDS.find(c => c.name === name)!;
+  triggerSync();
   res.json(UpdateCommandConfigResponse.parse(merge(known, upserted)));
 });
 

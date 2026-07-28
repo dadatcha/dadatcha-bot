@@ -20,10 +20,16 @@ function toJob() {
   };
 }
 
+// ── Programmatic trigger (used by other routes) ───────────────────────────────
+
+export function triggerSync(): void {
+  job = { status: "pending", requestedAt: new Date(), completedAt: null };
+}
+
 // ── POST /command-sync — trigger a re-sync ────────────────────────────────────
 
 router.post("/command-sync", (_req, res): void => {
-  job = { status: "pending", requestedAt: new Date(), completedAt: null };
+  triggerSync();
   res.status(201).json(toJob());
 });
 
