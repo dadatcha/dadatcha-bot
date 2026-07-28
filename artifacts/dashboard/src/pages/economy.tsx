@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import {
   Coins, TrendingUp, Skull,
   Gift, Trophy, Sparkles, Eye, Pencil, Check, X, Search, Users, MessageCircle, RefreshCw,
+  Spade, Target, ArrowUpDown, Hash,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -27,8 +28,10 @@ type Cfg = {
   crimeEnabled: boolean; crimeWinMin: number; crimeWinMax: number;
   crimeLoseMin: number; crimeLoseMax: number; crimeWinChance: number; crimeCooldownHours: number;
   depositEnabled: boolean; withdrawEnabled: boolean; giveEnabled: boolean; leaderboardEnabled: boolean;
-  blackjackEnabled: boolean; blackjackMaxBet: number;
-  rouletteEnabled: boolean; rouletteMaxBet: number; hlEnabled: boolean;
+  blackjackEnabled: boolean; blackjackMinBet: number; blackjackMaxBet: number;
+  rouletteEnabled: boolean; rouletteMinBet: number; rouletteMaxBet: number;
+  hlEnabled: boolean; hlMinBet: number; hlMaxBet: number; hlStreakReward: number;
+  guessEnabled: boolean; guessMinBet: number; guessMaxBet: number; guessMaxAttempts: number;
   currencyName: string;
   messageRewardEnabled: boolean; messageRewardMin: number; messageRewardMax: number; messageRewardCooldownSeconds: number;
 };
@@ -228,6 +231,73 @@ function EconomySettings() {
           <NumberField value={form.messageRewardCooldownSeconds} onChange={(v) => p({ messageRewardCooldownSeconds: v })} min={1} suffix="s" />
         </FieldRow>
       </ModuleCard>
+
+      {/* ── Games ─────────────────────────────────────────────────────────── */}
+      <div className="pt-2">
+        <h2 className="text-base font-semibold tracking-tight mb-3 flex items-center gap-2">
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-violet-100 text-violet-600"><Spade className="w-3.5 h-3.5" /></span>
+          Jeux
+        </h2>
+        <div className="space-y-4">
+
+          {/* Blackjack */}
+          <ModuleCard title="/blackjack" description={`Jeu de blackjack — mise en ${c}, le croupier tire jusqu'à 17.`}
+            icon={Spade} iconColor="text-violet-600"
+            enabled={form.blackjackEnabled} onToggle={(v) => p({ blackjackEnabled: v })}
+            onSave={() => saveModule({ blackjackEnabled: form.blackjackEnabled, blackjackMinBet: form.blackjackMinBet, blackjackMaxBet: form.blackjackMaxBet })}
+            saving={update.isPending} dirty={dirty}>
+            <FieldRow label="Mise minimum">
+              <NumberField value={form.blackjackMinBet} onChange={(v) => p({ blackjackMinBet: v })} min={1} suffix={c} />
+            </FieldRow>
+            <FieldRow label="Mise maximum">
+              <NumberField value={form.blackjackMaxBet} onChange={(v) => p({ blackjackMaxBet: v })} min={1} suffix={c} />
+            </FieldRow>
+          </ModuleCard>
+
+          {/* Roulette */}
+          <ModuleCard title="/roulette" description={`Roulette — Rouge/Noir ×2, Vert ×14.`}
+            icon={Target} iconColor="text-rose-500"
+            enabled={form.rouletteEnabled} onToggle={(v) => p({ rouletteEnabled: v })}
+            onSave={() => saveModule({ rouletteEnabled: form.rouletteEnabled, rouletteMinBet: form.rouletteMinBet, rouletteMaxBet: form.rouletteMaxBet })}
+            saving={update.isPending} dirty={dirty}>
+            <FieldRow label="Mise minimum">
+              <NumberField value={form.rouletteMinBet} onChange={(v) => p({ rouletteMinBet: v })} min={1} suffix={c} />
+            </FieldRow>
+            <FieldRow label="Mise maximum">
+              <NumberField value={form.rouletteMaxBet} onChange={(v) => p({ rouletteMaxBet: v })} min={1} suffix={c} />
+            </FieldRow>
+          </ModuleCard>
+
+          {/* Higher-Lower */}
+          <ModuleCard title="/higher-lower" description="Devine si le prochain nombre est plus haut ou plus bas — série de bonnes réponses = coins."
+            icon={ArrowUpDown} iconColor="text-purple-500"
+            enabled={form.hlEnabled} onToggle={(v) => p({ hlEnabled: v })}
+            onSave={() => saveModule({ hlEnabled: form.hlEnabled, hlStreakReward: form.hlStreakReward })}
+            saving={update.isPending} dirty={dirty}>
+            <FieldRow label="Récompense par bonne réponse" hint={`${c} gagnés à chaque bonne réponse dans la série.`}>
+              <NumberField value={form.hlStreakReward} onChange={(v) => p({ hlStreakReward: v })} min={0} suffix={c} />
+            </FieldRow>
+          </ModuleCard>
+
+          {/* Guess-Number */}
+          <ModuleCard title="/guess-number" description={`Devine un nombre entre 1 et 100 — mise en ${c}, multiplicateur décroissant par tentative.`}
+            icon={Hash} iconColor="text-indigo-500"
+            enabled={form.guessEnabled} onToggle={(v) => p({ guessEnabled: v })}
+            onSave={() => saveModule({ guessEnabled: form.guessEnabled, guessMinBet: form.guessMinBet, guessMaxBet: form.guessMaxBet, guessMaxAttempts: form.guessMaxAttempts })}
+            saving={update.isPending} dirty={dirty}>
+            <FieldRow label="Mise minimum">
+              <NumberField value={form.guessMinBet} onChange={(v) => p({ guessMinBet: v })} min={1} suffix={c} />
+            </FieldRow>
+            <FieldRow label="Mise maximum">
+              <NumberField value={form.guessMaxBet} onChange={(v) => p({ guessMaxBet: v })} min={1} suffix={c} />
+            </FieldRow>
+            <FieldRow label="Tentatives max" hint="Entre 1 et 10. Affecte aussi les multiplicateurs disponibles.">
+              <NumberField value={form.guessMaxAttempts} onChange={(v) => p({ guessMaxAttempts: Math.min(10, Math.max(1, v)) })} min={1} max={10} />
+            </FieldRow>
+          </ModuleCard>
+
+        </div>
+      </div>
     </div>
   );
 }

@@ -51,9 +51,10 @@ _eco: dict = {
     "crimeEnabled": True, "crimeWinMin": 100, "crimeWinMax": 500,
     "crimeLoseMin": 50, "crimeLoseMax": 200, "crimeWinChance": 60, "crimeCooldownHours": 2,
     "depositEnabled": True, "withdrawEnabled": True, "giveEnabled": True, "leaderboardEnabled": True,
-    "blackjackEnabled": True, "blackjackMaxBet": 1000,
-    "rouletteEnabled": True, "rouletteMaxBet": 1000, "hlEnabled": True,
-    "guessEnabled": True, "guessMaxBet": 1000,
+    "blackjackEnabled": True, "blackjackMinBet": 10, "blackjackMaxBet": 1000,
+    "rouletteEnabled": True, "rouletteMinBet": 10, "rouletteMaxBet": 1000,
+    "hlEnabled": True, "hlMinBet": 10, "hlMaxBet": 500, "hlStreakReward": 25,
+    "guessEnabled": True, "guessMinBet": 10, "guessMaxBet": 1000, "guessMaxAttempts": 7,
 }
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -168,16 +169,16 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "bj_push":      {"fr": "🤝 Égalité — ta mise est remboursée.", "en": "🤝 Push — your bet is returned."},
     "bj_lose":      {"fr": "😞 Croupier gagne. Tu perds **{bet:,}** {coin}.", "en": "😞 Dealer wins. You lost **{bet:,}** {coin}."},
     "bj_blackjack": {"fr": "🎉 Blackjack ! Tu gagnes **{delta:,}** {coin} !", "en": "🎉 Blackjack! You win **{delta:,}** {coin}!"},
-    "bj_bet_range": {"fr": "La mise doit être entre 1 et {max:,} {coin}.", "en": "Bet must be between 1 and {max:,} {coin}."},
+    "bj_bet_range": {"fr": "La mise doit être entre {min:,} et {max:,} {coin}.", "en": "Bet must be between {min:,} and {max:,} {coin}."},
     "bj_hit":       {"fr": "Tirer", "en": "Hit"},
     "bj_stand":     {"fr": "Rester", "en": "Stand"},
     # higher-lower
     "hl_title":        {"fr": "🔢 Plus haut ou plus bas", "en": "🔢 Higher or Lower"},
     "hl_desc":         {"fr": "Nombre actuel : **{current}**\nLe suivant sera-t-il plus haut ou plus bas ?\n\nSérie : **{streak}**", "en": "Current number: **{current}**\nWill the next number be higher or lower?\n\nStreak: **{streak}**"},
     "hl_correct":      {"fr": "✅ Correct ! Le nombre était **{next}**", "en": "✅ Correct! The number was **{next}**"},
-    "hl_correct_desc": {"fr": "Série : **{streak}** 🔥", "en": "Streak: **{streak}** 🔥"},
+    "hl_correct_desc": {"fr": "Série : **{streak}** 🔥  ·  💰 +**{reward:,}** {coin}", "en": "Streak: **{streak}** 🔥  ·  💰 +**{reward:,}** {coin}"},
     "hl_wrong":        {"fr": "❌ Faux ! Le nombre était **{next}**", "en": "❌ Wrong! The number was **{next}**"},
-    "hl_wrong_desc":   {"fr": "Série finale : **{streak}**", "en": "Final streak: **{streak}**"},
+    "hl_wrong_desc":   {"fr": "Série finale : **{streak}**  ·  💰 Total : **{total:,}** {coin} gagnés", "en": "Final streak: **{streak}**  ·  💰 Total earned: **{total:,}** {coin}"},
     "hl_higher":       {"fr": "Plus haut", "en": "Higher"},
     "hl_lower":        {"fr": "Plus bas", "en": "Lower"},
     # roulette
@@ -190,7 +191,7 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "rl_red":         {"fr": "rouge", "en": "red"},
     "rl_black":       {"fr": "noir", "en": "black"},
     "rl_green":       {"fr": "vert", "en": "green"},
-    "rl_bet_range":   {"fr": "La mise doit être entre 1 et {max:,} {coin}.", "en": "Bet must be between 1 and {max:,} {coin}."},
+    "rl_bet_range":   {"fr": "La mise doit être entre {min:,} et {max:,} {coin}.", "en": "Bet must be between {min:,} and {max:,} {coin}."},
     "rl_red_btn":     {"fr": "Rouge  (2x)", "en": "Red  (2x)"},
     "rl_black_btn":   {"fr": "Noir  (2x)", "en": "Black  (2x)"},
     "rl_green_btn":   {"fr": "Vert / 0  (14x)", "en": "Green / 0  (14x)"},
@@ -217,7 +218,7 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "gn_guess_btn":    {"fr": "Deviner", "en": "Guess"},
     "gn_quit_btn":     {"fr": "Abandonner", "en": "Quit"},
     "gn_modal_label":  {"fr": "Ton nombre (1–100)", "en": "Your number (1–100)"},
-    "gn_bet_range":    {"fr": "La mise doit être entre 1 et {max:,} {coin}.", "en": "Bet must be between 1 and {max:,} {coin}."},
+    "gn_bet_range":    {"fr": "La mise doit être entre {min:,} et {max:,} {coin}.", "en": "Bet must be between {min:,} and {max:,} {coin}."},
     "err_not_your_game":{"fr": "❌ Ce n'est pas ta partie !", "en": "❌ This isn't your game!"},
     # shop
     "shop_err":       {"fr": "Impossible de charger le shop pour l'instant.", "en": "Could not load the shop right now."},
@@ -1155,9 +1156,10 @@ async def blackjack(interaction: discord.Interaction, bet: int = 100) -> None:
     if not _eco["blackjackEnabled"]:
         await interaction.response.send_message(_t("err_cmd_disabled"), ephemeral=True)
         return
+    min_bet = _eco.get("blackjackMinBet", 10)
     max_bet = _eco["blackjackMaxBet"]
-    if bet < 1 or bet > max_bet:
-        await interaction.response.send_message(_t("bj_bet_range", max=max_bet, coin=_coin()), ephemeral=True)
+    if bet < min_bet or bet > max_bet:
+        await interaction.response.send_message(_t("bj_bet_range", min=min_bet, max=max_bet, coin=_coin()), ephemeral=True)
         return
     eco = await get_economy(interaction.user)
     if eco["wallet"] < bet:
@@ -1174,12 +1176,22 @@ async def blackjack(interaction: discord.Interaction, bet: int = 100) -> None:
 # ── /higher-lower ─────────────────────────────────────────────────────────────
 
 class HLView(discord.ui.View):
-    def __init__(self, current: int, streak: int = 0):
+    def __init__(
+        self,
+        current: int,
+        streak: int = 0,
+        player: discord.User | discord.Member | None = None,
+        total_earned: int = 0,
+    ):
         super().__init__(timeout=60)
-        self.current = current
-        self.next = random.randint(1, 100)
-        self.streak = streak
-        self.ended = False
+        self.current      = current
+        self.next         = random.randint(1, 100)
+        self.streak       = streak
+        self.ended        = False
+        self.player       = player
+        self.total_earned = total_earned
+        self.higher.label = _t("hl_higher")
+        self.lower.label  = _t("hl_lower")
 
     def build_embed(self) -> discord.Embed:
         return discord.Embed(
@@ -1201,17 +1213,22 @@ class HLView(discord.ui.View):
 
         if correct:
             new_streak = self.streak + 1
+            reward = _eco.get("hlStreakReward", 25)
+            if reward > 0 and self.player:
+                eco = await get_economy(self.player)
+                await set_wallet(self.player.id, eco["wallet"] + reward)
+            new_total = self.total_earned + reward
             embed = discord.Embed(
                 title=_t("hl_correct", next=self.next),
-                description=_t("hl_correct_desc", streak=new_streak),
+                description=_t("hl_correct_desc", streak=new_streak, reward=reward, coin=_coin()),
                 colour=0x2ECC71,
             )
-            new_view = HLView(self.next, new_streak)
+            new_view = HLView(self.next, new_streak, self.player, new_total)
             await interaction.response.edit_message(embed=embed, view=new_view)
         else:
             embed = discord.Embed(
                 title=_t("hl_wrong", next=self.next),
-                description=_t("hl_wrong_desc", streak=self.streak),
+                description=_t("hl_wrong_desc", streak=self.streak, total=self.total_earned, coin=_coin()),
                 colour=0xE74C3C,
             )
             await interaction.response.edit_message(embed=embed, view=self)
@@ -1225,11 +1242,11 @@ class HLView(discord.ui.View):
         await self.resolve(interaction, "lower")
 
 
-@bot.tree.command(name="higher-lower", description="Guess if the next number is higher or lower")
+@bot.tree.command(name="higher-lower", description="Guess if the next number is higher or lower — earn coins per correct answer")
 async def higher_lower(interaction: discord.Interaction) -> None:
     if not await check_cmd(interaction, "higher-lower"): return
     start = random.randint(1, 100)
-    view = HLView(current=start)
+    view = HLView(current=start, player=interaction.user)
     await interaction.response.send_message(embed=view.build_embed(), view=view)
 
 
@@ -1304,9 +1321,10 @@ async def roulette(interaction: discord.Interaction, bet: int = 100) -> None:
     if not _eco["rouletteEnabled"]:
         await interaction.response.send_message(_t("err_cmd_disabled"), ephemeral=True)
         return
+    min_bet = _eco.get("rouletteMinBet", 10)
     max_bet = _eco["rouletteMaxBet"]
-    if bet < 1 or bet > max_bet:
-        await interaction.response.send_message(_t("rl_bet_range", max=max_bet, coin=_coin()), ephemeral=True)
+    if bet < min_bet or bet > max_bet:
+        await interaction.response.send_message(_t("rl_bet_range", min=min_bet, max=max_bet, coin=_coin()), ephemeral=True)
         return
     eco = await get_economy(interaction.user)
     if eco["wallet"] < bet:
@@ -1355,6 +1373,7 @@ class GuessNumberView(discord.ui.View):
         self.secret         = random.randint(1, 100)
         self.attempts: list[int] = []
         self.ended          = False
+        self.max_attempts   = max(1, min(10, _eco.get("guessMaxAttempts", 7)))
         self.guess_btn.label = _t("gn_guess_btn")
         self.quit_btn.label  = _t("gn_quit_btn")
 
@@ -1374,13 +1393,13 @@ class GuessNumberView(discord.ui.View):
     # ── Embed builders ────────────────────────────────────────────────────────
 
     def build_embed(self) -> discord.Embed:
-        remaining = MAX_GUESS_ATTEMPTS - len(self.attempts)
+        remaining = self.max_attempts - len(self.attempts)
         embed = discord.Embed(
             title=_t("gn_title"),
             description=_t(
                 "gn_desc",
                 attempts=remaining,
-                max=MAX_GUESS_ATTEMPTS,
+                max=self.max_attempts,
                 mult=self._current_mult(),
             ),
             colour=0x6366F1,
@@ -1448,7 +1467,7 @@ class GuessNumberView(discord.ui.View):
             await set_wallet(self.player.id, self.initial_wallet + delta)
             await interaction.response.edit_message(embed=self.build_result_embed(won=True), view=self)
 
-        elif len(self.attempts) >= MAX_GUESS_ATTEMPTS:
+        elif len(self.attempts) >= self.max_attempts:
             self.ended = True
             for child in self.children:
                 child.disabled = True  # type: ignore[attr-defined]
@@ -1489,9 +1508,10 @@ class GuessNumberView(discord.ui.View):
 async def guess_number(interaction: discord.Interaction, bet: int) -> None:
     if not await check_cmd(interaction, "guess-number"):
         return
+    min_bet = _eco.get("guessMinBet", 10)
     max_bet = _eco.get("guessMaxBet", 1000)
-    if bet < 1 or bet > max_bet:
-        await interaction.response.send_message(_t("gn_bet_range", max=max_bet, coin=_coin()), ephemeral=True)
+    if bet < min_bet or bet > max_bet:
+        await interaction.response.send_message(_t("gn_bet_range", min=min_bet, max=max_bet, coin=_coin()), ephemeral=True)
         return
     eco = await get_economy(interaction.user)
     if eco["wallet"] < bet:
