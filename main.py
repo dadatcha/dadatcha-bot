@@ -95,6 +95,16 @@ _rdm_cfg: dict = {
 _rdm_messages: list[dict] = []   # [{id, content, enabled}, ...]
 _rdm_next_send: Optional[datetime] = None  # UTC datetime for next message
 
+# Ticket system — overwritten at runtime by refresh_ticket_config()
+_tkts_cfg: dict = {
+    "enabled": False,
+    "panelChannelId": "", "categoryId": "", "staffRoleId": "",
+    "embedTitle": "🎫 Support",
+    "embedDescription": "Cliquez sur le bouton ci-dessous pour ouvrir un ticket de support.\nUn membre du staff vous répondra dès que possible.",
+    "embedColor": "5865F2", "logChannelId": "",
+    "welcomeMessage": "Bonjour {user} ! Un membre du staff va vous répondre bientôt.",
+}
+
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
@@ -283,6 +293,19 @@ STRINGS: dict[str, dict[str, str] | list] = {
         "🏆 Check the `/leaderboard` to see where you stand!",
         "🎁 Giveaways might be running — stay tuned!",
     ],
+    # ── Tickets ───────────────────────────────────────────────────────────────
+    "tkt_already_open":      {"fr": "❌ Vous avez déjà un ticket ouvert : {channel}", "en": "❌ You already have an open ticket: {channel}"},
+    "tkt_created":           {"fr": "🎫 Ticket créé : {channel}", "en": "🎫 Ticket created: {channel}"},
+    "tkt_disabled":          {"fr": "❌ Le système de tickets est désactivé.", "en": "❌ The ticket system is disabled."},
+    "tkt_not_configured":    {"fr": "❌ Système de tickets non configuré. Vérifiez le dashboard.", "en": "❌ Ticket system not configured. Check the dashboard."},
+    "tkt_closing":           {"fr": "🔒 Ticket fermé par {user}. Ce salon sera supprimé dans 5 secondes.", "en": "🔒 Ticket closed by {user}. This channel will be deleted in 5 seconds."},
+    "tkt_setup_done":        {"fr": "✅ Embed envoyé dans {channel}.", "en": "✅ Embed sent to {channel}."},
+    "tkt_setup_err_channel": {"fr": "❌ Salon introuvable (`{channel_id}`). Configurez l'ID dans le dashboard.", "en": "❌ Channel not found (`{channel_id}`). Set the correct ID in the dashboard."},
+    "tkt_close_not_ticket":  {"fr": "❌ Ce salon n'est pas un ticket ouvert.", "en": "❌ This channel is not an open ticket."},
+    "tkt_add_done":          {"fr": "✅ {user} ajouté au ticket.", "en": "✅ {user} added to the ticket."},
+    "tkt_add_err":           {"fr": "❌ Impossible d'ajouter {user} au ticket.", "en": "❌ Could not add {user} to the ticket."},
+    "tkt_log_opened":        {"fr": "🎫 **Ticket #{id}** ouvert par {user} → {channel}", "en": "🎫 **Ticket #{id}** opened by {user} → {channel}"},
+    "tkt_log_closed":        {"fr": "🔒 **Ticket #{id}** fermé par {closed_by}", "en": "🔒 **Ticket #{id}** closed by {closed_by}"},
 }
 
 
@@ -531,6 +554,14 @@ async def refresh_command_configs() -> None:
     if data is not None:
         _cmd_cfg = {entry["name"]: entry for entry in data}
         logger.info("Command configs refreshed — %d commands", len(_cmd_cfg))
+
+
+async def refresh_ticket_config() -> None:
+    global _tkts_cfg
+    data = await api_get_json("/ticket/config")
+    if data:
+        _tkts_cfg.update(data)
+        logger.info("Ticket config refreshed — enabled: %s", _tkts_cfg.get("enabled", False))
 
 
 def _label_to_discord_name(label: str) -> str:
@@ -2668,6 +2699,8 @@ _CMD_CATEGORY: dict[str, str] = {
     # Games
     "blackjack": "games", "higher-lower": "games",
     "roulette": "games", "guess-number": "games",
+    # Tickets
+    "ticket-setup": "tickets", "ticket-close": "tickets", "ticket-add": "tickets",
     # Shop
     "shop": "shop", "buy": "shop", "inventory": "shop", "give-item": "shop",
     # Giveaway (group prefix applied below)
@@ -2734,10 +2767,15 @@ async def on_ready() -> None:
     if bot.user is not None:
         logger.info("Bot connected as %s (ID: %s)", bot.user, bot.user.id)
 
+    # Register persistent views (must run before any interaction is processed)
+    bot.add_view(TicketOpenView())
+    bot.add_view(TicketCloseView())
+
     await refresh_reminders()
     await refresh_economy_config()
     await refresh_role_rewards()
     await refresh_command_configs()
+    await refresh_ticket_config()
     await refresh_random_activity()
     _apply_command_labels()
 
@@ -3315,6 +3353,289 @@ async def config_language(interaction: discord.Interaction, language: app_comman
 
 
 bot.tree.add_command(config_group)
+
+
+# ── Ticket system ─────────────────────────────────────────────────────────────
+
+async def _ticket_log(msg: str) -> None:
+    """Send a log message to the configured log channel."""
+    log_id = _tkts_cfg.get("logChannelId", "")
+    if not log_id:
+        return
+    try:
+        ch = bot.get_channel(int(log_id))
+        if ch and hasattr(ch, "send"):
+            await ch.send(msg)
+    except Exception:
+        pass
+
+
+class TicketCloseView(discord.ui.View):
+    def __init__(self) -> None:
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Fermer le ticket",
+        style=discord.ButtonStyle.danger,
+        custom_id="ticket:close",
+        emoji="🔒",
+    )
+    async def close_ticket(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        channel = interaction.channel
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message("❌ Action invalide.", ephemeral=True)
+            return
+
+        # Mark ticket closed via API
+        result = await api_patch(
+            f"/tickets/channel/{channel.id}",
+            {"status": "closed", "closedBy": str(interaction.user.id), "closedByName": str(interaction.user)},
+        )
+        if result is None:
+            await interaction.response.send_message(_t("tkt_close_not_ticket"), ephemeral=True)
+            return
+
+        await interaction.response.send_message(
+            _t("tkt_closing", user=interaction.user.mention)
+        )
+
+        ticket_id = result.get("id", "?")
+        await _ticket_log(_t("tkt_log_closed", id=ticket_id, closed_by=str(interaction.user)))
+
+        await asyncio.sleep(5)
+        try:
+            await channel.delete(reason=f"Ticket #{ticket_id} fermé par {interaction.user}")
+        except discord.Forbidden:
+            pass
+
+
+class TicketOpenView(discord.ui.View):
+    def __init__(self) -> None:
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Ouvrir un ticket",
+        style=discord.ButtonStyle.primary,
+        custom_id="ticket:open",
+        emoji="🎫",
+    )
+    async def open_ticket(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        if not _tkts_cfg.get("enabled"):
+            await interaction.response.send_message(_t("tkt_disabled"), ephemeral=True)
+            return
+
+        guild = interaction.guild
+        if guild is None:
+            return
+
+        # Check for existing open ticket
+        existing = await api_get_list("/tickets?status=open")
+        if existing:
+            for tkt in existing:
+                if tkt.get("userId") == str(interaction.user.id):
+                    ch = guild.get_channel(int(tkt["channelId"])) if tkt.get("channelId") else None
+                    mention = ch.mention if ch else f"<#{tkt['channelId']}>"
+                    await interaction.response.send_message(
+                        _t("tkt_already_open", channel=mention), ephemeral=True
+                    )
+                    return
+
+        await interaction.response.defer(ephemeral=True)
+
+        # Resolve optional category
+        category: Optional[discord.CategoryChannel] = None
+        cat_id = _tkts_cfg.get("categoryId", "")
+        if cat_id:
+            try:
+                found = guild.get_channel(int(cat_id))
+                if isinstance(found, discord.CategoryChannel):
+                    category = found
+            except ValueError:
+                pass
+
+        # Build permission overwrites
+        overwrites: dict = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            interaction.user: discord.PermissionOverwrite(
+                view_channel=True, send_messages=True, read_message_history=True, attach_files=True
+            ),
+        }
+        if bot.user:
+            overwrites[bot.user] = discord.PermissionOverwrite(
+                view_channel=True, send_messages=True, manage_channels=True, manage_messages=True
+            )
+        staff_id = _tkts_cfg.get("staffRoleId", "")
+        if staff_id:
+            try:
+                role = guild.get_role(int(staff_id))
+                if role:
+                    overwrites[role] = discord.PermissionOverwrite(
+                        view_channel=True, send_messages=True, read_message_history=True,
+                        manage_messages=True, manage_channels=True
+                    )
+            except ValueError:
+                pass
+
+        # Create ticket channel
+        safe_name = re.sub(r"[^a-z0-9]", "", interaction.user.name.lower()) or "user"
+        channel_name = f"ticket-{safe_name}"
+        try:
+            ticket_channel = await guild.create_text_channel(
+                channel_name,
+                category=category,
+                overwrites=overwrites,
+                topic=f"Ticket de {interaction.user} | {interaction.user.id}",
+            )
+        except discord.Forbidden:
+            await interaction.followup.send("❌ Permissions insuffisantes pour créer le salon.", ephemeral=True)
+            return
+        except Exception as e:
+            await interaction.followup.send(f"❌ Erreur : {e}", ephemeral=True)
+            return
+
+        # Record in API
+        result = await api_post("/tickets", {
+            "userId": str(interaction.user.id),
+            "userName": str(interaction.user),
+            "channelId": str(ticket_channel.id),
+        })
+        ticket_id = result.get("id", "?") if result else "?"
+
+        # Send welcome message in ticket channel
+        welcome_text = _tkts_cfg.get("welcomeMessage", "").replace("{user}", interaction.user.mention)
+        embed = discord.Embed(
+            title=f"🎫 Ticket #{ticket_id}",
+            description=welcome_text,
+            colour=0x5865F2,
+        )
+        embed.set_footer(text=f"Ouvert par {interaction.user} · {interaction.user.id}")
+        try:
+            await ticket_channel.send(
+                content=interaction.user.mention,
+                embed=embed,
+                view=TicketCloseView(),
+            )
+        except Exception:
+            pass
+
+        # Log
+        await _ticket_log(_t("tkt_log_opened", id=ticket_id, user=str(interaction.user), channel=ticket_channel.mention))
+
+        await interaction.followup.send(
+            _t("tkt_created", channel=ticket_channel.mention), ephemeral=True
+        )
+
+
+# ── /ticket group ─────────────────────────────────────────────────────────────
+
+ticket_group = app_commands.Group(name="ticket", description="[Admin] Système de tickets")
+
+
+@ticket_group.command(name="setup", description="[Admin] Envoyer l'embed de ticket dans le salon configuré")
+async def ticket_setup(interaction: discord.Interaction) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+
+    await refresh_ticket_config()
+
+    panel_id = _tkts_cfg.get("panelChannelId", "")
+    if not panel_id:
+        await interaction.response.send_message(_t("tkt_not_configured"), ephemeral=True)
+        return
+
+    guild = interaction.guild
+    if guild is None:
+        return
+
+    try:
+        panel_ch = guild.get_channel(int(panel_id))
+        if panel_ch is None or not hasattr(panel_ch, "send"):
+            raise ValueError
+    except (ValueError, TypeError):
+        await interaction.response.send_message(
+            _t("tkt_setup_err_channel", channel_id=panel_id), ephemeral=True
+        )
+        return
+
+    color_hex = _tkts_cfg.get("embedColor", "5865F2").lstrip("#")
+    try:
+        color_int = int(color_hex, 16)
+    except ValueError:
+        color_int = 0x5865F2
+
+    embed = discord.Embed(
+        title=_tkts_cfg.get("embedTitle", "🎫 Support"),
+        description=_tkts_cfg.get("embedDescription", ""),
+        colour=color_int,
+    )
+
+    await interaction.response.defer(ephemeral=True)
+    try:
+        await panel_ch.send(embed=embed, view=TicketOpenView())
+        await interaction.followup.send(
+            _t("tkt_setup_done", channel=panel_ch.mention), ephemeral=True
+        )
+    except Exception as e:
+        await interaction.followup.send(f"❌ Erreur : {e}", ephemeral=True)
+
+
+@ticket_group.command(name="close", description="[Admin] Fermer le ticket de ce salon")
+async def ticket_close_cmd(interaction: discord.Interaction) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+
+    channel = interaction.channel
+    if not isinstance(channel, discord.TextChannel):
+        await interaction.response.send_message(_t("tkt_close_not_ticket"), ephemeral=True)
+        return
+
+    result = await api_patch(
+        f"/tickets/channel/{channel.id}",
+        {"status": "closed", "closedBy": str(interaction.user.id), "closedByName": str(interaction.user)},
+    )
+    if result is None:
+        await interaction.response.send_message(_t("tkt_close_not_ticket"), ephemeral=True)
+        return
+
+    await interaction.response.send_message(_t("tkt_closing", user=interaction.user.mention))
+    ticket_id = result.get("id", "?")
+    await _ticket_log(_t("tkt_log_closed", id=ticket_id, closed_by=str(interaction.user)))
+    await asyncio.sleep(5)
+    try:
+        await channel.delete(reason=f"Ticket #{ticket_id} fermé par {interaction.user}")
+    except discord.Forbidden:
+        pass
+
+
+@ticket_group.command(name="add", description="[Admin] Ajouter un membre au ticket actuel")
+@app_commands.describe(member="Membre à ajouter")
+async def ticket_add(interaction: discord.Interaction, member: discord.Member) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+
+    channel = interaction.channel
+    if not isinstance(channel, discord.TextChannel):
+        await interaction.response.send_message(_t("tkt_close_not_ticket"), ephemeral=True)
+        return
+
+    try:
+        await channel.set_permissions(
+            member,
+            view_channel=True, send_messages=True, read_message_history=True, attach_files=True,
+        )
+        await interaction.response.send_message(_t("tkt_add_done", user=member.mention))
+    except Exception:
+        await interaction.response.send_message(_t("tkt_add_err", user=member.mention), ephemeral=True)
+
+
+bot.tree.add_command(ticket_group)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

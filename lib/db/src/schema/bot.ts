@@ -280,3 +280,37 @@ export const randomMessagesTable = pgTable("random_messages", {
 });
 
 export type RandomMessage = typeof randomMessagesTable.$inferSelect;
+
+// ── Ticket system ─────────────────────────────────────────────────────────────
+
+// Single-row config (id = 1)
+export const ticketConfigTable = pgTable("ticket_config", {
+  id:               serial("id").primaryKey(),
+  enabled:          boolean("enabled").notNull().default(false),
+  panelChannelId:   text("panel_channel_id").notNull().default(""),
+  categoryId:       text("category_id").notNull().default(""),
+  staffRoleId:      text("staff_role_id").notNull().default(""),
+  embedTitle:       text("embed_title").notNull().default("🎫 Support"),
+  embedDescription: text("embed_description").notNull().default("Cliquez sur le bouton ci-dessous pour ouvrir un ticket de support.\nUn membre du staff vous répondra dès que possible."),
+  embedColor:       text("embed_color").notNull().default("5865F2"),
+  logChannelId:     text("log_channel_id").notNull().default(""),
+  welcomeMessage:   text("welcome_message").notNull().default("Bonjour {user} ! Un membre du staff va vous répondre bientôt."),
+  updatedAt:        timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type TicketConfig = typeof ticketConfigTable.$inferSelect;
+
+// One row per ticket
+export const ticketsTable = pgTable("tickets", {
+  id:           serial("id").primaryKey(),
+  userId:       text("user_id").notNull(),
+  userName:     text("user_name").notNull().default(""),
+  channelId:    text("channel_id").notNull(),
+  status:       text("status").notNull().default("open"), // open | closed
+  createdAt:    timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  closedAt:     timestamp("closed_at", { withTimezone: true }),
+  closedBy:     text("closed_by"),
+  closedByName: text("closed_by_name"),
+});
+
+export type Ticket = typeof ticketsTable.$inferSelect;
