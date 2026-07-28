@@ -85,7 +85,7 @@ intents.message_content = True
 # NOTE: intents.members requires "Server Members Intent" enabled in the Discord
 # Developer Portal (https://discord.com/developers/applications/).
 # Set to True there AND uncomment the line below to activate role rewards.
-# intents.members = True
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
