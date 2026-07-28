@@ -4,7 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sidebar } from '@/components/layout/sidebar';
 import NotFound from '@/pages/not-found';
 import Dashboard from '@/pages/dashboard';
-import Commands from '@/pages/commands';
+import Economy from '@/pages/economy';
 import Config from '@/pages/config';
 import Logs from '@/pages/logs';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
@@ -18,7 +18,7 @@ function Router() {
       <main className="flex-1 overflow-auto">
         <Switch>
           <Route path="/" component={Dashboard} />
-          <Route path="/commands" component={Commands} />
+          <Route path="/economy" component={Economy} />
           <Route path="/config" component={Config} />
           <Route path="/logs" component={Logs} />
           <Route component={NotFound} />

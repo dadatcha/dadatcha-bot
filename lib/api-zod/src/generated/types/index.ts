@@ -6,9 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export * from './botCommand';
-export * from './botCommandInput';
-export * from './botCommandPatch';
 export * from './botConfig';
 export * from './botConfigInput';
 export * from './botStatus';
@@ -16,3 +13,5 @@ export * from './getLogsParams';
 export * from './healthStatus';
 export * from './logEntry';
 export * from './logEntryInput';
+export * from './player';
+export * from './playerBalancePatch';

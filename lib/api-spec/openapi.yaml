@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification for the Lotto Discord Bot dashboard
@@ -12,8 +11,8 @@ tags:
     description: Health operations
   - name: bot
     description: Bot status and configuration
-  - name: commands
-    description: Custom slash command management
+  - name: economy
+    description: Player economy management
   - name: logs
     description: Bot activity logs
 
@@ -74,82 +73,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/BotConfig"
 
-  /bot/commands:
-    get:
-      operationId: listCommands
-      tags: [commands]
-      summary: List all custom commands
-      responses:
-        "200":
-          description: List of commands
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BotCommand"
-    post:
-      operationId: createCommand
-      tags: [commands]
-      summary: Create a custom command
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BotCommandInput"
-      responses:
-        "201":
-          description: Created command
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BotCommand"
-        "409":
-          description: Command already exists
-
-  /bot/commands/{name}:
-    patch:
-      operationId: updateCommand
-      tags: [commands]
-      summary: Update (enable/disable/edit) a command
-      parameters:
-        - name: name
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BotCommandPatch"
-      responses:
-        "200":
-          description: Updated command
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BotCommand"
-        "404":
-          description: Not found
-    delete:
-      operationId: deleteCommand
-      tags: [commands]
-      summary: Delete a custom command
-      parameters:
-        - name: name
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "204":
-          description: Deleted
-        "404":
-          description: Not found
-
   /bot/logs:
     get:
       operationId: getLogs
@@ -183,6 +106,67 @@ paths:
       responses:
         "201":
           description: Logged
+
+  /economy/players:
+    get:
+      operationId: listPlayers
+      tags: [economy]
+      summary: List all players with balances
+      responses:
+        "200":
+          description: List of players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Player"
+
+  /economy/players/{userId}:
+    get:
+      operationId: getPlayer
+      tags: [economy]
+      summary: Get one player's economy
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePlayerBalance
+      tags: [economy]
+      summary: Set a player's wallet and/or bank (dashboard admin)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerBalancePatch"
+      responses:
+        "200":
+          description: Updated player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+        "404":
+          description: Not found
 
 components:
   schemas:
@@ -237,45 +221,36 @@ components:
         reminderMessage:
           type: string
 
-    BotCommand:
+    Player:
       type: object
       properties:
-        id:
+        userId:
+          type: string
+        username:
+          type: string
+        wallet:
           type: integer
-        name:
+        bank:
+          type: integer
+        total:
+          type: integer
+        lastDaily:
+          type: ["string", "null"]
+        lastWork:
+          type: ["string", "null"]
+        lastCrime:
+          type: ["string", "null"]
+        updatedAt:
           type: string
-        description:
-          type: string
-        response:
-          type: string
-        enabled:
-          type: boolean
-        createdAt:
-          type: string
-      required: [id, name, description, response, enabled, createdAt]
+      required: [userId, username, wallet, bank, total, lastDaily, lastWork, lastCrime, updatedAt]
 
-    BotCommandInput:
+    PlayerBalancePatch:
       type: object
       properties:
-        name:
-          type: string
-        description:
-          type: string
-        response:
-          type: string
-        enabled:
-          type: boolean
-      required: [name, description, response]
-
-    BotCommandPatch:
-      type: object
-      properties:
-        description:
-          type: string
-        response:
-          type: string
-        enabled:
-          type: boolean
+        wallet:
+          type: integer
+        bank:
+          type: integer
 
     LogEntry:
       type: object

@@ -1,4 +1,4 @@
-"""Discord bot – lotto-channel reminder + slash commands + dashboard integration."""
+"""Discord bot – lotto-channel reminder + economy system."""
 
 from __future__ import annotations
 
@@ -6,8 +6,7 @@ import asyncio
 import logging
 import os
 import random
-import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import aiohttp
@@ -18,7 +17,6 @@ from discord.ext import commands, tasks
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-# Default fallback values; live config is fetched from the API on startup.
 DEFAULT_CHANNEL_ID = 1_531_418_977_677_475_992
 DEFAULT_REMINDER_MESSAGE = """Here is the lotto channel.
 You can play many games to win money.
@@ -42,6 +40,16 @@ And more!"""
 
 API_BASE = "http://localhost:80/api"
 
+# Economy constants
+DAILY_AMOUNT = 500
+WORK_MIN, WORK_MAX = 50, 200
+WORK_COOLDOWN_H = 1
+CRIME_WIN_MIN, CRIME_WIN_MAX = 100, 500
+CRIME_LOSE_MIN, CRIME_LOSE_MAX = 50, 200
+CRIME_WIN_CHANCE = 0.50
+CRIME_COOLDOWN_H = 2
+STARTING_WALLET = 0
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 
 logging.basicConfig(
@@ -54,7 +62,7 @@ logger = logging.getLogger("lotto-bot")
 
 _channel_id: int = DEFAULT_CHANNEL_ID
 _reminder_enabled: bool = True
-_reminder_interval: int = 1  # minutes
+_reminder_interval: int = 1
 _reminder_message: str = DEFAULT_REMINDER_MESSAGE
 _started_at: datetime = datetime.now(timezone.utc)
 _last_reminder_at: Optional[datetime] = None
@@ -70,18 +78,38 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ── API helpers ───────────────────────────────────────────────────────────────
 
-async def api_post(path: str, payload: dict) -> None:
+async def api_post(path: str, payload: dict) -> Optional[dict]:
     try:
         async with aiohttp.ClientSession() as session:
-            await session.post(f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5))
+            async with session.post(
+                f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.content_type == "application/json":
+                    return await resp.json()
     except Exception:
-        pass  # never crash the bot due to API issues
+        pass
+    return None
+
+
+async def api_patch(path: str, payload: dict) -> Optional[dict]:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.patch(
+                f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.content_type == "application/json":
+                    return await resp.json()
+    except Exception:
+        pass
+    return None
 
 
 async def api_get_json(path: str) -> Optional[dict]:
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            async with session.get(
+                f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
                 if resp.status == 200:
                     return await resp.json()
     except Exception:
@@ -94,7 +122,6 @@ async def log_to_api(level: str, message: str) -> None:
 
 
 async def send_heartbeat(connected: bool) -> None:
-    global _last_reminder_at
     payload = {
         "connected": connected,
         "botName": bot.user.name if bot.user else None,
@@ -114,44 +141,380 @@ async def refresh_config() -> None:
         _reminder_enabled = bool(data.get("reminderEnabled", _reminder_enabled))
         _reminder_interval = int(data.get("reminderIntervalMinutes", _reminder_interval))
         _reminder_message = data.get("reminderMessage", _reminder_message)
-        logger.info("Config refreshed from API — channel=%s reminder=%s interval=%dmin",
-                    _channel_id, _reminder_enabled, _reminder_interval)
+        logger.info(
+            "Config refreshed — channel=%s reminder=%s interval=%dmin",
+            _channel_id, _reminder_enabled, _reminder_interval,
+        )
 
 
-async def sync_custom_commands() -> None:
-    """Fetch custom text commands from DB and register them as slash commands."""
-    data = await api_get_json("/bot/commands")
-    if not data:
+# ── Economy DB helpers ────────────────────────────────────────────────────────
+
+async def get_economy(user: discord.User | discord.Member) -> dict:
+    """Fetch or create a player's economy record."""
+    data = await api_get_json(f"/economy/players/{user.id}")
+    if data:
+        return data
+    # Create with starting wallet
+    result = await api_post("/economy/players", {
+        "userId": str(user.id),
+        "username": user.display_name,
+        "wallet": STARTING_WALLET,
+        "bank": 0,
+    })
+    if result:
+        return result
+    return {"userId": str(user.id), "username": user.display_name, "wallet": 0, "bank": 0}
+
+
+async def set_wallet(user_id: int | str, amount: int) -> None:
+    await api_patch(f"/economy/players/{user_id}", {"wallet": amount})
+
+
+async def set_bank(user_id: int | str, amount: int) -> None:
+    await api_patch(f"/economy/players/{user_id}", {"bank": amount})
+
+
+async def set_both(user_id: int | str, wallet: int, bank: int) -> None:
+    await api_patch(f"/economy/players/{user_id}", {"wallet": wallet, "bank": bank})
+
+
+async def ensure_player(user: discord.User | discord.Member) -> None:
+    """Make sure a player row exists."""
+    await get_economy(user)
+
+
+def cooldown_remaining(last_str: Optional[str], hours: float) -> Optional[timedelta]:
+    if not last_str:
+        return None
+    last = datetime.fromisoformat(last_str)
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    end = last + timedelta(hours=hours)
+    now = datetime.now(timezone.utc)
+    remaining = end - now
+    return remaining if remaining.total_seconds() > 0 else None
+
+
+def fmt_td(td: timedelta) -> str:
+    total = int(td.total_seconds())
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}h {m}m"
+    if m:
+        return f"{m}m {s}s"
+    return f"{s}s"
+
+
+def is_admin(interaction: discord.Interaction) -> bool:
+    if not isinstance(interaction.user, discord.Member):
+        return False
+    return interaction.user.guild_permissions.administrator
+
+
+# ── /balance ──────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="balance", description="Check your own wallet and bank balance")
+async def balance(interaction: discord.Interaction) -> None:
+    eco = await get_economy(interaction.user)
+    embed = discord.Embed(title=f"Balance — {interaction.user.display_name}", colour=0x2ECC71)
+    embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** coins", inline=True)
+    embed.add_field(name="Bank", value=f"**{eco['bank']:,}** coins", inline=True)
+    embed.add_field(name="Total", value=f"**{eco['wallet'] + eco['bank']:,}** coins", inline=True)
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /money ────────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="money", description="Check the balance of any player")
+@app_commands.describe(player="The player to look up")
+async def money(interaction: discord.Interaction, player: discord.Member) -> None:
+    eco = await get_economy(player)
+    embed = discord.Embed(title=f"Balance — {player.display_name}", colour=0x3498DB)
+    embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** coins", inline=True)
+    embed.add_field(name="Bank", value=f"**{eco['bank']:,}** coins", inline=True)
+    embed.add_field(name="Total", value=f"**{eco['wallet'] + eco['bank']:,}** coins", inline=True)
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /addmoney ─────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="addmoney", description="[Admin] Add coins to a player's wallet")
+@app_commands.describe(player="Target player", amount="Amount to add")
+async def addmoney(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
+        return
+    eco = await get_economy(player)
+    new_wallet = eco["wallet"] + amount
+    await set_wallet(player.id, new_wallet)
+    embed = discord.Embed(
+        title="Coins Added",
+        description=f"Added **{amount:,}** coins to {player.mention}'s wallet.\nNew balance: **{new_wallet:,}** coins",
+        colour=0x2ECC71,
+    )
+    await interaction.response.send_message(embed=embed)
+    await log_to_api("INFO", f"Admin {interaction.user} added {amount} coins to {player} (new wallet: {new_wallet})")
+
+
+# ── /removemoney ──────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="removemoney", description="[Admin] Remove coins from a player's wallet")
+@app_commands.describe(player="Target player", amount="Amount to remove")
+async def removemoney(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
+        return
+    eco = await get_economy(player)
+    new_wallet = max(0, eco["wallet"] - amount)
+    await set_wallet(player.id, new_wallet)
+    embed = discord.Embed(
+        title="Coins Removed",
+        description=f"Removed **{amount:,}** coins from {player.mention}'s wallet.\nNew balance: **{new_wallet:,}** coins",
+        colour=0xE74C3C,
+    )
+    await interaction.response.send_message(embed=embed)
+    await log_to_api("INFO", f"Admin {interaction.user} removed {amount} coins from {player} (new wallet: {new_wallet})")
+
+
+# ── /setmoney ─────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="setmoney", description="[Admin] Set a player's wallet to an exact amount")
+@app_commands.describe(player="Target player", amount="New wallet amount")
+async def setmoney(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 0]) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
+        return
+    await get_economy(player)
+    await set_wallet(player.id, amount)
+    embed = discord.Embed(
+        title="Balance Set",
+        description=f"{player.mention}'s wallet set to **{amount:,}** coins.",
+        colour=0xF1C40F,
+    )
+    await interaction.response.send_message(embed=embed)
+    await log_to_api("INFO", f"Admin {interaction.user} set {player}'s wallet to {amount}")
+
+
+# ── /resetmoney ───────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="resetmoney", description="[Admin] Reset a player's wallet and bank to 0")
+@app_commands.describe(player="Target player")
+async def resetmoney(interaction: discord.Interaction, player: discord.Member) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
+        return
+    await get_economy(player)
+    await set_both(player.id, 0, 0)
+    embed = discord.Embed(
+        title="Balance Reset",
+        description=f"{player.mention}'s wallet and bank have been reset to **0** coins.",
+        colour=0xE74C3C,
+    )
+    await interaction.response.send_message(embed=embed)
+    await log_to_api("INFO", f"Admin {interaction.user} reset {player}'s balance to 0")
+
+
+# ── /daily ────────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="daily", description="Claim your daily reward of 500 coins")
+async def daily(interaction: discord.Interaction) -> None:
+    eco = await get_economy(interaction.user)
+    remaining = cooldown_remaining(eco.get("lastDaily"), 24)
+    if remaining:
+        await interaction.response.send_message(
+            f"You already claimed your daily reward. Come back in **{fmt_td(remaining)}**.",
+            ephemeral=True,
+        )
+        return
+    new_wallet = eco["wallet"] + DAILY_AMOUNT
+    await api_patch(f"/economy/players/{interaction.user.id}/daily", {"wallet": new_wallet})
+    embed = discord.Embed(
+        title="Daily Reward",
+        description=f"You claimed **{DAILY_AMOUNT:,}** coins!\nWallet: **{new_wallet:,}** coins",
+        colour=0xF1C40F,
+    )
+    embed.set_footer(text="Come back in 24 hours for your next reward.")
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /work ─────────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="work", description="Work to earn 50-200 coins (1 hour cooldown)")
+async def work(interaction: discord.Interaction) -> None:
+    eco = await get_economy(interaction.user)
+    remaining = cooldown_remaining(eco.get("lastWork"), WORK_COOLDOWN_H)
+    if remaining:
+        await interaction.response.send_message(
+            f"You are tired. Rest for **{fmt_td(remaining)}** before working again.",
+            ephemeral=True,
+        )
+        return
+    earned = random.randint(WORK_MIN, WORK_MAX)
+    new_wallet = eco["wallet"] + earned
+    await api_patch(f"/economy/players/{interaction.user.id}/work", {"wallet": new_wallet})
+    jobs = [
+        "delivered pizzas", "mowed lawns", "coded a website", "walked dogs",
+        "fixed computers", "stocked shelves", "washed cars", "taught classes",
+    ]
+    embed = discord.Embed(
+        title="Work",
+        description=f"You {random.choice(jobs)} and earned **{earned:,}** coins!\nWallet: **{new_wallet:,}** coins",
+        colour=0x2ECC71,
+    )
+    embed.set_footer(text=f"Work again in {WORK_COOLDOWN_H}h.")
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /crime ────────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="crime", description="Attempt a crime for big coins — risk a fine (2h cooldown)")
+async def crime(interaction: discord.Interaction) -> None:
+    eco = await get_economy(interaction.user)
+    remaining = cooldown_remaining(eco.get("lastCrime"), CRIME_COOLDOWN_H)
+    if remaining:
+        await interaction.response.send_message(
+            f"The police are still watching you. Wait **{fmt_td(remaining)}**.",
+            ephemeral=True,
+        )
         return
 
-    # Remove old dynamic commands before re-adding
-    for cmd in list(bot.tree.get_commands()):
-        if getattr(cmd, "_is_custom", False):
-            bot.tree.remove_command(cmd.name)
+    success = random.random() < CRIME_WIN_CHANCE
+    if success:
+        gained = random.randint(CRIME_WIN_MIN, CRIME_WIN_MAX)
+        new_wallet = eco["wallet"] + gained
+        await api_patch(f"/economy/players/{interaction.user.id}/crime", {"wallet": new_wallet})
+        crimes = ["robbed a store", "hacked a server", "scammed a trader", "picked a pocket"]
+        embed = discord.Embed(
+            title="Crime Succeeded",
+            description=f"You {random.choice(crimes)} and got away with **{gained:,}** coins!\nWallet: **{new_wallet:,}** coins",
+            colour=0x9B59B6,
+        )
+    else:
+        fine = random.randint(CRIME_LOSE_MIN, CRIME_LOSE_MAX)
+        new_wallet = max(0, eco["wallet"] - fine)
+        await api_patch(f"/economy/players/{interaction.user.id}/crime", {"wallet": new_wallet})
+        embed = discord.Embed(
+            title="Crime Failed",
+            description=f"You got caught and paid a **{fine:,}** coin fine!\nWallet: **{new_wallet:,}** coins",
+            colour=0xE74C3C,
+        )
+    embed.set_footer(text=f"Try again in {CRIME_COOLDOWN_H}h.")
+    await interaction.response.send_message(embed=embed)
 
-    for entry in data:
-        if not entry.get("enabled", True):
-            continue
 
-        name: str = entry["name"]
-        description: str = entry["description"]
-        response: str = entry["response"]
+# ── /deposit ──────────────────────────────────────────────────────────────────
 
-        @bot.tree.command(name=name, description=description)
-        async def _cmd(interaction: discord.Interaction, _resp: str = response) -> None:
-            await interaction.response.send_message(_resp)
+@bot.tree.command(name="deposit", description="Deposit coins from your wallet into the bank")
+@app_commands.describe(amount="Amount to deposit (or 'all')")
+async def deposit(interaction: discord.Interaction, amount: int) -> None:
+    eco = await get_economy(interaction.user)
+    if amount <= 0:
+        await interaction.response.send_message("Amount must be positive.", ephemeral=True)
+        return
+    if amount > eco["wallet"]:
+        await interaction.response.send_message(
+            f"You only have **{eco['wallet']:,}** coins in your wallet.", ephemeral=True
+        )
+        return
+    new_wallet = eco["wallet"] - amount
+    new_bank = eco["bank"] + amount
+    await set_both(interaction.user.id, new_wallet, new_bank)
+    embed = discord.Embed(
+        title="Deposit",
+        description=f"Deposited **{amount:,}** coins into the bank.",
+        colour=0x3498DB,
+    )
+    embed.add_field(name="Wallet", value=f"**{new_wallet:,}**", inline=True)
+    embed.add_field(name="Bank", value=f"**{new_bank:,}**", inline=True)
+    await interaction.response.send_message(embed=embed)
 
-        # Mark as dynamic so we can remove on next sync
-        _cmd._is_custom = True  # type: ignore[attr-defined]
 
+# ── /withdraw ─────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="withdraw", description="Withdraw coins from the bank into your wallet")
+@app_commands.describe(amount="Amount to withdraw")
+async def withdraw(interaction: discord.Interaction, amount: int) -> None:
+    eco = await get_economy(interaction.user)
+    if amount <= 0:
+        await interaction.response.send_message("Amount must be positive.", ephemeral=True)
+        return
+    if amount > eco["bank"]:
+        await interaction.response.send_message(
+            f"You only have **{eco['bank']:,}** coins in the bank.", ephemeral=True
+        )
+        return
+    new_wallet = eco["wallet"] + amount
+    new_bank = eco["bank"] - amount
+    await set_both(interaction.user.id, new_wallet, new_bank)
+    embed = discord.Embed(
+        title="Withdraw",
+        description=f"Withdrew **{amount:,}** coins from the bank.",
+        colour=0x3498DB,
+    )
+    embed.add_field(name="Wallet", value=f"**{new_wallet:,}**", inline=True)
+    embed.add_field(name="Bank", value=f"**{new_bank:,}**", inline=True)
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /give ─────────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="give", description="Give coins from your wallet to another player")
+@app_commands.describe(player="Who to give to", amount="How many coins")
+async def give(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
+    if player.id == interaction.user.id:
+        await interaction.response.send_message("You cannot give coins to yourself.", ephemeral=True)
+        return
+    if player.bot:
+        await interaction.response.send_message("You cannot give coins to a bot.", ephemeral=True)
+        return
+    eco = await get_economy(interaction.user)
+    if amount > eco["wallet"]:
+        await interaction.response.send_message(
+            f"You only have **{eco['wallet']:,}** coins in your wallet.", ephemeral=True
+        )
+        return
+    eco_target = await get_economy(player)
+    await set_wallet(interaction.user.id, eco["wallet"] - amount)
+    await set_wallet(player.id, eco_target["wallet"] + amount)
+    embed = discord.Embed(
+        title="Transfer",
+        description=f"You gave **{amount:,}** coins to {player.mention}.",
+        colour=0x2ECC71,
+    )
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /leaderboard ──────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="leaderboard", description="Show the top 10 richest players")
+async def leaderboard(interaction: discord.Interaction) -> None:
+    await interaction.response.defer()
     try:
-        synced = await bot.tree.sync()
-        logger.info("Custom commands synced — %d total slash commands", len(synced))
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_BASE}/economy/players", timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                players: list[dict] = await resp.json()
     except Exception:
-        logger.exception("Failed to sync custom commands")
+        await interaction.followup.send("Could not load leaderboard right now.", ephemeral=True)
+        return
+
+    players.sort(key=lambda p: p["wallet"] + p["bank"], reverse=True)
+    top = players[:10]
+
+    embed = discord.Embed(title="Leaderboard — Top 10", colour=0xF1C40F)
+    medals = ["\U0001f947", "\U0001f948", "\U0001f949"]
+    lines = []
+    for i, p in enumerate(top):
+        medal = medals[i] if i < 3 else f"`{i+1}.`"
+        total = p["wallet"] + p["bank"]
+        lines.append(f"{medal} **{p['username']}** — {total:,} coins")
+    embed.description = "\n".join(lines) if lines else "No players yet."
+    await interaction.followup.send(embed=embed)
 
 
-# ── Helper: card deck ─────────────────────────────────────────────────────────
+# ── /blackjack ────────────────────────────────────────────────────────────────
 
 SUITS = ["\u2660", "\u2665", "\u2666", "\u2663"]
 RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
@@ -185,15 +548,15 @@ def fmt_hand(hand: list[str], hide_second: bool = False) -> str:
     return "  ".join(hand)
 
 
-# ── /blackjack ────────────────────────────────────────────────────────────────
-
 class BlackjackView(discord.ui.View):
-    def __init__(self, deck: list[str], player: list[str], dealer: list[str], bet: int):
+    def __init__(self, deck: list[str], player: list[str], dealer: list[str], bet: int, player_user: discord.User | discord.Member, initial_wallet: int):
         super().__init__(timeout=60)
         self.deck = deck
         self.player = player
         self.dealer = dealer
         self.bet = bet
+        self.player_user = player_user
+        self.initial_wallet = initial_wallet
         self.ended = False
 
     def build_embed(self, title: str = "\U0001f0cf Blackjack", hide_dealer: bool = True) -> discord.Embed:
@@ -219,27 +582,36 @@ class BlackjackView(discord.ui.View):
         player_total = hand_total(self.player)
 
         if player_total > 21:
-            result = f"\U0001f4a5 Bust! You lost **{self.bet}** coins."
+            delta = -self.bet
+            result = f"\U0001f4a5 Bust! You lost **{self.bet:,}** coins."
             colour = 0xE74C3C
         elif reason == "stand":
             while hand_total(self.dealer) < 17:
                 self.dealer.append(self.deck.pop())
             dealer_total = hand_total(self.dealer)
             if dealer_total > 21 or player_total > dealer_total:
-                result = f"\U0001f3c6 You win **{self.bet}** coins!"
+                delta = self.bet
+                result = f"\U0001f3c6 You win **{self.bet:,}** coins!"
                 colour = 0x2ECC71
             elif player_total == dealer_total:
+                delta = 0
                 result = "\U0001f91d Push — your bet is returned."
                 colour = 0xF1C40F
             else:
-                result = f"\U0001f61e Dealer wins. You lost **{self.bet}** coins."
+                delta = -self.bet
+                result = f"\U0001f61e Dealer wins. You lost **{self.bet:,}** coins."
                 colour = 0xE74C3C
         else:
-            result = f"\U0001f389 Blackjack! You win **{int(self.bet * 1.5)}** coins!"
+            delta = int(self.bet * 1.5)
+            result = f"\U0001f389 Blackjack! You win **{delta:,}** coins!"
             colour = 0xF1C40F
+
+        new_wallet = max(0, self.initial_wallet + delta)
+        await set_wallet(self.player_user.id, new_wallet)
 
         embed = self.build_embed(title=result, hide_dealer=False)
         embed.colour = colour
+        embed.set_footer(text=f"Wallet: {new_wallet:,} coins")
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="Hit", style=discord.ButtonStyle.primary, emoji="\U0001f0cf")
@@ -262,11 +634,17 @@ class BlackjackView(discord.ui.View):
 @bot.tree.command(name="blackjack", description="Play a round of blackjack")
 @app_commands.describe(bet="How many coins to bet (1-1000)")
 async def blackjack(interaction: discord.Interaction, bet: app_commands.Range[int, 1, 1000] = 100) -> None:
+    eco = await get_economy(interaction.user)
+    if eco["wallet"] < bet:
+        await interaction.response.send_message(
+            f"You only have **{eco['wallet']:,}** coins in your wallet.", ephemeral=True
+        )
+        return
     deck = new_deck()
     random.shuffle(deck)
     player = [deck.pop(), deck.pop()]
     dealer = [deck.pop(), deck.pop()]
-    view = BlackjackView(deck, player, dealer, bet)
+    view = BlackjackView(deck, player, dealer, bet, interaction.user, eco["wallet"])
     await interaction.response.send_message(embed=view.build_embed(), view=view)
 
 
@@ -333,13 +711,15 @@ async def higher_lower(interaction: discord.Interaction) -> None:
 
 # ── /roulette ─────────────────────────────────────────────────────────────────
 
-ROULETTE_RED = {1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36}
+ROULETTE_RED = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36}
 
 
 class RouletteView(discord.ui.View):
-    def __init__(self, bet: int):
+    def __init__(self, bet: int, player_user: discord.User | discord.Member, initial_wallet: int):
         super().__init__(timeout=60)
         self.bet = bet
+        self.player_user = player_user
+        self.initial_wallet = initial_wallet
 
     @discord.ui.button(label="Red  (2x)", style=discord.ButtonStyle.danger, emoji="\U0001f534")
     async def red(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -370,15 +750,20 @@ class RouletteView(discord.ui.View):
 
         if won:
             winnings = self.bet * multipliers[choice]
-            title = f"\U0001f3b0 {colour_emoji} {result} — You win **{winnings}** coins!"
+            delta = winnings - self.bet
+            title = f"\U0001f3b0 {colour_emoji} {result} — You win **{winnings:,}** coins!"
             colour = 0x2ECC71
         else:
-            title = f"\U0001f3b0 {colour_emoji} {result} — You lost **{self.bet}** coins."
+            delta = -self.bet
+            title = f"\U0001f3b0 {colour_emoji} {result} — You lost **{self.bet:,}** coins."
             colour = 0xE74C3C
+
+        new_wallet = max(0, self.initial_wallet + delta)
+        await set_wallet(self.player_user.id, new_wallet)
 
         embed = discord.Embed(
             title=title,
-            description=f"You bet **{choice}** with **{self.bet}** coins.",
+            description=f"You bet **{choice}** with **{self.bet:,}** coins.\nWallet: **{new_wallet:,}** coins",
             colour=colour,
         )
         await interaction.response.edit_message(embed=embed, view=self)
@@ -387,14 +772,24 @@ class RouletteView(discord.ui.View):
 @bot.tree.command(name="roulette", description="Spin the roulette wheel")
 @app_commands.describe(bet="How many coins to bet (1-1000)")
 async def roulette(interaction: discord.Interaction, bet: app_commands.Range[int, 1, 1000] = 100) -> None:
-    view = RouletteView(bet=bet)
+    eco = await get_economy(interaction.user)
+    if eco["wallet"] < bet:
+        await interaction.response.send_message(
+            f"You only have **{eco['wallet']:,}** coins in your wallet.", ephemeral=True
+        )
+        return
+    view = RouletteView(bet=bet, player_user=interaction.user, initial_wallet=eco["wallet"])
     embed = discord.Embed(
         title="\U0001f3b0 Roulette",
-        description=f"Bet: **{bet}** coins\nChoose a colour to spin!",
+        description=f"Bet: **{bet:,}** coins\nChoose a colour to spin!",
         colour=0x9B59B6,
     )
     embed.add_field(name="Payouts", value="Red \u2192 2x\nBlack \u2192 2x\nGreen (0) \u2192 14x", inline=False)
     await interaction.response.send_message(embed=embed, view=view)
+
+
+# ── Cooldown reset endpoints (internal — called by bot itself) ─────────────────
+# These are handled directly by the economy route on the API server
 
 
 # ── Reminder loop ─────────────────────────────────────────────────────────────
@@ -455,7 +850,6 @@ async def heartbeat_loop() -> None:
 @tasks.loop(minutes=2)
 async def config_refresh_loop() -> None:
     await refresh_config()
-    # Dynamically adjust reminder loop interval if changed
     if verifier_et_envoyer.is_running():
         current = verifier_et_envoyer.minutes  # type: ignore[attr-defined]
         if current != _reminder_interval:
@@ -484,13 +878,14 @@ async def on_ready() -> None:
     if bot.user is not None:
         logger.info("Bot connected as %s (ID: %s)", bot.user, bot.user.id)
 
-    # Fetch live config from dashboard API
     await refresh_config()
 
-    # Sync built-in + custom slash commands
-    await sync_custom_commands()
+    try:
+        synced = await bot.tree.sync()
+        logger.info("Slash commands synced — %d commands", len(synced))
+    except Exception:
+        logger.exception("Failed to sync slash commands")
 
-    # Start background loops (guard against double-start on reconnect)
     if not verifier_et_envoyer.is_running():
         verifier_et_envoyer.start()
     if not heartbeat_loop.is_running():
@@ -498,7 +893,6 @@ async def on_ready() -> None:
     if not config_refresh_loop.is_running():
         config_refresh_loop.start()
 
-    # Immediate first heartbeat
     await send_heartbeat(connected=True)
     await log_to_api("INFO", f"Bot connected as {bot.user}")
 

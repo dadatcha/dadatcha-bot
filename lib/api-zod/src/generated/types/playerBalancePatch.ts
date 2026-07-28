@@ -6,9 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface BotCommandInput {
-  name: string;
-  description: string;
-  response: string;
-  enabled?: boolean;
+export interface PlayerBalancePatch {
+  wallet?: number;
+  bank?: number;
 }

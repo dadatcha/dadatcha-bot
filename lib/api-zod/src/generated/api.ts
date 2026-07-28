@@ -60,73 +60,6 @@ export const UpdateBotConfigResponse = zod.object({
 
 
 /**
- * @summary List all custom commands
- */
-export const ListCommandsResponseItem = zod.object({
-  "id": zod.number(),
-  "name": zod.string(),
-  "description": zod.string(),
-  "response": zod.string(),
-  "enabled": zod.boolean(),
-  "createdAt": zod.string()
-})
-export const ListCommandsResponse = zod.array(ListCommandsResponseItem)
-
-
-/**
- * @summary Create a custom command
- */
-export const CreateCommandBody = zod.object({
-  "name": zod.string(),
-  "description": zod.string(),
-  "response": zod.string(),
-  "enabled": zod.boolean().optional()
-})
-
-export const CreateCommandResponse = zod.object({
-  "id": zod.number(),
-  "name": zod.string(),
-  "description": zod.string(),
-  "response": zod.string(),
-  "enabled": zod.boolean(),
-  "createdAt": zod.string()
-})
-
-
-/**
- * @summary Update (enable/disable/edit) a command
- */
-export const UpdateCommandParams = zod.object({
-  "name": zod.coerce.string()
-})
-
-export const UpdateCommandBody = zod.object({
-  "description": zod.string().optional(),
-  "response": zod.string().optional(),
-  "enabled": zod.boolean().optional()
-})
-
-export const UpdateCommandResponse = zod.object({
-  "id": zod.number(),
-  "name": zod.string(),
-  "description": zod.string(),
-  "response": zod.string(),
-  "enabled": zod.boolean(),
-  "createdAt": zod.string()
-})
-
-
-/**
- * @summary Delete a custom command
- */
-export const DeleteCommandParams = zod.object({
-  "name": zod.coerce.string()
-})
-
-export const DeleteCommandResponse = zod.void()
-
-
-/**
  * @summary Get recent bot activity logs
  */
 export const getLogsQueryLimitDefault = 50;
@@ -153,5 +86,67 @@ export const AddLogBody = zod.object({
 })
 
 export const AddLogResponse = zod.void()
+
+
+/**
+ * @summary List all players with balances
+ */
+export const ListPlayersResponseItem = zod.object({
+  "userId": zod.string(),
+  "username": zod.string(),
+  "wallet": zod.number(),
+  "bank": zod.number(),
+  "total": zod.number(),
+  "lastDaily": zod.string().nullable(),
+  "lastWork": zod.string().nullable(),
+  "lastCrime": zod.string().nullable(),
+  "updatedAt": zod.string()
+})
+export const ListPlayersResponse = zod.array(ListPlayersResponseItem)
+
+
+/**
+ * @summary Get one player's economy
+ */
+export const GetPlayerParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const GetPlayerResponse = zod.object({
+  "userId": zod.string(),
+  "username": zod.string(),
+  "wallet": zod.number(),
+  "bank": zod.number(),
+  "total": zod.number(),
+  "lastDaily": zod.string().nullable(),
+  "lastWork": zod.string().nullable(),
+  "lastCrime": zod.string().nullable(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Set a player's wallet and/or bank (dashboard admin)
+ */
+export const UpdatePlayerBalanceParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UpdatePlayerBalanceBody = zod.object({
+  "wallet": zod.number().optional(),
+  "bank": zod.number().optional()
+})
+
+export const UpdatePlayerBalanceResponse = zod.object({
+  "userId": zod.string(),
+  "username": zod.string(),
+  "wallet": zod.number(),
+  "bank": zod.number(),
+  "total": zod.number(),
+  "lastDaily": zod.string().nullable(),
+  "lastWork": zod.string().nullable(),
+  "lastCrime": zod.string().nullable(),
+  "updatedAt": zod.string()
+})
 
 

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, integer, timestamp, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -34,21 +34,6 @@ export const insertBotConfigSchema = createInsertSchema(botConfigTable).omit({ i
 export type InsertBotConfig = z.infer<typeof insertBotConfigSchema>;
 export type BotConfig = typeof botConfigTable.$inferSelect;
 
-// Custom slash commands
-export const botCommandsTable = pgTable("bot_commands", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  description: text("description").notNull(),
-  response: text("response").notNull(),
-  enabled: boolean("enabled").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
-
-export const insertBotCommandSchema = createInsertSchema(botCommandsTable).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertBotCommand = z.infer<typeof insertBotCommandSchema>;
-export type BotCommand = typeof botCommandsTable.$inferSelect;
-
 // Activity logs
 export const botLogsTable = pgTable("bot_logs", {
   id: serial("id").primaryKey(),
@@ -72,3 +57,19 @@ export const botStatusTable = pgTable("bot_status", {
   remindersSentToday: integer("reminders_sent_today").notNull().default(0),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
 });
+
+// Player economy
+export const userEconomyTable = pgTable("user_economy", {
+  userId: text("user_id").primaryKey(),
+  username: text("username").notNull(),
+  wallet: bigint("wallet", { mode: "number" }).notNull().default(0),
+  bank: bigint("bank", { mode: "number" }).notNull().default(0),
+  lastDaily: timestamp("last_daily", { withTimezone: true }),
+  lastWork: timestamp("last_work", { withTimezone: true }),
+  lastCrime: timestamp("last_crime", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export const insertUserEconomySchema = createInsertSchema(userEconomyTable).omit({ updatedAt: true });
+export type InsertUserEconomy = z.infer<typeof insertUserEconomySchema>;
+export type UserEconomy = typeof userEconomyTable.$inferSelect;

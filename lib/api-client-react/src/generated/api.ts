@@ -20,16 +20,15 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  BotCommand,
-  BotCommandInput,
-  BotCommandPatch,
   BotConfig,
   BotConfigInput,
   BotStatus,
   GetLogsParams,
   HealthStatus,
   LogEntry,
-  LogEntryInput
+  LogEntryInput,
+  Player,
+  PlayerBalancePatch
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -361,297 +360,6 @@ export const useUpdateBotConfig = <TError = ErrorType<unknown>,
       return useMutation(getUpdateBotConfigMutationOptions(options));
     }
 
-export const getListCommandsUrl = () => {
-
-
-
-
-  return `/api/bot/commands`
-}
-
-/**
- * @summary List all custom commands
- */
-export const listCommands = async ( options?: RequestInit): Promise<BotCommand[]> => {
-
-  return customFetch<BotCommand[]>(getListCommandsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListCommandsQueryKey = () => {
-    return [
-    `/api/bot/commands`
-    ] as const;
-    }
-
-
-export const getListCommandsQueryOptions = <TData = Awaited<ReturnType<typeof listCommands>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCommands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListCommandsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCommands>>> = ({ signal }) => listCommands({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCommands>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListCommandsQueryResult = NonNullable<Awaited<ReturnType<typeof listCommands>>>
-export type ListCommandsQueryError = ErrorType<unknown>
-
-
-/**
- * @summary List all custom commands
- */
-
-export function useListCommands<TData = Awaited<ReturnType<typeof listCommands>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCommands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListCommandsQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getCreateCommandUrl = () => {
-
-
-
-
-  return `/api/bot/commands`
-}
-
-/**
- * @summary Create a custom command
- */
-export const createCommand = async (botCommandInput: BotCommandInput, options?: RequestInit): Promise<BotCommand> => {
-
-  return customFetch<BotCommand>(getCreateCommandUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(botCommandInput)
-  }
-);}
-
-
-
-
-
-export const getCreateCommandMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCommand>>, TError,{data: BodyType<BotCommandInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createCommand>>, TError,{data: BodyType<BotCommandInput>}, TContext> => {
-
-const mutationKey = ['createCommand'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCommand>>, {data: BodyType<BotCommandInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  createCommand(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateCommandMutationResult = NonNullable<Awaited<ReturnType<typeof createCommand>>>
-    export type CreateCommandMutationBody = BodyType<BotCommandInput>
-    export type CreateCommandMutationError = ErrorType<void>
-
-    /**
- * @summary Create a custom command
- */
-export const useCreateCommand = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCommand>>, TError,{data: BodyType<BotCommandInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createCommand>>,
-        TError,
-        {data: BodyType<BotCommandInput>},
-        TContext
-      > => {
-      return useMutation(getCreateCommandMutationOptions(options));
-    }
-
-export const getUpdateCommandUrl = (name: string,) => {
-
-
-
-
-  return `/api/bot/commands/${name}`
-}
-
-/**
- * @summary Update (enable/disable/edit) a command
- */
-export const updateCommand = async (name: string,
-    botCommandPatch: BotCommandPatch, options?: RequestInit): Promise<BotCommand> => {
-
-  return customFetch<BotCommand>(getUpdateCommandUrl(name),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(botCommandPatch)
-  }
-);}
-
-
-
-
-
-export const getUpdateCommandMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCommand>>, TError,{name: string;data: BodyType<BotCommandPatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateCommand>>, TError,{name: string;data: BodyType<BotCommandPatch>}, TContext> => {
-
-const mutationKey = ['updateCommand'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCommand>>, {name: string;data: BodyType<BotCommandPatch>}> = (props) => {
-          const {name,data} = props ?? {};
-
-          return  updateCommand(name,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateCommandMutationResult = NonNullable<Awaited<ReturnType<typeof updateCommand>>>
-    export type UpdateCommandMutationBody = BodyType<BotCommandPatch>
-    export type UpdateCommandMutationError = ErrorType<void>
-
-    /**
- * @summary Update (enable/disable/edit) a command
- */
-export const useUpdateCommand = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCommand>>, TError,{name: string;data: BodyType<BotCommandPatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateCommand>>,
-        TError,
-        {name: string;data: BodyType<BotCommandPatch>},
-        TContext
-      > => {
-      return useMutation(getUpdateCommandMutationOptions(options));
-    }
-
-export const getDeleteCommandUrl = (name: string,) => {
-
-
-
-
-  return `/api/bot/commands/${name}`
-}
-
-/**
- * @summary Delete a custom command
- */
-export const deleteCommand = async (name: string, options?: RequestInit): Promise<void> => {
-
-  return customFetch<void>(getDeleteCommandUrl(name),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-
-export const getDeleteCommandMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCommand>>, TError,{name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteCommand>>, TError,{name: string}, TContext> => {
-
-const mutationKey = ['deleteCommand'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCommand>>, {name: string}> = (props) => {
-          const {name} = props ?? {};
-
-          return  deleteCommand(name,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteCommandMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCommand>>>
-
-    export type DeleteCommandMutationError = ErrorType<void>
-
-    /**
- * @summary Delete a custom command
- */
-export const useDeleteCommand = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCommand>>, TError,{name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof deleteCommand>>,
-        TError,
-        {name: string},
-        TContext
-      > => {
-      return useMutation(getDeleteCommandMutationOptions(options));
-    }
-
 export const getGetLogsUrl = (params?: GetLogsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -805,5 +513,231 @@ export const useAddLog = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAddLogMutationOptions(options));
+    }
+
+export const getListPlayersUrl = () => {
+
+
+
+
+  return `/api/economy/players`
+}
+
+/**
+ * @summary List all players with balances
+ */
+export const listPlayers = async ( options?: RequestInit): Promise<Player[]> => {
+
+  return customFetch<Player[]>(getListPlayersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlayersQueryKey = () => {
+    return [
+    `/api/economy/players`
+    ] as const;
+    }
+
+
+export const getListPlayersQueryOptions = <TData = Awaited<ReturnType<typeof listPlayers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlayers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlayersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlayers>>> = ({ signal }) => listPlayers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlayers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlayersQueryResult = NonNullable<Awaited<ReturnType<typeof listPlayers>>>
+export type ListPlayersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all players with balances
+ */
+
+export function useListPlayers<TData = Awaited<ReturnType<typeof listPlayers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlayers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlayersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPlayerUrl = (userId: string,) => {
+
+
+
+
+  return `/api/economy/players/${userId}`
+}
+
+/**
+ * @summary Get one player's economy
+ */
+export const getPlayer = async (userId: string, options?: RequestInit): Promise<Player> => {
+
+  return customFetch<Player>(getGetPlayerUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlayerQueryKey = (userId: string,) => {
+    return [
+    `/api/economy/players/${userId}`
+    ] as const;
+    }
+
+
+export const getGetPlayerQueryOptions = <TData = Awaited<ReturnType<typeof getPlayer>>, TError = ErrorType<void>>(userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlayer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlayerQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlayer>>> = ({ signal }) => getPlayer(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlayer>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlayerQueryResult = NonNullable<Awaited<ReturnType<typeof getPlayer>>>
+export type GetPlayerQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get one player's economy
+ */
+
+export function useGetPlayer<TData = Awaited<ReturnType<typeof getPlayer>>, TError = ErrorType<void>>(
+ userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlayer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlayerQueryOptions(userId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePlayerBalanceUrl = (userId: string,) => {
+
+
+
+
+  return `/api/economy/players/${userId}`
+}
+
+/**
+ * @summary Set a player's wallet and/or bank (dashboard admin)
+ */
+export const updatePlayerBalance = async (userId: string,
+    playerBalancePatch: PlayerBalancePatch, options?: RequestInit): Promise<Player> => {
+
+  return customFetch<Player>(getUpdatePlayerBalanceUrl(userId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(playerBalancePatch)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlayerBalanceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlayerBalance>>, TError,{userId: string;data: BodyType<PlayerBalancePatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlayerBalance>>, TError,{userId: string;data: BodyType<PlayerBalancePatch>}, TContext> => {
+
+const mutationKey = ['updatePlayerBalance'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlayerBalance>>, {userId: string;data: BodyType<PlayerBalancePatch>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updatePlayerBalance(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlayerBalanceMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlayerBalance>>>
+    export type UpdatePlayerBalanceMutationBody = BodyType<PlayerBalancePatch>
+    export type UpdatePlayerBalanceMutationError = ErrorType<void>
+
+    /**
+ * @summary Set a player's wallet and/or bank (dashboard admin)
+ */
+export const useUpdatePlayerBalance = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlayerBalance>>, TError,{userId: string;data: BodyType<PlayerBalancePatch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlayerBalance>>,
+        TError,
+        {userId: string;data: BodyType<PlayerBalancePatch>},
+        TContext
+      > => {
+      return useMutation(getUpdatePlayerBalanceMutationOptions(options));
     }
 

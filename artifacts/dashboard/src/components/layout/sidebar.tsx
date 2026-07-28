@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Activity, Terminal, Settings, ScrollText } from 'lucide-react';
+import { Activity, Coins, Settings, ScrollText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function Sidebar() {
@@ -7,7 +7,7 @@ export function Sidebar() {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Activity },
-    { path: '/commands', label: 'Commands', icon: Terminal },
+    { path: '/economy', label: 'Economy', icon: Coins },
     { path: '/config', label: 'Config', icon: Settings },
     { path: '/logs', label: 'Logs', icon: ScrollText },
   ];

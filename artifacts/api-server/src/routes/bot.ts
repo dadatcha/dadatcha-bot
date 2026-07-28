@@ -1,18 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, botConfigTable, botCommandsTable, botLogsTable, botStatusTable } from "@workspace/db";
+import { db, botConfigTable, botLogsTable, botStatusTable } from "@workspace/db";
 import {
   GetBotStatusResponse,
   GetBotConfigResponse,
   UpdateBotConfigBody,
   UpdateBotConfigResponse,
-  ListCommandsResponse,
-  CreateCommandBody,
-  CreateCommandResponse,
-  UpdateCommandParams,
-  UpdateCommandBody,
-  UpdateCommandResponse,
-  DeleteCommandParams,
   GetLogsQueryParams,
   GetLogsResponse,
   AddLogBody,
@@ -133,112 +126,6 @@ router.put("/bot/config", async (req, res): Promise<void> => {
     reminderIntervalMinutes: updated.reminderIntervalMinutes,
     reminderMessage: updated.reminderMessage,
   }));
-});
-
-// ── Commands ──────────────────────────────────────────────────────────────────
-
-router.get("/bot/commands", async (req, res): Promise<void> => {
-  const rows = await db.select().from(botCommandsTable).orderBy(botCommandsTable.createdAt);
-  res.json(ListCommandsResponse.parse(rows.map(r => ({
-    id: r.id,
-    name: r.name,
-    description: r.description,
-    response: r.response,
-    enabled: r.enabled,
-    createdAt: r.createdAt.toISOString(),
-  }))));
-});
-
-router.post("/bot/commands", async (req, res): Promise<void> => {
-  const parsed = CreateCommandBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-
-  const existing = await db
-    .select()
-    .from(botCommandsTable)
-    .where(eq(botCommandsTable.name, parsed.data.name));
-  if (existing.length > 0) {
-    res.status(409).json({ error: `Command /${parsed.data.name} already exists` });
-    return;
-  }
-
-  const [row] = await db.insert(botCommandsTable).values({
-    name: parsed.data.name,
-    description: parsed.data.description,
-    response: parsed.data.response,
-    enabled: parsed.data.enabled ?? true,
-  }).returning();
-
-  res.status(201).json(CreateCommandResponse.parse({
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    response: row.response,
-    enabled: row.enabled,
-    createdAt: row.createdAt.toISOString(),
-  }));
-});
-
-router.patch("/bot/commands/:name", async (req, res): Promise<void> => {
-  const params = UpdateCommandParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-
-  const parsed = UpdateCommandBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-
-  const updates: Partial<typeof botCommandsTable.$inferInsert> = {};
-  if (parsed.data.description !== undefined) updates.description = parsed.data.description;
-  if (parsed.data.response !== undefined) updates.response = parsed.data.response;
-  if (parsed.data.enabled !== undefined) updates.enabled = parsed.data.enabled;
-
-  const [row] = await db
-    .update(botCommandsTable)
-    .set(updates)
-    .where(eq(botCommandsTable.name, params.data.name))
-    .returning();
-
-  if (!row) {
-    res.status(404).json({ error: "Command not found" });
-    return;
-  }
-
-  res.json(UpdateCommandResponse.parse({
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    response: row.response,
-    enabled: row.enabled,
-    createdAt: row.createdAt.toISOString(),
-  }));
-});
-
-router.delete("/bot/commands/:name", async (req, res): Promise<void> => {
-  const params = DeleteCommandParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-
-  const [row] = await db
-    .delete(botCommandsTable)
-    .where(eq(botCommandsTable.name, params.data.name))
-    .returning();
-
-  if (!row) {
-    res.status(404).json({ error: "Command not found" });
-    return;
-  }
-
-  res.sendStatus(204);
 });
 
 // ── Logs ──────────────────────────────────────────────────────────────────────

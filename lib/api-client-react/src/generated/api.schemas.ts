@@ -38,26 +38,24 @@ export interface BotConfigInput {
   reminderMessage?: string;
 }
 
-export interface BotCommand {
-  id: number;
-  name: string;
-  description: string;
-  response: string;
-  enabled: boolean;
-  createdAt: string;
+export interface Player {
+  userId: string;
+  username: string;
+  wallet: number;
+  bank: number;
+  total: number;
+  /** @nullable */
+  lastDaily: string | null;
+  /** @nullable */
+  lastWork: string | null;
+  /** @nullable */
+  lastCrime: string | null;
+  updatedAt: string;
 }
 
-export interface BotCommandInput {
-  name: string;
-  description: string;
-  response: string;
-  enabled?: boolean;
-}
-
-export interface BotCommandPatch {
-  description?: string;
-  response?: string;
-  enabled?: boolean;
+export interface PlayerBalancePatch {
+  wallet?: number;
+  bank?: number;
 }
 
 export interface LogEntry {
