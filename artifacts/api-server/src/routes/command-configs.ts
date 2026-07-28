@@ -13,8 +13,7 @@ const router: IRouter = Router();
 // ── Static command registry ───────────────────────────────────────────────────
 
 const KNOWN_COMMANDS = [
-  { name: "balance",      label: "Balance",       description: "Voir son solde (wallet + banque)", category: "economy" },
-  { name: "money",        label: "Money",         description: "Voir le solde d'un autre joueur",  category: "economy" },
+  { name: "balance",      label: "Balance",       description: "Voir son solde ou celui d'un autre joueur (option facultative)", category: "economy" },
   { name: "addmoney",     label: "Add Money",     description: "Ajouter des coins à un joueur [Admin]", category: "economy" },
   { name: "removemoney",  label: "Remove Money",  description: "Retirer des coins à un joueur [Admin]", category: "economy" },
   { name: "setmoney",     label: "Set Money",     description: "Définir le solde exact d'un joueur [Admin]", category: "economy" },

@@ -416,28 +416,17 @@ async def check_cmd(interaction: discord.Interaction, name: str) -> bool:
 
 # ── /balance ──────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="balance", description="Check your own wallet and bank balance")
-async def balance(interaction: discord.Interaction) -> None:
+@bot.tree.command(name="balance", description="Check your wallet and bank balance (or another player's)")
+@app_commands.describe(player="Player to look up — leave empty to check your own balance")
+async def balance(interaction: discord.Interaction, player: Optional[discord.Member] = None) -> None:
     if not await check_cmd(interaction, "balance"): return
-    eco = await get_economy(interaction.user)
-    embed = discord.Embed(title=f"Balance — {interaction.user.display_name}", colour=0x2ECC71)
+    target = player or interaction.user
+    eco = await get_economy(target)
+    colour = 0x3498DB if player else 0x2ECC71
+    embed = discord.Embed(title=f"Balance — {target.display_name}", colour=colour)
     embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** {_coin()}", inline=True)
-    embed.add_field(name="Bank", value=f"**{eco['bank']:,}** {_coin()}", inline=True)
-    embed.add_field(name="Total", value=f"**{eco['wallet'] + eco['bank']:,}** {_coin()}", inline=True)
-    await interaction.response.send_message(embed=embed)
-
-
-# ── /money ────────────────────────────────────────────────────────────────────
-
-@bot.tree.command(name="money", description="Check the balance of any player")
-@app_commands.describe(player="The player to look up")
-async def money(interaction: discord.Interaction, player: discord.Member) -> None:
-    if not await check_cmd(interaction, "money"): return
-    eco = await get_economy(player)
-    embed = discord.Embed(title=f"Balance — {player.display_name}", colour=0x3498DB)
-    embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** {_coin()}", inline=True)
-    embed.add_field(name="Bank", value=f"**{eco['bank']:,}** {_coin()}", inline=True)
-    embed.add_field(name="Total", value=f"**{eco['wallet'] + eco['bank']:,}** {_coin()}", inline=True)
+    embed.add_field(name="Bank",   value=f"**{eco['bank']:,}** {_coin()}",   inline=True)
+    embed.add_field(name="Total",  value=f"**{eco['wallet'] + eco['bank']:,}** {_coin()}", inline=True)
     await interaction.response.send_message(embed=embed)
 
 
