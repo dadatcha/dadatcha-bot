@@ -321,42 +321,82 @@ async def money(interaction: discord.Interaction, player: discord.Member) -> Non
 
 # ── /addmoney ─────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="addmoney", description="[Admin] Add coins to a player's wallet")
-@app_commands.describe(player="Target player", amount="Amount to add")
-async def addmoney(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
+@bot.tree.command(name="addmoney", description="[Admin] Add coins to a player's wallet or bank")
+@app_commands.describe(player="Target player", amount="Amount to add", location="Where to add the coins")
+@app_commands.choices(location=[
+    app_commands.Choice(name="Wallet", value="wallet"),
+    app_commands.Choice(name="Bank", value="bank"),
+])
+async def addmoney(
+    interaction: discord.Interaction,
+    player: discord.Member,
+    amount: app_commands.Range[int, 1],
+    location: app_commands.Choice[str] = None,  # type: ignore[assignment]
+) -> None:
     if not is_admin(interaction):
         await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
         return
+    target = location.value if location else "wallet"
     eco = await get_economy(player)
-    new_wallet = eco["wallet"] + amount
-    await set_wallet(player.id, new_wallet)
-    embed = discord.Embed(
-        title="Coins Added",
-        description=f"Added **{amount:,}** coins to {player.mention}'s wallet.\nNew balance: **{new_wallet:,}** coins",
-        colour=0x2ECC71,
-    )
+    if target == "bank":
+        new_bank = eco["bank"] + amount
+        await set_bank(player.id, new_bank)
+        embed = discord.Embed(
+            title="Coins Added",
+            description=f"Added **{amount:,}** coins to {player.mention}'s **bank**.\nNew bank: **{new_bank:,}** coins",
+            colour=0x2ECC71,
+        )
+        await log_to_api("INFO", f"Admin {interaction.user} added {amount} coins to {player}'s bank (new bank: {new_bank})")
+    else:
+        new_wallet = eco["wallet"] + amount
+        await set_wallet(player.id, new_wallet)
+        embed = discord.Embed(
+            title="Coins Added",
+            description=f"Added **{amount:,}** coins to {player.mention}'s **wallet**.\nNew wallet: **{new_wallet:,}** coins",
+            colour=0x2ECC71,
+        )
+        await log_to_api("INFO", f"Admin {interaction.user} added {amount} coins to {player}'s wallet (new wallet: {new_wallet})")
     await interaction.response.send_message(embed=embed)
-    await log_to_api("INFO", f"Admin {interaction.user} added {amount} coins to {player} (new wallet: {new_wallet})")
 
 
 # ── /removemoney ──────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="removemoney", description="[Admin] Remove coins from a player's wallet")
-@app_commands.describe(player="Target player", amount="Amount to remove")
-async def removemoney(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
+@bot.tree.command(name="removemoney", description="[Admin] Remove coins from a player's wallet or bank")
+@app_commands.describe(player="Target player", amount="Amount to remove", location="Where to remove the coins from")
+@app_commands.choices(location=[
+    app_commands.Choice(name="Wallet", value="wallet"),
+    app_commands.Choice(name="Bank", value="bank"),
+])
+async def removemoney(
+    interaction: discord.Interaction,
+    player: discord.Member,
+    amount: app_commands.Range[int, 1],
+    location: app_commands.Choice[str] = None,  # type: ignore[assignment]
+) -> None:
     if not is_admin(interaction):
         await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
         return
+    target = location.value if location else "wallet"
     eco = await get_economy(player)
-    new_wallet = max(0, eco["wallet"] - amount)
-    await set_wallet(player.id, new_wallet)
-    embed = discord.Embed(
-        title="Coins Removed",
-        description=f"Removed **{amount:,}** coins from {player.mention}'s wallet.\nNew balance: **{new_wallet:,}** coins",
-        colour=0xE74C3C,
-    )
+    if target == "bank":
+        new_bank = max(0, eco["bank"] - amount)
+        await set_bank(player.id, new_bank)
+        embed = discord.Embed(
+            title="Coins Removed",
+            description=f"Removed **{amount:,}** coins from {player.mention}'s **bank**.\nNew bank: **{new_bank:,}** coins",
+            colour=0xE74C3C,
+        )
+        await log_to_api("INFO", f"Admin {interaction.user} removed {amount} coins from {player}'s bank (new bank: {new_bank})")
+    else:
+        new_wallet = max(0, eco["wallet"] - amount)
+        await set_wallet(player.id, new_wallet)
+        embed = discord.Embed(
+            title="Coins Removed",
+            description=f"Removed **{amount:,}** coins from {player.mention}'s **wallet**.\nNew wallet: **{new_wallet:,}** coins",
+            colour=0xE74C3C,
+        )
+        await log_to_api("INFO", f"Admin {interaction.user} removed {amount} coins from {player}'s wallet (new wallet: {new_wallet})")
     await interaction.response.send_message(embed=embed)
-    await log_to_api("INFO", f"Admin {interaction.user} removed {amount} coins from {player} (new wallet: {new_wallet})")
 
 
 # ── /setmoney ─────────────────────────────────────────────────────────────────
