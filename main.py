@@ -433,6 +433,7 @@ async def balance(interaction: discord.Interaction, player: Optional[discord.Mem
     embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** {_coin()}", inline=True)
     embed.add_field(name="Bank",   value=f"**{eco['bank']:,}** {_coin()}",   inline=True)
     embed.add_field(name="Total",  value=f"**{eco['wallet'] + eco['bank']:,}** {_coin()}", inline=True)
+    embed.add_field(name="Rang",   value=f"🏆 **#{eco['rank']}**", inline=False)
     await interaction.response.send_message(embed=embed)
 
 

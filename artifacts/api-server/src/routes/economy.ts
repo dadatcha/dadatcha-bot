@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { db, userEconomyTable, economyConfigTable } from "@workspace/db";
 import {
   ListPlayersResponse,
@@ -99,8 +99,24 @@ router.put("/economy/config", async (req, res): Promise<void> => {
 // ── Players ───────────────────────────────────────────────────────────────────
 
 router.get("/economy/players", async (req, res): Promise<void> => {
-  const rows = await db.select().from(userEconomyTable).orderBy(desc(userEconomyTable.wallet));
-  res.json(ListPlayersResponse.parse(rows.map(toPlayer)));
+  const rows = await db
+    .select({
+      userId: userEconomyTable.userId,
+      username: userEconomyTable.username,
+      wallet: userEconomyTable.wallet,
+      bank: userEconomyTable.bank,
+      lastDaily: userEconomyTable.lastDaily,
+      lastWork: userEconomyTable.lastWork,
+      lastCrime: userEconomyTable.lastCrime,
+      updatedAt: userEconomyTable.updatedAt,
+      rank: sql<number>`cast(rank() over (order by (${userEconomyTable.wallet} + ${userEconomyTable.bank}) desc) as int)`,
+    })
+    .from(userEconomyTable)
+    .orderBy(desc(sql`${userEconomyTable.wallet} + ${userEconomyTable.bank}`));
+  res.json(ListPlayersResponse.parse(rows.map(r => ({
+    ...toPlayer(r as typeof userEconomyTable.$inferSelect),
+    rank: r.rank,
+  }))));
 });
 
 router.get("/economy/players/:userId", async (req, res): Promise<void> => {
@@ -108,7 +124,12 @@ router.get("/economy/players/:userId", async (req, res): Promise<void> => {
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [row] = await db.select().from(userEconomyTable).where(eq(userEconomyTable.userId, params.data.userId));
   if (!row) { res.status(404).json({ error: "Player not found" }); return; }
-  res.json(GetPlayerResponse.parse(toPlayer(row)));
+  const [rankRow] = await db
+    .select({ rank: sql<number>`cast(count(*) + 1 as int)` })
+    .from(userEconomyTable)
+    .where(sql`(${userEconomyTable.wallet} + ${userEconomyTable.bank}) > (${row.wallet + row.bank})`);
+  const rank = rankRow?.rank ?? 1;
+  res.json(GetPlayerResponse.parse({ ...toPlayer(row), rank }));
 });
 
 router.post("/economy/players", async (req, res): Promise<void> => {

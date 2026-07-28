@@ -793,6 +793,8 @@ components:
           type: integer
         total:
           type: integer
+        rank:
+          type: integer
         lastDaily:
           type: ["string", "null"]
         lastWork:
@@ -801,7 +803,7 @@ components:
           type: ["string", "null"]
         updatedAt:
           type: string
-      required: [userId, username, wallet, bank, total, lastDaily, lastWork, lastCrime, updatedAt]
+      required: [userId, username, wallet, bank, total, rank, lastDaily, lastWork, lastCrime, updatedAt]
 
     PlayerBalancePatch:
       type: object

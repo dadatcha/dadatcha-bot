@@ -12,6 +12,7 @@ export interface Player {
   wallet: number;
   bank: number;
   total: number;
+  rank: number;
   /** @nullable */
   lastDaily: string | null;
   /** @nullable */
