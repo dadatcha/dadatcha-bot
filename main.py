@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 import logging
 import os
@@ -78,6 +79,7 @@ _role_rewards: list[dict] = []  # list of {triggerRoleId, rewardRoleId, enabled}
 # Command configs — overwritten at runtime by refresh_command_configs()
 _cmd_cfg: dict[str, dict] = {}  # commandName → {enabled, adminOnly, label}
 _last_synced_labels: dict[str, str] = {}  # commandName → label at last Discord sync
+_cmd_name_map: dict[str, str] = {}  # current discord name → original name
 
 # ── Bot setup ─────────────────────────────────────────────────────────────────
 
@@ -257,16 +259,50 @@ async def refresh_command_configs() -> None:
         logger.info("Command configs refreshed — %d commands", len(_cmd_cfg))
 
 
+def _label_to_discord_name(label: str) -> str:
+    """Convert a human label to a valid Discord slash command name (lowercase, hyphens)."""
+    name = label.lower().replace(" ", "-").replace("_", "-")
+    name = re.sub(r"[^a-z0-9\-]", "", name)
+    name = re.sub(r"-{2,}", "-", name).strip("-")
+    return (name or "cmd")[:32]
+
+
 def _apply_command_labels() -> bool:
-    """Update registered command descriptions from _cmd_cfg labels.
-    Returns True if any description actually changed."""
+    """Rename commands and update their descriptions from _cmd_cfg labels.
+    Returns True if any name or description actually changed."""
+    global _cmd_name_map
     changed = False
-    for cmd in bot.tree.get_commands():
-        cfg = _cmd_cfg.get(cmd.name)
+
+    for cmd in list(bot.tree.get_commands()):
+        # On first run cmd.name IS the original name; on subsequent runs
+        # _cmd_name_map tells us what the original name was.
+        original_name = _cmd_name_map.get(cmd.name, cmd.name)
+
+        cfg = _cmd_cfg.get(original_name)
         label = cfg.get("label") if cfg else None
-        if label and cmd.description != label:
+        if not label:
+            _cmd_name_map.setdefault(cmd.name, original_name)
+            continue
+
+        new_discord_name = _label_to_discord_name(label)
+
+        # ── Rename the command in the tree if needed ──────────────────────────
+        if cmd.name != new_discord_name:
+            bot.tree.remove_command(cmd.name)
+            _cmd_name_map.pop(cmd.name, None)
+            cmd.name = new_discord_name
+            bot.tree.add_command(cmd)
+            _cmd_name_map[new_discord_name] = original_name
+            logger.info("Command renamed: /%s → /%s", original_name, new_discord_name)
+            changed = True
+        else:
+            _cmd_name_map.setdefault(cmd.name, original_name)
+
+        # ── Update description ────────────────────────────────────────────────
+        if cmd.description != label:
             cmd.description = label
             changed = True
+
     return changed
 
 
