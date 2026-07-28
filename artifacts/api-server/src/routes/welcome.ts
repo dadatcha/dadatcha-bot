@@ -46,7 +46,8 @@ router.get("/welcome/config", async (_req, res): Promise<void> => {
 
 // PUT /welcome/config
 router.put("/welcome/config", async (req, res): Promise<void> => {
-  const d = req.body as Partial<Omit<typeof DEFAULTS, "updatedAt">>;
+  // Strip non-column keys (e.g. updatedAt sent as ISO string by the dashboard)
+  const { updatedAt: _ignored, ...d } = req.body as Record<string, unknown>;
   const [row] = await db
     .insert(welcomeConfigTable)
     .values({ id: 1, ...d })
