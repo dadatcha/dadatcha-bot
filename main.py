@@ -40,15 +40,18 @@ And more!"""
 
 API_BASE = "http://localhost:80/api"
 
-# Economy constants
-DAILY_AMOUNT = 500
-WORK_MIN, WORK_MAX = 50, 200
-WORK_COOLDOWN_H = 1
-CRIME_WIN_MIN, CRIME_WIN_MAX = 100, 500
-CRIME_LOSE_MIN, CRIME_LOSE_MAX = 50, 200
-CRIME_WIN_CHANCE = 0.50
-CRIME_COOLDOWN_H = 2
-STARTING_WALLET = 0
+# Economy config — overwritten at runtime by refresh_economy_config()
+_eco: dict = {
+    "startingWallet": 200,
+    "balanceEnabled": True, "moneyEnabled": True,
+    "dailyEnabled": True, "dailyAmount": 500, "dailyCooldownHours": 24,
+    "workEnabled": True, "workMinAmount": 50, "workMaxAmount": 200, "workCooldownHours": 1,
+    "crimeEnabled": True, "crimeWinMin": 100, "crimeWinMax": 500,
+    "crimeLoseMin": 50, "crimeLoseMax": 200, "crimeWinChance": 60, "crimeCooldownHours": 2,
+    "depositEnabled": True, "withdrawEnabled": True, "giveEnabled": True, "leaderboardEnabled": True,
+    "blackjackEnabled": True, "blackjackMaxBet": 1000,
+    "rouletteEnabled": True, "rouletteMaxBet": 1000, "hlEnabled": True,
+}
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -147,6 +150,14 @@ async def refresh_config() -> None:
         )
 
 
+async def refresh_economy_config() -> None:
+    global _eco
+    data = await api_get_json("/economy/config")
+    if data:
+        _eco.update(data)
+        logger.info("Economy config refreshed")
+
+
 # ── Economy DB helpers ────────────────────────────────────────────────────────
 
 async def get_economy(user: discord.User | discord.Member) -> dict:
@@ -158,7 +169,7 @@ async def get_economy(user: discord.User | discord.Member) -> dict:
     result = await api_post("/economy/players", {
         "userId": str(user.id),
         "username": user.display_name,
-        "wallet": STARTING_WALLET,
+        "wallet": _eco["startingWallet"],
         "bank": 0,
     })
     if result:
@@ -317,40 +328,47 @@ async def resetmoney(interaction: discord.Interaction, player: discord.Member) -
 
 # ── /daily ────────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="daily", description="Claim your daily reward of 500 coins")
+@bot.tree.command(name="daily", description="Claim your daily coin reward")
 async def daily(interaction: discord.Interaction) -> None:
+    if not _eco["dailyEnabled"]:
+        await interaction.response.send_message("The `/daily` command is currently disabled.", ephemeral=True)
+        return
     eco = await get_economy(interaction.user)
-    remaining = cooldown_remaining(eco.get("lastDaily"), 24)
+    remaining = cooldown_remaining(eco.get("lastDaily"), _eco["dailyCooldownHours"])
     if remaining:
         await interaction.response.send_message(
             f"You already claimed your daily reward. Come back in **{fmt_td(remaining)}**.",
             ephemeral=True,
         )
         return
-    new_wallet = eco["wallet"] + DAILY_AMOUNT
+    amount = _eco["dailyAmount"]
+    new_wallet = eco["wallet"] + amount
     await api_patch(f"/economy/players/{interaction.user.id}/daily", {"wallet": new_wallet})
     embed = discord.Embed(
         title="Daily Reward",
-        description=f"You claimed **{DAILY_AMOUNT:,}** coins!\nWallet: **{new_wallet:,}** coins",
+        description=f"You claimed **{amount:,}** coins!\nWallet: **{new_wallet:,}** coins",
         colour=0xF1C40F,
     )
-    embed.set_footer(text="Come back in 24 hours for your next reward.")
+    embed.set_footer(text=f"Come back in {_eco['dailyCooldownHours']}h for your next reward.")
     await interaction.response.send_message(embed=embed)
 
 
 # ── /work ─────────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="work", description="Work to earn 50-200 coins (1 hour cooldown)")
+@bot.tree.command(name="work", description="Work to earn coins")
 async def work(interaction: discord.Interaction) -> None:
+    if not _eco["workEnabled"]:
+        await interaction.response.send_message("The `/work` command is currently disabled.", ephemeral=True)
+        return
     eco = await get_economy(interaction.user)
-    remaining = cooldown_remaining(eco.get("lastWork"), WORK_COOLDOWN_H)
+    remaining = cooldown_remaining(eco.get("lastWork"), _eco["workCooldownHours"])
     if remaining:
         await interaction.response.send_message(
             f"You are tired. Rest for **{fmt_td(remaining)}** before working again.",
             ephemeral=True,
         )
         return
-    earned = random.randint(WORK_MIN, WORK_MAX)
+    earned = random.randint(_eco["workMinAmount"], _eco["workMaxAmount"])
     new_wallet = eco["wallet"] + earned
     await api_patch(f"/economy/players/{interaction.user.id}/work", {"wallet": new_wallet})
     jobs = [
@@ -362,16 +380,19 @@ async def work(interaction: discord.Interaction) -> None:
         description=f"You {random.choice(jobs)} and earned **{earned:,}** coins!\nWallet: **{new_wallet:,}** coins",
         colour=0x2ECC71,
     )
-    embed.set_footer(text=f"Work again in {WORK_COOLDOWN_H}h.")
+    embed.set_footer(text=f"Work again in {_eco['workCooldownHours']}h.")
     await interaction.response.send_message(embed=embed)
 
 
 # ── /crime ────────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="crime", description="Attempt a crime for big coins — risk a fine (2h cooldown)")
+@bot.tree.command(name="crime", description="Attempt a crime for big coins — risk a fine")
 async def crime(interaction: discord.Interaction) -> None:
+    if not _eco["crimeEnabled"]:
+        await interaction.response.send_message("The `/crime` command is currently disabled.", ephemeral=True)
+        return
     eco = await get_economy(interaction.user)
-    remaining = cooldown_remaining(eco.get("lastCrime"), CRIME_COOLDOWN_H)
+    remaining = cooldown_remaining(eco.get("lastCrime"), _eco["crimeCooldownHours"])
     if remaining:
         await interaction.response.send_message(
             f"The police are still watching you. Wait **{fmt_td(remaining)}**.",
@@ -379,9 +400,9 @@ async def crime(interaction: discord.Interaction) -> None:
         )
         return
 
-    success = random.random() < CRIME_WIN_CHANCE
+    success = random.random() < (_eco["crimeWinChance"] / 100)
     if success:
-        gained = random.randint(CRIME_WIN_MIN, CRIME_WIN_MAX)
+        gained = random.randint(_eco["crimeWinMin"], _eco["crimeWinMax"])
         new_wallet = eco["wallet"] + gained
         await api_patch(f"/economy/players/{interaction.user.id}/crime", {"wallet": new_wallet})
         crimes = ["robbed a store", "hacked a server", "scammed a trader", "picked a pocket"]
@@ -391,7 +412,7 @@ async def crime(interaction: discord.Interaction) -> None:
             colour=0x9B59B6,
         )
     else:
-        fine = random.randint(CRIME_LOSE_MIN, CRIME_LOSE_MAX)
+        fine = random.randint(_eco["crimeLoseMin"], _eco["crimeLoseMax"])
         new_wallet = max(0, eco["wallet"] - fine)
         await api_patch(f"/economy/players/{interaction.user.id}/crime", {"wallet": new_wallet})
         embed = discord.Embed(
@@ -399,15 +420,18 @@ async def crime(interaction: discord.Interaction) -> None:
             description=f"You got caught and paid a **{fine:,}** coin fine!\nWallet: **{new_wallet:,}** coins",
             colour=0xE74C3C,
         )
-    embed.set_footer(text=f"Try again in {CRIME_COOLDOWN_H}h.")
+    embed.set_footer(text=f"Try again in {_eco['crimeCooldownHours']}h.")
     await interaction.response.send_message(embed=embed)
 
 
 # ── /deposit ──────────────────────────────────────────────────────────────────
 
 @bot.tree.command(name="deposit", description="Deposit coins from your wallet into the bank")
-@app_commands.describe(amount="Amount to deposit (or 'all')")
+@app_commands.describe(amount="Amount to deposit")
 async def deposit(interaction: discord.Interaction, amount: int) -> None:
+    if not _eco["depositEnabled"]:
+        await interaction.response.send_message("The `/deposit` command is currently disabled.", ephemeral=True)
+        return
     eco = await get_economy(interaction.user)
     if amount <= 0:
         await interaction.response.send_message("Amount must be positive.", ephemeral=True)
@@ -435,6 +459,9 @@ async def deposit(interaction: discord.Interaction, amount: int) -> None:
 @bot.tree.command(name="withdraw", description="Withdraw coins from the bank into your wallet")
 @app_commands.describe(amount="Amount to withdraw")
 async def withdraw(interaction: discord.Interaction, amount: int) -> None:
+    if not _eco["withdrawEnabled"]:
+        await interaction.response.send_message("The `/withdraw` command is currently disabled.", ephemeral=True)
+        return
     eco = await get_economy(interaction.user)
     if amount <= 0:
         await interaction.response.send_message("Amount must be positive.", ephemeral=True)
@@ -462,6 +489,9 @@ async def withdraw(interaction: discord.Interaction, amount: int) -> None:
 @bot.tree.command(name="give", description="Give coins from your wallet to another player")
 @app_commands.describe(player="Who to give to", amount="How many coins")
 async def give(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
+    if not _eco["giveEnabled"]:
+        await interaction.response.send_message("The `/give` command is currently disabled.", ephemeral=True)
+        return
     if player.id == interaction.user.id:
         await interaction.response.send_message("You cannot give coins to yourself.", ephemeral=True)
         return
@@ -489,6 +519,9 @@ async def give(interaction: discord.Interaction, player: discord.Member, amount:
 
 @bot.tree.command(name="leaderboard", description="Show the top 10 richest players")
 async def leaderboard(interaction: discord.Interaction) -> None:
+    if not _eco["leaderboardEnabled"]:
+        await interaction.response.send_message("The `/leaderboard` command is currently disabled.", ephemeral=True)
+        return
     await interaction.response.defer()
     try:
         async with aiohttp.ClientSession() as session:
@@ -632,8 +665,15 @@ class BlackjackView(discord.ui.View):
 
 
 @bot.tree.command(name="blackjack", description="Play a round of blackjack")
-@app_commands.describe(bet="How many coins to bet (1-1000)")
-async def blackjack(interaction: discord.Interaction, bet: app_commands.Range[int, 1, 1000] = 100) -> None:
+@app_commands.describe(bet="How many coins to bet")
+async def blackjack(interaction: discord.Interaction, bet: int = 100) -> None:
+    if not _eco["blackjackEnabled"]:
+        await interaction.response.send_message("The `/blackjack` command is currently disabled.", ephemeral=True)
+        return
+    max_bet = _eco["blackjackMaxBet"]
+    if bet < 1 or bet > max_bet:
+        await interaction.response.send_message(f"Bet must be between 1 and {max_bet:,} coins.", ephemeral=True)
+        return
     eco = await get_economy(interaction.user)
     if eco["wallet"] < bet:
         await interaction.response.send_message(
@@ -770,8 +810,15 @@ class RouletteView(discord.ui.View):
 
 
 @bot.tree.command(name="roulette", description="Spin the roulette wheel")
-@app_commands.describe(bet="How many coins to bet (1-1000)")
-async def roulette(interaction: discord.Interaction, bet: app_commands.Range[int, 1, 1000] = 100) -> None:
+@app_commands.describe(bet="How many coins to bet")
+async def roulette(interaction: discord.Interaction, bet: int = 100) -> None:
+    if not _eco["rouletteEnabled"]:
+        await interaction.response.send_message("The `/roulette` command is currently disabled.", ephemeral=True)
+        return
+    max_bet = _eco["rouletteMaxBet"]
+    if bet < 1 or bet > max_bet:
+        await interaction.response.send_message(f"Bet must be between 1 and {max_bet:,} coins.", ephemeral=True)
+        return
     eco = await get_economy(interaction.user)
     if eco["wallet"] < bet:
         await interaction.response.send_message(
@@ -850,6 +897,7 @@ async def heartbeat_loop() -> None:
 @tasks.loop(minutes=2)
 async def config_refresh_loop() -> None:
     await refresh_config()
+    await refresh_economy_config()
     if verifier_et_envoyer.is_running():
         current = verifier_et_envoyer.minutes  # type: ignore[attr-defined]
         if current != _reminder_interval:
@@ -879,6 +927,7 @@ async def on_ready() -> None:
         logger.info("Bot connected as %s (ID: %s)", bot.user, bot.user.id)
 
     await refresh_config()
+    await refresh_economy_config()
 
     try:
         synced = await bot.tree.sync()

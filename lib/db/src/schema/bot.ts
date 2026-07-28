@@ -58,6 +58,40 @@ export const botStatusTable = pgTable("bot_status", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
 });
 
+// Economy command configuration (single row, id=1)
+export const economyConfigTable = pgTable("economy_config", {
+  id: serial("id").primaryKey(),
+  startingWallet: integer("starting_wallet").notNull().default(200),
+  balanceEnabled: boolean("balance_enabled").notNull().default(true),
+  moneyEnabled: boolean("money_enabled").notNull().default(true),
+  dailyEnabled: boolean("daily_enabled").notNull().default(true),
+  dailyAmount: integer("daily_amount").notNull().default(500),
+  dailyCooldownHours: integer("daily_cooldown_hours").notNull().default(24),
+  workEnabled: boolean("work_enabled").notNull().default(true),
+  workMinAmount: integer("work_min_amount").notNull().default(50),
+  workMaxAmount: integer("work_max_amount").notNull().default(200),
+  workCooldownHours: integer("work_cooldown_hours").notNull().default(1),
+  crimeEnabled: boolean("crime_enabled").notNull().default(true),
+  crimeWinMin: integer("crime_win_min").notNull().default(100),
+  crimeWinMax: integer("crime_win_max").notNull().default(500),
+  crimeLoseMin: integer("crime_lose_min").notNull().default(50),
+  crimeLoseMax: integer("crime_lose_max").notNull().default(200),
+  crimeWinChance: integer("crime_win_chance").notNull().default(60),
+  crimeCooldownHours: integer("crime_cooldown_hours").notNull().default(2),
+  depositEnabled: boolean("deposit_enabled").notNull().default(true),
+  withdrawEnabled: boolean("withdraw_enabled").notNull().default(true),
+  giveEnabled: boolean("give_enabled").notNull().default(true),
+  leaderboardEnabled: boolean("leaderboard_enabled").notNull().default(true),
+  blackjackEnabled: boolean("blackjack_enabled").notNull().default(true),
+  blackjackMaxBet: integer("blackjack_max_bet").notNull().default(1000),
+  rouletteEnabled: boolean("roulette_enabled").notNull().default(true),
+  rouletteMaxBet: integer("roulette_max_bet").notNull().default(1000),
+  hlEnabled: boolean("hl_enabled").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type EconomyConfig = typeof economyConfigTable.$inferSelect;
+
 // Player economy
 export const userEconomyTable = pgTable("user_economy", {
   userId: text("user_id").primaryKey(),

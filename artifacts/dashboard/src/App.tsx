@@ -2,24 +2,28 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sidebar } from '@/components/layout/sidebar';
-import NotFound from '@/pages/not-found';
-import Dashboard from '@/pages/dashboard';
-import Economy from '@/pages/economy';
-import Config from '@/pages/config';
-import Logs from '@/pages/logs';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
+import Overview from '@/pages/overview';
+import Economy from '@/pages/economy';
+import Games from '@/pages/games';
+import Reminder from '@/pages/reminder';
+import Logs from '@/pages/logs';
+import NotFound from '@/pages/not-found';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 10_000, retry: 1 } },
+});
 
 function Router() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto min-w-0">
         <Switch>
-          <Route path="/" component={Dashboard} />
+          <Route path="/" component={Overview} />
           <Route path="/economy" component={Economy} />
-          <Route path="/config" component={Config} />
+          <Route path="/games" component={Games} />
+          <Route path="/reminder" component={Reminder} />
           <Route path="/logs" component={Logs} />
           <Route component={NotFound} />
         </Switch>
@@ -28,7 +32,7 @@ function Router() {
   );
 }
 
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -40,5 +44,3 @@ function App() {
     </QueryClientProvider>
   );
 }
-
-export default App;

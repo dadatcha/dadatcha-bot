@@ -23,6 +23,8 @@ import type {
   BotConfig,
   BotConfigInput,
   BotStatus,
+  EconomyConfig,
+  EconomyConfigInput,
   GetLogsParams,
   HealthStatus,
   LogEntry,
@@ -221,7 +223,7 @@ export const getGetBotConfigUrl = () => {
 }
 
 /**
- * @summary Get bot configuration
+ * @summary Get reminder/channel configuration
  */
 export const getBotConfig = async ( options?: RequestInit): Promise<BotConfig> => {
 
@@ -268,7 +270,7 @@ export type GetBotConfigQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get bot configuration
+ * @summary Get reminder/channel configuration
  */
 
 export function useGetBotConfig<TData = Awaited<ReturnType<typeof getBotConfig>>, TError = ErrorType<unknown>>(
@@ -298,7 +300,7 @@ export const getUpdateBotConfigUrl = () => {
 }
 
 /**
- * @summary Update bot configuration
+ * @summary Update reminder/channel configuration
  */
 export const updateBotConfig = async (botConfigInput: BotConfigInput, options?: RequestInit): Promise<BotConfig> => {
 
@@ -347,7 +349,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateBotConfigMutationError = ErrorType<unknown>
 
     /**
- * @summary Update bot configuration
+ * @summary Update reminder/channel configuration
  */
 export const useUpdateBotConfig = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBotConfig>>, TError,{data: BodyType<BotConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -515,6 +517,154 @@ export const useAddLog = <TError = ErrorType<unknown>,
       return useMutation(getAddLogMutationOptions(options));
     }
 
+export const getGetEconomyConfigUrl = () => {
+
+
+
+
+  return `/api/economy/config`
+}
+
+/**
+ * @summary Get economy command configuration
+ */
+export const getEconomyConfig = async ( options?: RequestInit): Promise<EconomyConfig> => {
+
+  return customFetch<EconomyConfig>(getGetEconomyConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEconomyConfigQueryKey = () => {
+    return [
+    `/api/economy/config`
+    ] as const;
+    }
+
+
+export const getGetEconomyConfigQueryOptions = <TData = Awaited<ReturnType<typeof getEconomyConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEconomyConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEconomyConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEconomyConfig>>> = ({ signal }) => getEconomyConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEconomyConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEconomyConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getEconomyConfig>>>
+export type GetEconomyConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get economy command configuration
+ */
+
+export function useGetEconomyConfig<TData = Awaited<ReturnType<typeof getEconomyConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEconomyConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEconomyConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateEconomyConfigUrl = () => {
+
+
+
+
+  return `/api/economy/config`
+}
+
+/**
+ * @summary Update economy command configuration
+ */
+export const updateEconomyConfig = async (economyConfigInput: EconomyConfigInput, options?: RequestInit): Promise<EconomyConfig> => {
+
+  return customFetch<EconomyConfig>(getUpdateEconomyConfigUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(economyConfigInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateEconomyConfigMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEconomyConfig>>, TError,{data: BodyType<EconomyConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEconomyConfig>>, TError,{data: BodyType<EconomyConfigInput>}, TContext> => {
+
+const mutationKey = ['updateEconomyConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEconomyConfig>>, {data: BodyType<EconomyConfigInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateEconomyConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEconomyConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateEconomyConfig>>>
+    export type UpdateEconomyConfigMutationBody = BodyType<EconomyConfigInput>
+    export type UpdateEconomyConfigMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update economy command configuration
+ */
+export const useUpdateEconomyConfig = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEconomyConfig>>, TError,{data: BodyType<EconomyConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEconomyConfig>>,
+        TError,
+        {data: BodyType<EconomyConfigInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateEconomyConfigMutationOptions(options));
+    }
+
 export const getListPlayersUrl = () => {
 
 
@@ -678,7 +828,7 @@ export const getUpdatePlayerBalanceUrl = (userId: string,) => {
 }
 
 /**
- * @summary Set a player's wallet and/or bank (dashboard admin)
+ * @summary Set a player's wallet and/or bank
  */
 export const updatePlayerBalance = async (userId: string,
     playerBalancePatch: PlayerBalancePatch, options?: RequestInit): Promise<Player> => {
@@ -728,7 +878,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdatePlayerBalanceMutationError = ErrorType<void>
 
     /**
- * @summary Set a player's wallet and/or bank (dashboard admin)
+ * @summary Set a player's wallet and/or bank
  */
 export const useUpdatePlayerBalance = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlayerBalance>>, TError,{userId: string;data: BodyType<PlayerBalancePatch>}, TContext>, request?: SecondParameter<typeof customFetch>}

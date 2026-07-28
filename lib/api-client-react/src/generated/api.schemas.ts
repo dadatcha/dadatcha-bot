@@ -38,6 +38,64 @@ export interface BotConfigInput {
   reminderMessage?: string;
 }
 
+export interface EconomyConfig {
+  startingWallet: number;
+  balanceEnabled: boolean;
+  moneyEnabled: boolean;
+  dailyEnabled: boolean;
+  dailyAmount: number;
+  dailyCooldownHours: number;
+  workEnabled: boolean;
+  workMinAmount: number;
+  workMaxAmount: number;
+  workCooldownHours: number;
+  crimeEnabled: boolean;
+  crimeWinMin: number;
+  crimeWinMax: number;
+  crimeLoseMin: number;
+  crimeLoseMax: number;
+  crimeWinChance: number;
+  crimeCooldownHours: number;
+  depositEnabled: boolean;
+  withdrawEnabled: boolean;
+  giveEnabled: boolean;
+  leaderboardEnabled: boolean;
+  blackjackEnabled: boolean;
+  blackjackMaxBet: number;
+  rouletteEnabled: boolean;
+  rouletteMaxBet: number;
+  hlEnabled: boolean;
+}
+
+export interface EconomyConfigInput {
+  startingWallet?: number;
+  balanceEnabled?: boolean;
+  moneyEnabled?: boolean;
+  dailyEnabled?: boolean;
+  dailyAmount?: number;
+  dailyCooldownHours?: number;
+  workEnabled?: boolean;
+  workMinAmount?: number;
+  workMaxAmount?: number;
+  workCooldownHours?: number;
+  crimeEnabled?: boolean;
+  crimeWinMin?: number;
+  crimeWinMax?: number;
+  crimeLoseMin?: number;
+  crimeLoseMax?: number;
+  crimeWinChance?: number;
+  crimeCooldownHours?: number;
+  depositEnabled?: boolean;
+  withdrawEnabled?: boolean;
+  giveEnabled?: boolean;
+  leaderboardEnabled?: boolean;
+  blackjackEnabled?: boolean;
+  blackjackMaxBet?: number;
+  rouletteEnabled?: boolean;
+  rouletteMaxBet?: number;
+  hlEnabled?: boolean;
+}
+
 export interface Player {
   userId: string;
   username: string;

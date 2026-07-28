@@ -8,13 +8,9 @@ servers:
     description: Base API path
 tags:
   - name: health
-    description: Health operations
   - name: bot
-    description: Bot status and configuration
   - name: economy
-    description: Player economy management
   - name: logs
-    description: Bot activity logs
 
 paths:
   /healthz:
@@ -47,7 +43,7 @@ paths:
     get:
       operationId: getBotConfig
       tags: [bot]
-      summary: Get bot configuration
+      summary: Get reminder/channel configuration
       responses:
         "200":
           description: Current config
@@ -58,7 +54,7 @@ paths:
     put:
       operationId: updateBotConfig
       tags: [bot]
-      summary: Update bot configuration
+      summary: Update reminder/channel configuration
       requestBody:
         required: true
         content:
@@ -83,7 +79,7 @@ paths:
           in: query
           schema:
             type: integer
-            default: 50
+            default: 100
       responses:
         "200":
           description: Log entries
@@ -106,6 +102,36 @@ paths:
       responses:
         "201":
           description: Logged
+
+  /economy/config:
+    get:
+      operationId: getEconomyConfig
+      tags: [economy]
+      summary: Get economy command configuration
+      responses:
+        "200":
+          description: Economy config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EconomyConfig"
+    put:
+      operationId: updateEconomyConfig
+      tags: [economy]
+      summary: Update economy command configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EconomyConfigInput"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EconomyConfig"
 
   /economy/players:
     get:
@@ -145,7 +171,7 @@ paths:
     patch:
       operationId: updatePlayerBalance
       tags: [economy]
-      summary: Set a player's wallet and/or bank (dashboard admin)
+      summary: Set a player's wallet and/or bank
       parameters:
         - name: userId
           in: path
@@ -220,6 +246,145 @@ components:
           type: integer
         reminderMessage:
           type: string
+
+    EconomyConfig:
+      type: object
+      properties:
+        startingWallet:
+          type: integer
+        balanceEnabled:
+          type: boolean
+        moneyEnabled:
+          type: boolean
+        dailyEnabled:
+          type: boolean
+        dailyAmount:
+          type: integer
+        dailyCooldownHours:
+          type: integer
+        workEnabled:
+          type: boolean
+        workMinAmount:
+          type: integer
+        workMaxAmount:
+          type: integer
+        workCooldownHours:
+          type: integer
+        crimeEnabled:
+          type: boolean
+        crimeWinMin:
+          type: integer
+        crimeWinMax:
+          type: integer
+        crimeLoseMin:
+          type: integer
+        crimeLoseMax:
+          type: integer
+        crimeWinChance:
+          type: integer
+        crimeCooldownHours:
+          type: integer
+        depositEnabled:
+          type: boolean
+        withdrawEnabled:
+          type: boolean
+        giveEnabled:
+          type: boolean
+        leaderboardEnabled:
+          type: boolean
+        blackjackEnabled:
+          type: boolean
+        blackjackMaxBet:
+          type: integer
+        rouletteEnabled:
+          type: boolean
+        rouletteMaxBet:
+          type: integer
+        hlEnabled:
+          type: boolean
+      required:
+        - startingWallet
+        - balanceEnabled
+        - moneyEnabled
+        - dailyEnabled
+        - dailyAmount
+        - dailyCooldownHours
+        - workEnabled
+        - workMinAmount
+        - workMaxAmount
+        - workCooldownHours
+        - crimeEnabled
+        - crimeWinMin
+        - crimeWinMax
+        - crimeLoseMin
+        - crimeLoseMax
+        - crimeWinChance
+        - crimeCooldownHours
+        - depositEnabled
+        - withdrawEnabled
+        - giveEnabled
+        - leaderboardEnabled
+        - blackjackEnabled
+        - blackjackMaxBet
+        - rouletteEnabled
+        - rouletteMaxBet
+        - hlEnabled
+
+    EconomyConfigInput:
+      type: object
+      properties:
+        startingWallet:
+          type: integer
+        balanceEnabled:
+          type: boolean
+        moneyEnabled:
+          type: boolean
+        dailyEnabled:
+          type: boolean
+        dailyAmount:
+          type: integer
+        dailyCooldownHours:
+          type: integer
+        workEnabled:
+          type: boolean
+        workMinAmount:
+          type: integer
+        workMaxAmount:
+          type: integer
+        workCooldownHours:
+          type: integer
+        crimeEnabled:
+          type: boolean
+        crimeWinMin:
+          type: integer
+        crimeWinMax:
+          type: integer
+        crimeLoseMin:
+          type: integer
+        crimeLoseMax:
+          type: integer
+        crimeWinChance:
+          type: integer
+        crimeCooldownHours:
+          type: integer
+        depositEnabled:
+          type: boolean
+        withdrawEnabled:
+          type: boolean
+        giveEnabled:
+          type: boolean
+        leaderboardEnabled:
+          type: boolean
+        blackjackEnabled:
+          type: boolean
+        blackjackMaxBet:
+          type: integer
+        rouletteEnabled:
+          type: boolean
+        rouletteMaxBet:
+          type: integer
+        hlEnabled:
+          type: boolean
 
     Player:
       type: object

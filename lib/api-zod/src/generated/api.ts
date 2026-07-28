@@ -31,7 +31,7 @@ export const GetBotStatusResponse = zod.object({
 
 
 /**
- * @summary Get bot configuration
+ * @summary Get reminder/channel configuration
  */
 export const GetBotConfigResponse = zod.object({
   "channelId": zod.string(),
@@ -42,7 +42,7 @@ export const GetBotConfigResponse = zod.object({
 
 
 /**
- * @summary Update bot configuration
+ * @summary Update reminder/channel configuration
  */
 export const UpdateBotConfigBody = zod.object({
   "channelId": zod.string().optional(),
@@ -62,7 +62,7 @@ export const UpdateBotConfigResponse = zod.object({
 /**
  * @summary Get recent bot activity logs
  */
-export const getLogsQueryLimitDefault = 50;
+export const getLogsQueryLimitDefault = 100;
 
 export const GetLogsQueryParams = zod.object({
   "limit": zod.coerce.number().default(getLogsQueryLimitDefault)
@@ -86,6 +86,101 @@ export const AddLogBody = zod.object({
 })
 
 export const AddLogResponse = zod.void()
+
+
+/**
+ * @summary Get economy command configuration
+ */
+export const GetEconomyConfigResponse = zod.object({
+  "startingWallet": zod.number(),
+  "balanceEnabled": zod.boolean(),
+  "moneyEnabled": zod.boolean(),
+  "dailyEnabled": zod.boolean(),
+  "dailyAmount": zod.number(),
+  "dailyCooldownHours": zod.number(),
+  "workEnabled": zod.boolean(),
+  "workMinAmount": zod.number(),
+  "workMaxAmount": zod.number(),
+  "workCooldownHours": zod.number(),
+  "crimeEnabled": zod.boolean(),
+  "crimeWinMin": zod.number(),
+  "crimeWinMax": zod.number(),
+  "crimeLoseMin": zod.number(),
+  "crimeLoseMax": zod.number(),
+  "crimeWinChance": zod.number(),
+  "crimeCooldownHours": zod.number(),
+  "depositEnabled": zod.boolean(),
+  "withdrawEnabled": zod.boolean(),
+  "giveEnabled": zod.boolean(),
+  "leaderboardEnabled": zod.boolean(),
+  "blackjackEnabled": zod.boolean(),
+  "blackjackMaxBet": zod.number(),
+  "rouletteEnabled": zod.boolean(),
+  "rouletteMaxBet": zod.number(),
+  "hlEnabled": zod.boolean()
+})
+
+
+/**
+ * @summary Update economy command configuration
+ */
+export const UpdateEconomyConfigBody = zod.object({
+  "startingWallet": zod.number().optional(),
+  "balanceEnabled": zod.boolean().optional(),
+  "moneyEnabled": zod.boolean().optional(),
+  "dailyEnabled": zod.boolean().optional(),
+  "dailyAmount": zod.number().optional(),
+  "dailyCooldownHours": zod.number().optional(),
+  "workEnabled": zod.boolean().optional(),
+  "workMinAmount": zod.number().optional(),
+  "workMaxAmount": zod.number().optional(),
+  "workCooldownHours": zod.number().optional(),
+  "crimeEnabled": zod.boolean().optional(),
+  "crimeWinMin": zod.number().optional(),
+  "crimeWinMax": zod.number().optional(),
+  "crimeLoseMin": zod.number().optional(),
+  "crimeLoseMax": zod.number().optional(),
+  "crimeWinChance": zod.number().optional(),
+  "crimeCooldownHours": zod.number().optional(),
+  "depositEnabled": zod.boolean().optional(),
+  "withdrawEnabled": zod.boolean().optional(),
+  "giveEnabled": zod.boolean().optional(),
+  "leaderboardEnabled": zod.boolean().optional(),
+  "blackjackEnabled": zod.boolean().optional(),
+  "blackjackMaxBet": zod.number().optional(),
+  "rouletteEnabled": zod.boolean().optional(),
+  "rouletteMaxBet": zod.number().optional(),
+  "hlEnabled": zod.boolean().optional()
+})
+
+export const UpdateEconomyConfigResponse = zod.object({
+  "startingWallet": zod.number(),
+  "balanceEnabled": zod.boolean(),
+  "moneyEnabled": zod.boolean(),
+  "dailyEnabled": zod.boolean(),
+  "dailyAmount": zod.number(),
+  "dailyCooldownHours": zod.number(),
+  "workEnabled": zod.boolean(),
+  "workMinAmount": zod.number(),
+  "workMaxAmount": zod.number(),
+  "workCooldownHours": zod.number(),
+  "crimeEnabled": zod.boolean(),
+  "crimeWinMin": zod.number(),
+  "crimeWinMax": zod.number(),
+  "crimeLoseMin": zod.number(),
+  "crimeLoseMax": zod.number(),
+  "crimeWinChance": zod.number(),
+  "crimeCooldownHours": zod.number(),
+  "depositEnabled": zod.boolean(),
+  "withdrawEnabled": zod.boolean(),
+  "giveEnabled": zod.boolean(),
+  "leaderboardEnabled": zod.boolean(),
+  "blackjackEnabled": zod.boolean(),
+  "blackjackMaxBet": zod.number(),
+  "rouletteEnabled": zod.boolean(),
+  "rouletteMaxBet": zod.number(),
+  "hlEnabled": zod.boolean()
+})
 
 
 /**
@@ -126,7 +221,7 @@ export const GetPlayerResponse = zod.object({
 
 
 /**
- * @summary Set a player's wallet and/or bank (dashboard admin)
+ * @summary Set a player's wallet and/or bank
  */
 export const UpdatePlayerBalanceParams = zod.object({
   "userId": zod.coerce.string()

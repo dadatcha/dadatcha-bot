@@ -1,78 +1,69 @@
-import { useEffect } from 'react';
 import { useGetLogs, getGetLogsQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useEffect } from 'react';
+import { formatTimestamp } from '@/lib/utils';
 
-const LOG_LEVEL_COLORS = {
-  INFO: 'bg-green-500/10 text-green-600 border-green-500/20',
-  WARN: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-  ERROR: 'bg-red-500/10 text-red-600 border-red-500/20',
-  DEBUG: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+const LEVEL_STYLE: Record<string, string> = {
+  INFO: 'bg-blue-50 text-blue-700 border-blue-200',
+  WARN: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  WARNING: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  ERROR: 'bg-red-50 text-red-700 border-red-200',
 };
 
 export default function Logs() {
   const queryClient = useQueryClient();
-  const { data: logs, isLoading } = useGetLogs(
-    { limit: 200 },
-    { query: { queryKey: getGetLogsQueryKey({ limit: 200 }) } }
+  const { data: logs = [], isLoading } = useGetLogs(
+    { limit: 100 },
+    { query: { refetchInterval: 5000, queryKey: getGetLogsQueryKey({ limit: 100 }) } }
   );
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: getGetLogsQueryKey({ limit: 200 }) });
-    }, 5000);
-    return () => clearInterval(interval);
+    const id = setInterval(() => queryClient.invalidateQueries({ queryKey: getGetLogsQueryKey({ limit: 100 }) }), 5000);
+    return () => clearInterval(id);
   }, [queryClient]);
 
-  const formatLogTime = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
+  const sorted = [...logs].reverse();
 
   return (
-    <div className="p-8 space-y-6 h-screen flex flex-col">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Logs</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Live bot activity feed (auto-refreshes every 5s)
-        </p>
+    <div className="p-8 space-y-6 max-w-5xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Logs</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Live bot activity feed — refreshes every 5 seconds</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-xs text-muted-foreground">Live</span>
+        </div>
       </div>
 
-      <div className="flex-1 bg-card border border-card-border rounded-lg overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="p-4 space-y-2 font-mono text-sm">
-            {isLoading ? (
-              <div className="text-center py-12 text-muted-foreground">Loading logs...</div>
-            ) : logs && logs.length > 0 ? (
-              logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-start gap-3 p-2 rounded hover:bg-muted/30 transition-colors"
-                  data-testid={`log-${log.id}`}
-                >
-                  <span className="text-muted-foreground text-xs shrink-0 mt-0.5">
-                    {formatLogTime(log.createdAt)}
-                  </span>
-                  <span
-                    className={cn(
-                      'px-2 py-0.5 rounded text-xs font-bold border shrink-0',
-                      LOG_LEVEL_COLORS[log.level as keyof typeof LOG_LEVEL_COLORS] || 'bg-muted text-muted-foreground'
-                    )}
-                  >
-                    {log.level}
-                  </span>
-                  <span className="flex-1 break-words">{log.message}</span>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                No logs available
+      <div className="bg-card border border-card-border rounded-xl overflow-hidden">
+        {isLoading && (
+          <div className="py-10 text-center text-muted-foreground text-sm">Loading logs…</div>
+        )}
+        {!isLoading && sorted.length === 0 && (
+          <div className="py-10 text-center text-muted-foreground text-sm">No log entries yet.</div>
+        )}
+        {!isLoading && sorted.length > 0 && (
+          <div className="divide-y divide-card-border">
+            {sorted.map((log) => (
+              <div key={log.id} className="flex items-start gap-4 px-5 py-3 hover:bg-muted/20 transition-colors">
+                <span className={`mt-0.5 flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border font-mono tracking-wide ${LEVEL_STYLE[log.level] ?? LEVEL_STYLE.INFO}`}>
+                  {log.level}
+                </span>
+                <span className="flex-1 text-sm font-mono break-all">{log.message}</span>
+                <span className="flex-shrink-0 text-xs text-muted-foreground whitespace-nowrap mt-0.5">
+                  {formatTimestamp(log.createdAt)}
+                </span>
               </div>
-            )}
+            ))}
           </div>
-        </ScrollArea>
+        )}
       </div>
+
+      {!isLoading && sorted.length > 0 && (
+        <p className="text-xs text-muted-foreground">{sorted.length} entries — showing most recent first</p>
+      )}
     </div>
   );
 }
