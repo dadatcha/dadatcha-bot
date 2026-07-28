@@ -53,6 +53,7 @@ function EconomySettings() {
 
   const [form, setForm] = useState<Cfg | null>(null);
   const [saved, setSaved] = useState<Cfg | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (cfg && !form) { setForm(cfg as Cfg); setSaved(cfg as Cfg); }
@@ -60,6 +61,15 @@ function EconomySettings() {
 
   const dirty = form && saved ? JSON.stringify(form) !== JSON.stringify(saved) : false;
   const p = (u: Partial<Cfg>) => setForm(f => f ? { ...f, ...u } : null);
+
+  const syncConfig = async () => {
+    setSyncing(true);
+    await queryClient.invalidateQueries({ queryKey: getGetEconomyConfigQueryKey() });
+    await queryClient.refetchQueries({ queryKey: getGetEconomyConfigQueryKey() });
+    setForm(null);
+    setSyncing(false);
+    toast({ title: 'Configuration synchronisée' });
+  };
 
   function saveModule(fields: Partial<Cfg>) {
     if (!form) return;
@@ -83,6 +93,12 @@ function EconomySettings() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={syncConfig} disabled={syncing} className="gap-2">
+          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+          Synchroniser
+        </Button>
+      </div>
       {/* Currency name */}
       <ModuleCard title="Currency" description="Name of the virtual currency shown in all bot messages."
         icon={Sparkles} iconColor="text-violet-500"
