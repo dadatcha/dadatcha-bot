@@ -192,6 +192,13 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "lvl_top_title":  {"fr": "🏅 Classement Niveaux — Top 10", "en": "🏅 Level Leaderboard — Top 10"},
     "lvl_top_empty":  {"fr": "Aucun joueur avec de l'XP pour l'instant.", "en": "No players with XP yet."},
     "lvl_top_err":    {"fr": "Impossible de charger le classement en ce moment.", "en": "Could not load leaderboard right now."},
+    # admin level management
+    "addlevel_title":   {"fr": "✅ Niveau ajouté",   "en": "✅ Level Added"},
+    "addlevel_desc":    {"fr": "{mention} a reçu **+{amount}** niveau(x). Niveau actuel : **{new}**", "en": "{mention} received **+{amount}** level(s). Current level: **{new}**"},
+    "removelevel_title":{"fr": "✅ Niveau retiré",   "en": "✅ Level Removed"},
+    "removelevel_desc": {"fr": "{mention} a perdu **{amount}** niveau(x). Niveau actuel : **{new}**", "en": "{mention} lost **{amount}** level(s). Current level: **{new}**"},
+    "resetlevel_title": {"fr": "🔄 Niveau réinitialisé", "en": "🔄 Level Reset"},
+    "resetlevel_desc":  {"fr": "Le niveau et l'XP de {mention} ont été remis à 0.", "en": "{mention}'s level and XP have been reset to 0."},
     # blackjack
     "bj_dealer_hidden": {"fr": "Croupier (caché)", "en": "Dealer (hidden)"},
     "bj_dealer_shown":  {"fr": "Croupier — {total}", "en": "Dealer — {total}"},
@@ -1233,6 +1240,58 @@ async def resetmoney(interaction: discord.Interaction, player: discord.Member) -
     embed = discord.Embed(title=_t("resetmoney_title"), description=_t("resetmoney_desc", mention=player.mention, coin=_coin()), colour=0xE74C3C)
     await interaction.response.send_message(embed=embed)
     await log_to_api("INFO", f"Admin {interaction.user} reset {player}'s balance to 0")
+
+
+# ── /addlevel ─────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="addlevel", description="[Admin] Add levels to a player")
+@app_commands.describe(player="Target player", amount="Number of levels to add")
+async def addlevel(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
+    if not await check_cmd(interaction, "addlevel"): return
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+    eco = await get_economy(player)
+    new_level = eco.get("level", 0) + amount
+    new_xp    = eco.get("xp",    0)
+    await api_patch(f"/economy/players/{player.id}", {"level": new_level, "xp": new_xp})
+    embed = discord.Embed(title=_t("addlevel_title"), description=_t("addlevel_desc", mention=player.mention, amount=amount, new=new_level), colour=0x2ECC71)
+    await interaction.response.send_message(embed=embed)
+    await log_to_api("INFO", f"Admin {interaction.user} added {amount} level(s) to {player} (new level: {new_level})")
+
+
+# ── /removelevel ──────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="removelevel", description="[Admin] Remove levels from a player")
+@app_commands.describe(player="Target player", amount="Number of levels to remove")
+async def removelevel(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
+    if not await check_cmd(interaction, "removelevel"): return
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+    eco = await get_economy(player)
+    new_level = max(0, eco.get("level", 0) - amount)
+    new_xp    = eco.get("xp", 0)
+    await api_patch(f"/economy/players/{player.id}", {"level": new_level, "xp": new_xp})
+    embed = discord.Embed(title=_t("removelevel_title"), description=_t("removelevel_desc", mention=player.mention, amount=amount, new=new_level), colour=0xE74C3C)
+    await interaction.response.send_message(embed=embed)
+    await log_to_api("INFO", f"Admin {interaction.user} removed {amount} level(s) from {player} (new level: {new_level})")
+
+
+# ── /resetlevel ───────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="resetlevel", description="[Admin] Reset a player's level and XP to 0")
+@app_commands.describe(player="Target player")
+async def resetlevel(interaction: discord.Interaction, player: discord.Member) -> None:
+    if not await check_cmd(interaction, "resetlevel"): return
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+    await get_economy(player)
+    await api_patch(f"/economy/players/{player.id}", {"level": 0, "xp": 0})
+    embed = discord.Embed(title=_t("resetlevel_title"), description=_t("resetlevel_desc", mention=player.mention), colour=0xE74C3C)
+    await interaction.response.send_message(embed=embed)
+    await log_to_api("INFO", f"Admin {interaction.user} reset {player}'s level and XP to 0")
 
 
 # ── /daily ────────────────────────────────────────────────────────────────────
@@ -3029,6 +3088,7 @@ _CMD_CATEGORY: dict[str, str] = {
     "work": "economy", "crime": "economy", "deposit": "economy",
     "withdraw": "economy", "give": "economy", "leaderboard": "economy",
     "level": "economy", "level-top": "economy",
+    "addlevel": "economy", "removelevel": "economy", "resetlevel": "economy",
     # Games
     "blackjack": "games", "higher-lower": "games",
     "roulette": "games", "guess-number": "games",
