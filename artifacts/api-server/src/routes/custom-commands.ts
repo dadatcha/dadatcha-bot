@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, asc } from "drizzle-orm";
-import { db, customCommandsTable } from "@workspace/db";
+import { db, customCommandsTable, ccRewardLogTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -122,6 +122,36 @@ router.patch("/custom-commands/:id", async (req, res): Promise<void> => {
     .returning();
   if (!row) { res.status(404).json({ error: "Command not found" }); return; }
   res.json(toCmd(row));
+});
+
+// ── POST /custom-commands/:id/claim-reward ────────────────────────────────────
+// Atomically checks and records a reward grant.
+// Returns 200 if reward can be granted (first time for this author→target pair).
+// Returns 409 if already granted.
+
+router.post("/custom-commands/:id/claim-reward", async (req, res): Promise<void> => {
+  const cmdId    = Number(req.params.id);
+  const { authorId, targetId } = req.body as { authorId?: string; targetId?: string };
+  if (!authorId || !targetId) {
+    res.status(400).json({ error: "authorId and targetId are required" }); return;
+  }
+  try {
+    await db.insert(ccRewardLogTable).values({ cmdId, authorId, targetId });
+    res.status(200).json({ granted: true });
+  } catch (err: unknown) {
+    // PostgreSQL unique violation code = 23505; drizzle may wrap it
+    const code  = (err as Record<string, unknown>)?.["code"]
+                ?? (err as Record<string, unknown>)?.["cause"]?.["code"]
+                ?? "";
+    const msg   = err instanceof Error ? err.message : String(err);
+    const isUnique = code === "23505"
+                  || msg.includes("23505")
+                  || msg.toLowerCase().includes("unique");
+    if (isUnique) {
+      res.status(409).json({ granted: false, reason: "already_granted" }); return;
+    }
+    res.status(500).json({ error: msg });
+  }
 });
 
 // ── DELETE /custom-commands/:id ───────────────────────────────────────────────

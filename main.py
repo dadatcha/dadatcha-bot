@@ -755,15 +755,46 @@ def _resolve_reward_target(
     return None
 
 
+async def _claim_reward(cmd_id: int, author_id: int, target_id: int) -> bool:
+    """Atomically claim a reward slot.
+    Returns True if the reward was never granted before (author→target for this cmd).
+    Returns False if it was already claimed (duplicate).
+    """
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{API_BASE}/custom-commands/{cmd_id}/claim-reward",
+                json={"authorId": str(author_id), "targetId": str(target_id)},
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                return resp.status == 200
+    except Exception:
+        # On network error, allow the reward (fail open) to avoid blocking forever
+        return True
+
+
 async def _apply_rewards(
     cmd: dict,
     target: discord.Member,
     message: discord.Message,
 ) -> None:
-    """Give the configured rewards (role / money / XP / levels) to *target*."""
+    """Give the configured rewards (role / money / XP / levels) to *target*.
+    Guards against duplicate grants via DB-level unique constraint.
+    """
     guild = message.guild
     if guild is None:
         return
+
+    # ── Deduplication check ───────────────────────────────────────────────────
+    cmd_id    = cmd.get("id")
+    author_id = message.author.id
+    target_id = target.id
+
+    if cmd_id is not None:
+        granted = await _claim_reward(cmd_id, author_id, target_id)
+        if not granted:
+            # Already rewarded this exact pair — skip silently
+            return
 
     # ── Role ─────────────────────────────────────────────────────────────────
     role_id = cmd.get("rewardRoleId", "").strip()
@@ -785,8 +816,8 @@ async def _apply_rewards(
             pass
 
     # ── XP and Levels ─────────────────────────────────────────────────────────
-    xp_gain     = int(cmd.get("rewardXp",     0))
-    level_gain  = int(cmd.get("rewardLevels", 0))
+    xp_gain    = int(cmd.get("rewardXp",     0))
+    level_gain = int(cmd.get("rewardLevels", 0))
     if xp_gain > 0 or level_gain > 0:
         try:
             eco = await get_economy(target)

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, integer, timestamp, bigint, index, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, integer, timestamp, bigint, index, uniqueIndex, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -374,3 +374,14 @@ export const customCommandsTable = pgTable("custom_commands", {
 export const insertCustomCommandSchema = createInsertSchema(customCommandsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertCustomCommand = z.infer<typeof insertCustomCommandSchema>;
 export type CustomCommand = typeof customCommandsTable.$inferSelect;
+
+// Reward deduplication log — one row per (cmd, author, target) pair
+export const ccRewardLogTable = pgTable("cc_reward_log", {
+  id:        serial("id").primaryKey(),
+  cmdId:     integer("cmd_id").notNull(),
+  authorId:  text("author_id").notNull(),
+  targetId:  text("target_id").notNull(),
+  grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("cc_reward_log_unique").on(t.cmdId, t.authorId, t.targetId),
+]);
