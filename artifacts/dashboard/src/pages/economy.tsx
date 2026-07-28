@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Coins, TrendingUp, Skull,
-  Gift, Trophy, Sparkles, Eye, Pencil, Check, X, Search, Users, MessageCircle,
+  Gift, Trophy, Sparkles, Eye, Pencil, Check, X, Search, Users, MessageCircle, RefreshCw,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -222,6 +222,15 @@ function PlayersTab() {
 
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<{ userId: string; wallet: string; bank: string } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const syncPlayers = async () => {
+    setSyncing(true);
+    await queryClient.invalidateQueries({ queryKey: getListPlayersQueryKey() });
+    await queryClient.refetchQueries({ queryKey: getListPlayersQueryKey() });
+    setSyncing(false);
+    toast({ title: 'Liste synchronisée' });
+  };
 
   type P = typeof players[number];
   const sorted = useMemo(() => [...players].sort((a, b) => b.total - a.total), [players]);
@@ -258,10 +267,16 @@ function PlayersTab() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-xs">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Filter by username…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+      {/* Search + Sync */}
+      <div className="flex items-center gap-3">
+        <div className="relative max-w-xs flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Filter by username…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        </div>
+        <Button variant="outline" size="sm" onClick={syncPlayers} disabled={syncing} className="gap-2 shrink-0">
+          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+          Synchroniser
+        </Button>
       </div>
 
       {/* Table */}
