@@ -12,6 +12,7 @@ tags:
   - name: economy
   - name: shop
   - name: roles
+  - name: commands
   - name: logs
 
 paths:
@@ -343,6 +344,48 @@ paths:
           description: Deleted
         "404":
           description: Not found
+
+  /command-configs:
+    get:
+      operationId: listCommandConfigs
+      tags: [commands]
+      summary: List all command configs (merged with defaults)
+      responses:
+        "200":
+          description: List of command configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommandConfig"
+
+  /command-configs/{name}:
+    put:
+      operationId: updateCommandConfig
+      tags: [commands]
+      summary: Update a command config (upsert)
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandConfigInput"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandConfig"
+        "404":
+          description: Unknown command
 
   /role-rewards:
     get:
@@ -743,6 +786,31 @@ components:
           type: integer
         bank:
           type: integer
+
+    CommandConfig:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        enabled:
+          type: boolean
+        adminOnly:
+          type: boolean
+      required: [name, label, description, category, enabled, adminOnly]
+
+    CommandConfigInput:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        adminOnly:
+          type: boolean
 
     RoleReward:
       type: object

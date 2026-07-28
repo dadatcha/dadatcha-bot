@@ -7,6 +7,7 @@ import Overview from '@/pages/overview';
 import Economy from '@/pages/economy';
 import Shop from '@/pages/shop';
 import RoleRewards from '@/pages/role-rewards';
+import Commands from '@/pages/commands';
 import Games from '@/pages/games';
 import Reminder from '@/pages/reminder';
 import Logs from '@/pages/logs';
@@ -26,6 +27,7 @@ function Router() {
           <Route path="/economy" component={Economy} />
           <Route path="/shop" component={Shop} />
           <Route path="/roles" component={RoleRewards} />
+          <Route path="/commands" component={Commands} />
           <Route path="/games" component={Games} />
           <Route path="/reminder" component={Reminder} />
           <Route path="/logs" component={Logs} />

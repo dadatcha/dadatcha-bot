@@ -154,3 +154,13 @@ export const roleRewardsTable = pgTable("role_rewards", {
 });
 
 export type RoleReward = typeof roleRewardsTable.$inferSelect;
+
+// Per-command visibility/permission config
+export const commandConfigsTable = pgTable("command_configs", {
+  commandName: text("command_name").primaryKey(),
+  enabled: boolean("enabled").notNull().default(true),
+  adminOnly: boolean("admin_only").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type CommandConfig = typeof commandConfigsTable.$inferSelect;

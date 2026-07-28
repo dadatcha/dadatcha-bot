@@ -23,6 +23,8 @@ import type {
   BotConfig,
   BotConfigInput,
   BotStatus,
+  CommandConfig,
+  CommandConfigInput,
   EconomyConfig,
   EconomyConfigInput,
   GetLogsParams,
@@ -1477,6 +1479,155 @@ export const useDeleteShopItem = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteShopItemMutationOptions(options));
+    }
+
+export const getListCommandConfigsUrl = () => {
+
+
+
+
+  return `/api/command-configs`
+}
+
+/**
+ * @summary List all command configs (merged with defaults)
+ */
+export const listCommandConfigs = async ( options?: RequestInit): Promise<CommandConfig[]> => {
+
+  return customFetch<CommandConfig[]>(getListCommandConfigsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCommandConfigsQueryKey = () => {
+    return [
+    `/api/command-configs`
+    ] as const;
+    }
+
+
+export const getListCommandConfigsQueryOptions = <TData = Awaited<ReturnType<typeof listCommandConfigs>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCommandConfigs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCommandConfigsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCommandConfigs>>> = ({ signal }) => listCommandConfigs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCommandConfigs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCommandConfigsQueryResult = NonNullable<Awaited<ReturnType<typeof listCommandConfigs>>>
+export type ListCommandConfigsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all command configs (merged with defaults)
+ */
+
+export function useListCommandConfigs<TData = Awaited<ReturnType<typeof listCommandConfigs>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCommandConfigs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCommandConfigsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateCommandConfigUrl = (name: string,) => {
+
+
+
+
+  return `/api/command-configs/${name}`
+}
+
+/**
+ * @summary Update a command config (upsert)
+ */
+export const updateCommandConfig = async (name: string,
+    commandConfigInput: CommandConfigInput, options?: RequestInit): Promise<CommandConfig> => {
+
+  return customFetch<CommandConfig>(getUpdateCommandConfigUrl(name),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(commandConfigInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateCommandConfigMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCommandConfig>>, TError,{name: string;data: BodyType<CommandConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCommandConfig>>, TError,{name: string;data: BodyType<CommandConfigInput>}, TContext> => {
+
+const mutationKey = ['updateCommandConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCommandConfig>>, {name: string;data: BodyType<CommandConfigInput>}> = (props) => {
+          const {name,data} = props ?? {};
+
+          return  updateCommandConfig(name,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCommandConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateCommandConfig>>>
+    export type UpdateCommandConfigMutationBody = BodyType<CommandConfigInput>
+    export type UpdateCommandConfigMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a command config (upsert)
+ */
+export const useUpdateCommandConfig = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCommandConfig>>, TError,{name: string;data: BodyType<CommandConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCommandConfig>>,
+        TError,
+        {name: string;data: BodyType<CommandConfigInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCommandConfigMutationOptions(options));
     }
 
 export const getListRoleRewardsUrl = () => {

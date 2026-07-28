@@ -420,6 +420,42 @@ export const DeleteShopItemResponse = zod.void()
 
 
 /**
+ * @summary List all command configs (merged with defaults)
+ */
+export const ListCommandConfigsResponseItem = zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "enabled": zod.boolean(),
+  "adminOnly": zod.boolean()
+})
+export const ListCommandConfigsResponse = zod.array(ListCommandConfigsResponseItem)
+
+
+/**
+ * @summary Update a command config (upsert)
+ */
+export const UpdateCommandConfigParams = zod.object({
+  "name": zod.coerce.string()
+})
+
+export const UpdateCommandConfigBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "adminOnly": zod.boolean().optional()
+})
+
+export const UpdateCommandConfigResponse = zod.object({
+  "name": zod.string(),
+  "label": zod.string(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "enabled": zod.boolean(),
+  "adminOnly": zod.boolean()
+})
+
+
+/**
  * @summary List all role reward rules
  */
 export const ListRoleRewardsResponseItem = zod.object({

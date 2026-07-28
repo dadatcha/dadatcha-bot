@@ -75,11 +75,17 @@ _reminder_tasks: dict[int, asyncio.Task] = {}  # id → running asyncio.Task
 # Role reward rules — overwritten at runtime by refresh_role_rewards()
 _role_rewards: list[dict] = []  # list of {triggerRoleId, rewardRoleId, enabled}
 
+# Command configs — overwritten at runtime by refresh_command_configs()
+_cmd_cfg: dict[str, dict] = {}  # commandName → {enabled, adminOnly}
+
 # ── Bot setup ─────────────────────────────────────────────────────────────────
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True   # required for on_member_update (role rewards)
+# NOTE: intents.members requires "Server Members Intent" enabled in the Discord
+# Developer Portal (https://discord.com/developers/applications/).
+# Set to True there AND uncomment the line below to activate role rewards.
+# intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -242,6 +248,14 @@ async def refresh_role_rewards() -> None:
         logger.info("Role rewards refreshed — %d active rule(s)", len(_role_rewards))
 
 
+async def refresh_command_configs() -> None:
+    global _cmd_cfg
+    data = await api_get_list("/command-configs")
+    if data is not None:
+        _cmd_cfg = {entry["name"]: entry for entry in data}
+        logger.info("Command configs refreshed — %d commands", len(_cmd_cfg))
+
+
 def _coin() -> str:
     """Return the current currency name (live from economy config)."""
     return _eco.get("currencyName", "coins")
@@ -384,10 +398,27 @@ def is_admin(interaction: discord.Interaction) -> bool:
     return interaction.user.guild_permissions.administrator
 
 
+async def check_cmd(interaction: discord.Interaction, name: str) -> bool:
+    """Return True if the command is allowed; send ephemeral error and return False otherwise."""
+    cfg = _cmd_cfg.get(name, {})
+    if not cfg.get("enabled", True):
+        await interaction.response.send_message(
+            "❌ Cette commande est actuellement désactivée.", ephemeral=True
+        )
+        return False
+    if cfg.get("adminOnly", False) and not is_admin(interaction):
+        await interaction.response.send_message(
+            "🔒 Cette commande est réservée aux administrateurs.", ephemeral=True
+        )
+        return False
+    return True
+
+
 # ── /balance ──────────────────────────────────────────────────────────────────
 
 @bot.tree.command(name="balance", description="Check your own wallet and bank balance")
 async def balance(interaction: discord.Interaction) -> None:
+    if not await check_cmd(interaction, "balance"): return
     eco = await get_economy(interaction.user)
     embed = discord.Embed(title=f"Balance — {interaction.user.display_name}", colour=0x2ECC71)
     embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** {_coin()}", inline=True)
@@ -401,6 +432,7 @@ async def balance(interaction: discord.Interaction) -> None:
 @bot.tree.command(name="money", description="Check the balance of any player")
 @app_commands.describe(player="The player to look up")
 async def money(interaction: discord.Interaction, player: discord.Member) -> None:
+    if not await check_cmd(interaction, "money"): return
     eco = await get_economy(player)
     embed = discord.Embed(title=f"Balance — {player.display_name}", colour=0x3498DB)
     embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** {_coin()}", inline=True)
@@ -423,6 +455,7 @@ async def addmoney(
     amount: app_commands.Range[int, 1],
     location: app_commands.Choice[str] = None,  # type: ignore[assignment]
 ) -> None:
+    if not await check_cmd(interaction, "addmoney"): return
     if not is_admin(interaction):
         await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
         return
@@ -463,6 +496,7 @@ async def removemoney(
     amount: app_commands.Range[int, 1],
     location: app_commands.Choice[str] = None,  # type: ignore[assignment]
 ) -> None:
+    if not await check_cmd(interaction, "removemoney"): return
     if not is_admin(interaction):
         await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
         return
@@ -494,6 +528,7 @@ async def removemoney(
 @bot.tree.command(name="setmoney", description="[Admin] Set a player's wallet to an exact amount")
 @app_commands.describe(player="Target player", amount="New wallet amount")
 async def setmoney(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 0]) -> None:
+    if not await check_cmd(interaction, "setmoney"): return
     if not is_admin(interaction):
         await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
         return
@@ -513,6 +548,7 @@ async def setmoney(interaction: discord.Interaction, player: discord.Member, amo
 @bot.tree.command(name="resetmoney", description="[Admin] Reset a player's wallet and bank to 0")
 @app_commands.describe(player="Target player")
 async def resetmoney(interaction: discord.Interaction, player: discord.Member) -> None:
+    if not await check_cmd(interaction, "resetmoney"): return
     if not is_admin(interaction):
         await interaction.response.send_message("You need Administrator permission to use this command.", ephemeral=True)
         return
@@ -531,6 +567,7 @@ async def resetmoney(interaction: discord.Interaction, player: discord.Member) -
 
 @bot.tree.command(name="daily", description="Claim your daily coin reward")
 async def daily(interaction: discord.Interaction) -> None:
+    if not await check_cmd(interaction, "daily"): return
     if not _eco["dailyEnabled"]:
         await interaction.response.send_message("The `/daily` command is currently disabled.", ephemeral=True)
         return
@@ -558,6 +595,7 @@ async def daily(interaction: discord.Interaction) -> None:
 
 @bot.tree.command(name="work", description="Work to earn coins")
 async def work(interaction: discord.Interaction) -> None:
+    if not await check_cmd(interaction, "work"): return
     if not _eco["workEnabled"]:
         await interaction.response.send_message("The `/work` command is currently disabled.", ephemeral=True)
         return
@@ -589,6 +627,7 @@ async def work(interaction: discord.Interaction) -> None:
 
 @bot.tree.command(name="crime", description="Attempt a crime for big coins — risk a fine")
 async def crime(interaction: discord.Interaction) -> None:
+    if not await check_cmd(interaction, "crime"): return
     if not _eco["crimeEnabled"]:
         await interaction.response.send_message("The `/crime` command is currently disabled.", ephemeral=True)
         return
@@ -630,6 +669,7 @@ async def crime(interaction: discord.Interaction) -> None:
 @bot.tree.command(name="deposit", description="Deposit {_coin()} from your wallet into the bank")
 @app_commands.describe(amount="Amount to deposit")
 async def deposit(interaction: discord.Interaction, amount: int) -> None:
+    if not await check_cmd(interaction, "deposit"): return
     if not _eco["depositEnabled"]:
         await interaction.response.send_message("The `/deposit` command is currently disabled.", ephemeral=True)
         return
@@ -660,6 +700,7 @@ async def deposit(interaction: discord.Interaction, amount: int) -> None:
 @bot.tree.command(name="withdraw", description="Withdraw {_coin()} from the bank into your wallet")
 @app_commands.describe(amount="Amount to withdraw")
 async def withdraw(interaction: discord.Interaction, amount: int) -> None:
+    if not await check_cmd(interaction, "withdraw"): return
     if not _eco["withdrawEnabled"]:
         await interaction.response.send_message("The `/withdraw` command is currently disabled.", ephemeral=True)
         return
@@ -690,6 +731,7 @@ async def withdraw(interaction: discord.Interaction, amount: int) -> None:
 @bot.tree.command(name="give", description="Give {_coin()} from your wallet to another player")
 @app_commands.describe(player="Who to give to", amount="How many coins")
 async def give(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
+    if not await check_cmd(interaction, "give"): return
     if not _eco["giveEnabled"]:
         await interaction.response.send_message("The `/give` command is currently disabled.", ephemeral=True)
         return
@@ -720,6 +762,7 @@ async def give(interaction: discord.Interaction, player: discord.Member, amount:
 
 @bot.tree.command(name="leaderboard", description="Show the top 10 richest players")
 async def leaderboard(interaction: discord.Interaction) -> None:
+    if not await check_cmd(interaction, "leaderboard"): return
     if not _eco["leaderboardEnabled"]:
         await interaction.response.send_message("The `/leaderboard` command is currently disabled.", ephemeral=True)
         return
@@ -868,6 +911,7 @@ class BlackjackView(discord.ui.View):
 @bot.tree.command(name="blackjack", description="Play a round of blackjack")
 @app_commands.describe(bet="How many {_coin()} to bet")
 async def blackjack(interaction: discord.Interaction, bet: int = 100) -> None:
+    if not await check_cmd(interaction, "blackjack"): return
     if not _eco["blackjackEnabled"]:
         await interaction.response.send_message("The `/blackjack` command is currently disabled.", ephemeral=True)
         return
@@ -945,6 +989,7 @@ class HLView(discord.ui.View):
 
 @bot.tree.command(name="higher-lower", description="Guess if the next number is higher or lower")
 async def higher_lower(interaction: discord.Interaction) -> None:
+    if not await check_cmd(interaction, "higher-lower"): return
     start = random.randint(1, 100)
     view = HLView(current=start)
     await interaction.response.send_message(embed=view.build_embed(), view=view)
@@ -1013,6 +1058,7 @@ class RouletteView(discord.ui.View):
 @bot.tree.command(name="roulette", description="Spin the roulette wheel")
 @app_commands.describe(bet="How many {_coin()} to bet")
 async def roulette(interaction: discord.Interaction, bet: int = 100) -> None:
+    if not await check_cmd(interaction, "roulette"): return
     if not _eco["rouletteEnabled"]:
         await interaction.response.send_message("The `/roulette` command is currently disabled.", ephemeral=True)
         return
@@ -1052,6 +1098,7 @@ async def config_refresh_loop() -> None:
     await refresh_reminders()
     await refresh_economy_config()
     await refresh_role_rewards()
+    await refresh_command_configs()
 
 
 @heartbeat_loop.before_loop
@@ -1074,6 +1121,7 @@ async def on_ready() -> None:
     await refresh_reminders()
     await refresh_economy_config()
     await refresh_role_rewards()
+    await refresh_command_configs()
 
     try:
         synced = await bot.tree.sync()
@@ -1094,6 +1142,7 @@ async def on_ready() -> None:
 
 @bot.tree.command(name="shop", description="Browse items available in the shop")
 async def shop_cmd(interaction: discord.Interaction) -> None:
+    if not await check_cmd(interaction, "shop"): return
     await interaction.response.defer()
     try:
         async with aiohttp.ClientSession() as session:
@@ -1157,6 +1206,7 @@ async def _shop_items_autocomplete(
 @app_commands.describe(item="Item to buy (type to search)")
 @app_commands.autocomplete(item=_shop_items_autocomplete)
 async def buy_cmd(interaction: discord.Interaction, item: str) -> None:
+    if not await check_cmd(interaction, "buy"): return
     # Fetch shop items
     try:
         async with aiohttp.ClientSession() as session:

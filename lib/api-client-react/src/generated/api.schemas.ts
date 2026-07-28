@@ -169,6 +169,20 @@ export interface PlayerBalancePatch {
   bank?: number;
 }
 
+export interface CommandConfig {
+  name: string;
+  label: string;
+  description: string;
+  category: string;
+  enabled: boolean;
+  adminOnly: boolean;
+}
+
+export interface CommandConfigInput {
+  enabled?: boolean;
+  adminOnly?: boolean;
+}
+
 export interface RoleReward {
   id: number;
   triggerRoleId: string;
