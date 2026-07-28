@@ -24,6 +24,12 @@ type CustomCommand = {
   allowedChannels: string;
   allowedRoles: string;
   cooldownSeconds: number;
+  rewardEnabled: boolean;
+  rewardTarget: string;
+  rewardRoleId: string;
+  rewardMoney: number;
+  rewardXp: number;
+  rewardLevels: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -45,6 +51,12 @@ const EMPTY_FORM: FormState = {
   allowedChannels: '',
   allowedRoles: '',
   cooldownSeconds: 0,
+  rewardEnabled: false,
+  rewardTarget: 'mentioned',
+  rewardRoleId: '',
+  rewardMoney: 0,
+  rewardXp: 0,
+  rewardLevels: 0,
 };
 
 const base = () => import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -370,6 +382,83 @@ function CommandForm({
               className="font-mono text-xs"
             />
           </Field>
+
+          {/* ── Récompenses ── */}
+          <div className="pt-5 pb-1">
+            <h3 className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'hsl(var(--muted-foreground))' }}>Récompenses <span className="normal-case font-normal">(optionnel)</span></h3>
+          </div>
+
+          <Field label="Activer les récompenses" hint="Donne rôle / argent / XP / niveaux à un membre">
+            <Switch checked={form.rewardEnabled} onCheckedChange={v => set('rewardEnabled', v)} />
+          </Field>
+
+          {form.rewardEnabled && (
+            <>
+              <Field label="Cible de la récompense" hint="Qui reçoit la récompense ?">
+                <ToggleGroup
+                  value={form.rewardTarget}
+                  options={[
+                    { value: 'mentioned', label: 'Membre mentionné' },
+                    { value: 'author', label: 'Auteur du message' },
+                  ]}
+                  onChange={v => set('rewardTarget', v)}
+                />
+                {form.rewardTarget === 'mentioned' && (
+                  <p className="text-xs mt-1.5" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                    Utilisez <code className="font-mono">{'{target}'}</code> dans la réponse pour mentionner la cible.
+                  </p>
+                )}
+              </Field>
+
+              <Field label="Rôle à donner" hint="ID Discord du rôle — vide = aucun">
+                <Input
+                  value={form.rewardRoleId}
+                  onChange={e => set('rewardRoleId', e.target.value)}
+                  placeholder="123456789012345678"
+                  className="font-mono text-xs"
+                />
+              </Field>
+
+              <Field label="Argent (wallet)" hint="Montant de sheckels ajouté — 0 = aucun">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.rewardMoney}
+                    onChange={e => set('rewardMoney', Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-32"
+                  />
+                  <span className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>sheckels</span>
+                </div>
+              </Field>
+
+              <Field label="XP" hint="Points d'expérience ajoutés — 0 = aucun">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.rewardXp}
+                    onChange={e => set('rewardXp', Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-32"
+                  />
+                  <span className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>XP</span>
+                </div>
+              </Field>
+
+              <Field label="Niveaux" hint="Niveaux ajoutés directement — 0 = aucun">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.rewardLevels}
+                    onChange={e => set('rewardLevels', Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-32"
+                  />
+                  <span className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>niveaux</span>
+                </div>
+              </Field>
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -468,6 +557,11 @@ function CommandRow({
             🔒 rôles limités
           </span>
         )}
+        {cmd.rewardEnabled && (
+          <span className="text-[11px] text-amber-400">
+            🎁 récompenses actives
+          </span>
+        )}
       </div>
 
       {/* Actions */}
@@ -530,6 +624,12 @@ export default function CustomCommands() {
       allowedChannels: cmd.allowedChannels,
       allowedRoles: cmd.allowedRoles,
       cooldownSeconds: cmd.cooldownSeconds,
+      rewardEnabled: cmd.rewardEnabled,
+      rewardTarget: cmd.rewardTarget,
+      rewardRoleId: cmd.rewardRoleId,
+      rewardMoney: cmd.rewardMoney,
+      rewardXp: cmd.rewardXp,
+      rewardLevels: cmd.rewardLevels,
     });
     setShowForm(true);
   };

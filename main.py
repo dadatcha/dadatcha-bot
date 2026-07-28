@@ -708,11 +708,16 @@ async def on_message(message: discord.Message) -> None:
 
 # ── Custom command handler ─────────────────────────────────────────────────────
 
-def _apply_custom_vars(template: str, message: discord.Message) -> str:
+def _apply_custom_vars(
+    template: str,
+    message: discord.Message,
+    target: Optional[discord.Member] = None,
+) -> str:
     """Replace custom command variables with runtime values."""
     author = message.author
     guild  = message.guild
     ch     = message.channel
+    tgt    = target or (author if isinstance(author, discord.Member) else author)
     return (
         template
         .replace("{user}",    author.mention)
@@ -720,7 +725,72 @@ def _apply_custom_vars(template: str, message: discord.Message) -> str:
         .replace("{name}",    author.display_name)
         .replace("{server}",  guild.name if guild else "")
         .replace("{channel}", ch.mention if hasattr(ch, "mention") else "")
+        .replace("{target}",  tgt.mention if hasattr(tgt, "mention") else str(tgt))
     )
+
+
+def _resolve_reward_target(
+    message: discord.Message,
+    reward_target: str,
+) -> Optional[discord.Member]:
+    """Return the Member who should receive rewards.
+    'mentioned' → first @mention in the message (fallback: author)
+    'author'    → the message author
+    """
+    if reward_target == "mentioned":
+        # discord.py populates message.mentions with resolved Member objects
+        for m in message.mentions:
+            if isinstance(m, discord.Member) and not m.bot:
+                return m
+        # fallback to author if no valid mention
+    if isinstance(message.author, discord.Member):
+        return message.author
+    return None
+
+
+async def _apply_rewards(
+    cmd: dict,
+    target: discord.Member,
+    message: discord.Message,
+) -> None:
+    """Give the configured rewards (role / money / XP / levels) to *target*."""
+    guild = message.guild
+    if guild is None:
+        return
+
+    # ── Role ─────────────────────────────────────────────────────────────────
+    role_id = cmd.get("rewardRoleId", "").strip()
+    if role_id:
+        role = guild.get_role(int(role_id)) if role_id.isdigit() else None
+        if role and role not in target.roles:
+            try:
+                await target.add_roles(role, reason="Commande personnalisée")
+            except discord.Forbidden:
+                pass
+
+    # ── Money ─────────────────────────────────────────────────────────────────
+    money = int(cmd.get("rewardMoney", 0))
+    if money > 0:
+        try:
+            eco = await get_economy(target)
+            await set_wallet(target.id, eco["wallet"] + money)
+        except Exception:
+            pass
+
+    # ── XP and Levels ─────────────────────────────────────────────────────────
+    xp_gain     = int(cmd.get("rewardXp",     0))
+    level_gain  = int(cmd.get("rewardLevels", 0))
+    if xp_gain > 0 or level_gain > 0:
+        try:
+            eco = await get_economy(target)
+            new_xp    = eco.get("xp",    0) + xp_gain
+            new_level = eco.get("level", 0) + level_gain
+            await api_patch(
+                f"/economy/players/{target.id}",
+                {"xp": new_xp, "level": new_level},
+            )
+        except Exception:
+            pass
 
 
 async def _handle_custom_commands(message: discord.Message) -> None:
@@ -781,7 +851,11 @@ async def _handle_custom_commands(message: discord.Message) -> None:
             except Exception:
                 pass
 
-        response_text = _apply_custom_vars(cmd.get("response", ""), message)
+        # Resolve reward target (needed for {target} variable too)
+        reward_target_str = cmd.get("rewardTarget", "mentioned")
+        target_member = _resolve_reward_target(message, reward_target_str)
+
+        response_text = _apply_custom_vars(cmd.get("response", ""), message, target=target_member)
         reply_mode    = cmd.get("replyToUser", False) and not cmd.get("deleteUserMessage", False)
 
         if cmd.get("responseType", "message") == "embed":
@@ -797,7 +871,7 @@ async def _handle_custom_commands(message: discord.Message) -> None:
             )
             footer_text = cmd.get("embedFooter", "")
             if footer_text:
-                embed.set_footer(text=_apply_custom_vars(footer_text, message))
+                embed.set_footer(text=_apply_custom_vars(footer_text, message, target=target_member))
             if reply_mode:
                 await message.reply(embed=embed)
             else:
@@ -807,6 +881,10 @@ async def _handle_custom_commands(message: discord.Message) -> None:
                 await message.reply(response_text)
             else:
                 await message.channel.send(response_text)
+
+        # Apply rewards after sending the response
+        if cmd.get("rewardEnabled", False) and target_member is not None:
+            await _apply_rewards(cmd, target_member, message)
 
         break  # Only the first matching command fires
 

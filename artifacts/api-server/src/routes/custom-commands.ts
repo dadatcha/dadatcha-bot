@@ -23,8 +23,39 @@ function toCmd(row: typeof customCommandsTable.$inferSelect) {
     allowedChannels:   row.allowedChannels,
     allowedRoles:      row.allowedRoles,
     cooldownSeconds:   row.cooldownSeconds,
+    rewardEnabled:     row.rewardEnabled,
+    rewardTarget:      row.rewardTarget,
+    rewardRoleId:      row.rewardRoleId,
+    rewardMoney:       row.rewardMoney,
+    rewardXp:          row.rewardXp,
+    rewardLevels:      row.rewardLevels,
     createdAt:         row.createdAt.toISOString(),
     updatedAt:         row.updatedAt.toISOString(),
+  };
+}
+
+function fromBody(d: Partial<typeof customCommandsTable.$inferInsert>) {
+  return {
+    trigger:           (d.trigger ?? "").trim(),
+    matchMode:         d.matchMode         ?? "exact",
+    caseSensitive:     d.caseSensitive      ?? false,
+    responseType:      d.responseType       ?? "message",
+    response:          d.response           ?? "",
+    embedTitle:        d.embedTitle         ?? "",
+    embedColor:        d.embedColor         ?? "5865F2",
+    embedFooter:       d.embedFooter        ?? "",
+    enabled:           d.enabled            ?? true,
+    deleteUserMessage: d.deleteUserMessage  ?? false,
+    replyToUser:       d.replyToUser        ?? false,
+    allowedChannels:   d.allowedChannels    ?? "",
+    allowedRoles:      d.allowedRoles       ?? "",
+    cooldownSeconds:   d.cooldownSeconds    ?? 0,
+    rewardEnabled:     d.rewardEnabled      ?? false,
+    rewardTarget:      d.rewardTarget       ?? "mentioned",
+    rewardRoleId:      d.rewardRoleId       ?? "",
+    rewardMoney:       d.rewardMoney        ?? 0,
+    rewardXp:          d.rewardXp           ?? 0,
+    rewardLevels:      d.rewardLevels       ?? 0,
   };
 }
 
@@ -45,25 +76,7 @@ router.post("/custom-commands", async (req, res): Promise<void> => {
   if (!d.trigger?.trim()) {
     res.status(400).json({ error: "trigger is required" }); return;
   }
-  const [row] = await db
-    .insert(customCommandsTable)
-    .values({
-      trigger:           d.trigger.trim(),
-      matchMode:         d.matchMode         ?? "exact",
-      caseSensitive:     d.caseSensitive      ?? false,
-      responseType:      d.responseType       ?? "message",
-      response:          d.response           ?? "",
-      embedTitle:        d.embedTitle         ?? "",
-      embedColor:        d.embedColor         ?? "5865F2",
-      embedFooter:       d.embedFooter        ?? "",
-      enabled:           d.enabled            ?? true,
-      deleteUserMessage: d.deleteUserMessage  ?? false,
-      replyToUser:       d.replyToUser        ?? false,
-      allowedChannels:   d.allowedChannels    ?? "",
-      allowedRoles:      d.allowedRoles       ?? "",
-      cooldownSeconds:   d.cooldownSeconds    ?? 0,
-    })
-    .returning();
+  const [row] = await db.insert(customCommandsTable).values(fromBody(d)).returning();
   res.status(201).json(toCmd(row));
 });
 
@@ -77,23 +90,7 @@ router.put("/custom-commands/:id", async (req, res): Promise<void> => {
   }
   const [row] = await db
     .update(customCommandsTable)
-    .set({
-      trigger:           d.trigger.trim(),
-      matchMode:         d.matchMode         ?? "exact",
-      caseSensitive:     d.caseSensitive      ?? false,
-      responseType:      d.responseType       ?? "message",
-      response:          d.response           ?? "",
-      embedTitle:        d.embedTitle         ?? "",
-      embedColor:        d.embedColor         ?? "5865F2",
-      embedFooter:       d.embedFooter        ?? "",
-      enabled:           d.enabled            ?? true,
-      deleteUserMessage: d.deleteUserMessage  ?? false,
-      replyToUser:       d.replyToUser        ?? false,
-      allowedChannels:   d.allowedChannels    ?? "",
-      allowedRoles:      d.allowedRoles       ?? "",
-      cooldownSeconds:   d.cooldownSeconds    ?? 0,
-      updatedAt:         new Date(),
-    })
+    .set({ ...fromBody(d), updatedAt: new Date() })
     .where(eq(customCommandsTable.id, id))
     .returning();
   if (!row) { res.status(404).json({ error: "Command not found" }); return; }
@@ -101,27 +98,22 @@ router.put("/custom-commands/:id", async (req, res): Promise<void> => {
 });
 
 // ── PATCH /custom-commands/:id ─────────────────────────────────────────────────
-// Partial update — used for quick enable/disable toggle
 
 router.patch("/custom-commands/:id", async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const d = req.body as Partial<typeof customCommandsTable.$inferInsert>;
 
   const set: Record<string, unknown> = { updatedAt: new Date() };
-  if (d.enabled           !== undefined) set.enabled           = d.enabled;
-  if (d.trigger           !== undefined) set.trigger           = d.trigger;
-  if (d.matchMode         !== undefined) set.matchMode         = d.matchMode;
-  if (d.caseSensitive     !== undefined) set.caseSensitive     = d.caseSensitive;
-  if (d.responseType      !== undefined) set.responseType      = d.responseType;
-  if (d.response          !== undefined) set.response          = d.response;
-  if (d.embedTitle        !== undefined) set.embedTitle        = d.embedTitle;
-  if (d.embedColor        !== undefined) set.embedColor        = d.embedColor;
-  if (d.embedFooter       !== undefined) set.embedFooter       = d.embedFooter;
-  if (d.deleteUserMessage !== undefined) set.deleteUserMessage = d.deleteUserMessage;
-  if (d.replyToUser       !== undefined) set.replyToUser       = d.replyToUser;
-  if (d.allowedChannels   !== undefined) set.allowedChannels   = d.allowedChannels;
-  if (d.allowedRoles      !== undefined) set.allowedRoles      = d.allowedRoles;
-  if (d.cooldownSeconds   !== undefined) set.cooldownSeconds   = d.cooldownSeconds;
+  const fields: (keyof typeof d)[] = [
+    "enabled", "trigger", "matchMode", "caseSensitive", "responseType",
+    "response", "embedTitle", "embedColor", "embedFooter",
+    "deleteUserMessage", "replyToUser", "allowedChannels", "allowedRoles",
+    "cooldownSeconds", "rewardEnabled", "rewardTarget", "rewardRoleId",
+    "rewardMoney", "rewardXp", "rewardLevels",
+  ];
+  for (const f of fields) {
+    if (d[f] !== undefined) set[f] = d[f];
+  }
 
   const [row] = await db
     .update(customCommandsTable)

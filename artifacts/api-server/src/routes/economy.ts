@@ -22,6 +22,8 @@ function toPlayer(r: typeof userEconomyTable.$inferSelect) {
     wallet: r.wallet,
     bank: r.bank,
     total: r.wallet + r.bank,
+    xp: r.xp,
+    level: r.level,
     lastDaily: r.lastDaily?.toISOString() ?? null,
     lastWork: r.lastWork?.toISOString() ?? null,
     lastCrime: r.lastCrime?.toISOString() ?? null,
@@ -174,7 +176,9 @@ router.patch("/economy/players/:userId", async (req, res): Promise<void> => {
   if (!existing) { res.status(404).json({ error: "Player not found" }); return; }
   const updates: Partial<typeof userEconomyTable.$inferInsert> = {};
   if (parsed.data.wallet !== undefined) updates.wallet = parsed.data.wallet;
-  if (parsed.data.bank !== undefined) updates.bank = parsed.data.bank;
+  if (parsed.data.bank   !== undefined) updates.bank   = parsed.data.bank;
+  if (parsed.data.xp     !== undefined) updates.xp     = parsed.data.xp;
+  if (parsed.data.level  !== undefined) updates.level  = parsed.data.level;
   const [updated] = await db.update(userEconomyTable).set(updates).where(eq(userEconomyTable.userId, params.data.userId)).returning();
   const [rankRow] = await db
     .select({ rank: sql<number>`cast(count(*) + 1 as int)` })

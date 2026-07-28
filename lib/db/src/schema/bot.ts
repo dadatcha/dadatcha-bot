@@ -129,6 +129,8 @@ export const userEconomyTable = pgTable("user_economy", {
   username: text("username").notNull(),
   wallet: bigint("wallet", { mode: "number" }).notNull().default(0),
   bank: bigint("bank", { mode: "number" }).notNull().default(0),
+  xp: bigint("xp", { mode: "number" }).notNull().default(0),
+  level: integer("level").notNull().default(0),
   lastDaily: timestamp("last_daily", { withTimezone: true }),
   lastWork: timestamp("last_work", { withTimezone: true }),
   lastCrime: timestamp("last_crime", { withTimezone: true }),
@@ -358,6 +360,13 @@ export const customCommandsTable = pgTable("custom_commands", {
   allowedChannels:   text("allowed_channels").notNull().default(""),  // comma-separated channel IDs
   allowedRoles:      text("allowed_roles").notNull().default(""),     // comma-separated role IDs
   cooldownSeconds:   integer("cooldown_seconds").notNull().default(0),
+  // ── Optional rewards ─────────────────────────────────────────────────────────
+  rewardEnabled:     boolean("reward_enabled").notNull().default(false),
+  rewardTarget:      text("reward_target").notNull().default("mentioned"), // mentioned | author
+  rewardRoleId:      text("reward_role_id").notNull().default(""),   // Discord role ID to assign
+  rewardMoney:       integer("reward_money").notNull().default(0),   // coins added to wallet
+  rewardXp:          integer("reward_xp").notNull().default(0),      // XP points added
+  rewardLevels:      integer("reward_levels").notNull().default(0),  // levels added
   createdAt:         timestamp("created_at",  { withTimezone: true }).notNull().defaultNow(),
   updatedAt:         timestamp("updated_at",  { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

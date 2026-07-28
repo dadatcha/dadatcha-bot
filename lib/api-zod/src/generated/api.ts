@@ -352,7 +352,9 @@ export const UpdatePlayerBalanceParams = zod.object({
 
 export const UpdatePlayerBalanceBody = zod.object({
   "wallet": zod.number().optional(),
-  "bank": zod.number().optional()
+  "bank": zod.number().optional(),
+  "xp": zod.number().optional(),
+  "level": zod.number().optional(),
 })
 
 export const UpdatePlayerBalanceResponse = zod.object({
