@@ -2655,6 +2655,73 @@ async def before_command_sync_poll() -> None:
     await bot.wait_until_ready()
 
 
+# ── Command manifest ──────────────────────────────────────────────────────────
+
+# Maps command names → dashboard category.
+# Any command not listed here gets category "other" and will still appear.
+_CMD_CATEGORY: dict[str, str] = {
+    # Economy
+    "balance": "economy", "addmoney": "economy", "removemoney": "economy",
+    "setmoney": "economy", "resetmoney": "economy", "daily": "economy",
+    "work": "economy", "crime": "economy", "deposit": "economy",
+    "withdraw": "economy", "give": "economy", "leaderboard": "economy",
+    # Games
+    "blackjack": "games", "higher-lower": "games",
+    "roulette": "games", "guess-number": "games",
+    # Shop
+    "shop": "shop", "buy": "shop", "inventory": "shop", "give-item": "shop",
+    # Giveaway (group prefix applied below)
+    "giveaway-start": "giveaway", "giveaway-end": "giveaway", "giveaway-reroll": "giveaway",
+    # Config
+    "config-language": "config",
+    # Random activity (group prefix applied below)
+    "rdm-config": "random-activity", "rdm-toggle": "random-activity",
+    "rdm-add": "random-activity", "rdm-list": "random-activity", "rdm-remove": "random-activity",
+}
+
+def _default_label(name: str) -> str:
+    """Turn a slash-command name into a human-readable default label."""
+    return name.replace("-", " ").title()
+
+async def _push_command_manifest() -> None:
+    """Introspect bot.tree and push the full command list to the API manifest."""
+    manifest: list[dict] = []
+    for cmd in bot.tree.get_commands():
+        if isinstance(cmd, app_commands.Group):
+            for sub in cmd.commands:
+                full_name = f"{cmd.name}-{sub.name}"
+                manifest.append({
+                    "name": full_name,
+                    "defaultLabel": _default_label(full_name),
+                    "description": sub.description or "",
+                    "category": _CMD_CATEGORY.get(full_name, "other"),
+                })
+        else:
+            # Resolve the actual Discord name (may have been renamed by _apply_command_labels)
+            actual_name = cmd.name
+            manifest.append({
+                "name": actual_name,
+                "defaultLabel": _default_label(actual_name),
+                "description": cmd.description or "",
+                "category": _CMD_CATEGORY.get(actual_name, "other"),
+            })
+    if not manifest:
+        return
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{API_BASE}/commands/manifest",
+                json=manifest,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status == 204:
+                    logger.info("Command manifest pushed — %d commands", len(manifest))
+                else:
+                    logger.warning("Command manifest push returned %d", resp.status)
+    except Exception:
+        logger.warning("Failed to push command manifest", exc_info=True)
+
+
 # ── Ready ─────────────────────────────────────────────────────────────────────
 
 @bot.event
@@ -2674,6 +2741,7 @@ async def on_ready() -> None:
         global _last_synced_labels
         _last_synced_labels = {name: cfg.get("label", "") for name, cfg in _cmd_cfg.items()}
         logger.info("Slash commands synced — %d commands", len(synced))
+        await _push_command_manifest()
     except Exception:
         logger.exception("Failed to sync slash commands")
 

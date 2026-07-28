@@ -202,6 +202,17 @@ export const commandConfigsTable = pgTable("command_configs", {
 
 export type CommandConfig = typeof commandConfigsTable.$inferSelect;
 
+// Bot-pushed command manifest — source of truth for what commands exist
+export const commandManifestTable = pgTable("command_manifest", {
+  name:         text("name").primaryKey(),
+  defaultLabel: text("default_label").notNull(),
+  description:  text("description").notNull().default(""),
+  category:     text("category").notNull().default("other"),
+  updatedAt:    timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type CommandManifest = typeof commandManifestTable.$inferSelect;
+
 // Giveaways
 export const giveawaysTable = pgTable("giveaways", {
   id:           serial("id").primaryKey(),
