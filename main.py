@@ -960,7 +960,6 @@ async def _handle_custom_commands(message: discord.Message) -> None:
             else:
                 sent = await message.channel.send(response_text)
 
-        logger.info("DBG cc SENT pid=%s trigger=%r sent_msg_id=%s", os.getpid(), trigger, sent.id)
 
         # Apply rewards after sending the response
         if cmd.get("rewardEnabled", False) and target_member is not None:
