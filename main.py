@@ -762,11 +762,22 @@ def _resolve_reward_target(
     return None
 
 
+# In-memory guard: set of (cmd_id, author_id, target_id) already rewarded this session.
+# Acts as a fast-path before the DB call and prevents races / double-fires.
+_cc_rewarded: set[tuple] = set()
+
+
 async def _claim_reward(cmd_id: int, author_id: int, target_id: int) -> bool:
     """Atomically claim a reward slot.
-    Returns True if the reward was never granted before (author→target for this cmd).
-    Returns False if it was already claimed (duplicate).
+    Returns True  if this is the first time this (cmd, author, target) is rewarded.
+    Returns False if already claimed, or if the DB call fails (fail-closed to avoid doubles).
     """
+    key = (cmd_id, author_id, target_id)
+
+    # Fast-path: already seen this session
+    if key in _cc_rewarded:
+        return False
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -774,10 +785,14 @@ async def _claim_reward(cmd_id: int, author_id: int, target_id: int) -> bool:
                 json={"authorId": str(author_id), "targetId": str(target_id)},
                 timeout=aiohttp.ClientTimeout(total=5),
             ) as resp:
-                return resp.status == 200
+                if resp.status == 200:
+                    _cc_rewarded.add(key)
+                    return True
+                # 409 = already granted; any other status = deny (fail-closed)
+                return False
     except Exception:
-        # On network error, allow the reward (fail open) to avoid blocking forever
-        return True
+        # Fail-closed: on any network error, block the reward to avoid doubles
+        return False
 
 
 async def _apply_rewards(
@@ -899,6 +914,12 @@ async def _handle_custom_commands(message: discord.Message) -> None:
         # Resolve reward target (needed for {target} variable too)
         reward_target_str = cmd.get("rewardTarget", "mentioned")
         target_member = _resolve_reward_target(message, reward_target_str)
+
+        # If this command requires a mention and none was given, skip entirely.
+        # This prevents the response firing with {target}={author} (confusing)
+        # and ensures the author never accidentally receives the reward.
+        if cmd.get("rewardEnabled", False) and reward_target_str == "mentioned" and target_member is None:
+            continue
 
         response_text = _apply_custom_vars(cmd.get("response", ""), message, target=target_member)
         reply_mode    = cmd.get("replyToUser", False) and not cmd.get("deleteUserMessage", False)
