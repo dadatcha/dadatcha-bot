@@ -1113,9 +1113,13 @@ components:
             type: string
         status:
           type: string
+        requiredRoleId:
+          type: ["string", "null"]
+        requiredMinBalance:
+          type: ["integer", "null"]
         createdAt:
           type: string
-      required: [id, channelId, messageId, guildId, prize, winnersCount, endsAt, endedAt, winners, status, createdAt]
+      required: [id, channelId, messageId, guildId, prize, winnersCount, endsAt, endedAt, winners, status, requiredRoleId, requiredMinBalance, createdAt]
 
     GiveawayInput:
       type: object
@@ -1127,6 +1131,10 @@ components:
         winnersCount:
           type: integer
         durationMinutes:
+          type: integer
+        requiredRoleId:
+          type: string
+        requiredMinBalance:
           type: integer
       required: [channelId, prize, winnersCount, durationMinutes]
 

@@ -190,9 +190,11 @@ export const giveawaysTable = pgTable("giveaways", {
   winnersCount: integer("winners_count").notNull().default(1),
   endsAt:       timestamp("ends_at", { withTimezone: true }).notNull(),
   endedAt:      timestamp("ended_at", { withTimezone: true }),
-  winners:      text("winners").array().notNull().default([]),
-  status:       text("status").notNull().default("active"), // active | ended | cancelled
-  createdAt:    timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  winners:             text("winners").array().notNull().default([]),
+  status:              text("status").notNull().default("active"), // active | ended | cancelled
+  requiredRoleId:      text("required_role_id"),
+  requiredMinBalance:  integer("required_min_balance"),
+  createdAt:           timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type Giveaway = typeof giveawaysTable.$inferSelect;

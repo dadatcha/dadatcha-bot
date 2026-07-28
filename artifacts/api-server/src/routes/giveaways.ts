@@ -6,17 +6,19 @@ const router: IRouter = Router();
 
 function toGiveaway(r: typeof giveawaysTable.$inferSelect) {
   return {
-    id:           r.id,
-    channelId:    r.channelId,
-    messageId:    r.messageId ?? null,
-    guildId:      r.guildId,
-    prize:        r.prize,
-    winnersCount: r.winnersCount,
-    endsAt:       r.endsAt.toISOString(),
-    endedAt:      r.endedAt?.toISOString() ?? null,
-    winners:      r.winners ?? [],
-    status:       r.status,
-    createdAt:    r.createdAt.toISOString(),
+    id:                 r.id,
+    channelId:          r.channelId,
+    messageId:          r.messageId ?? null,
+    guildId:            r.guildId,
+    prize:              r.prize,
+    winnersCount:       r.winnersCount,
+    endsAt:             r.endsAt.toISOString(),
+    endedAt:            r.endedAt?.toISOString() ?? null,
+    winners:            r.winners ?? [],
+    status:             r.status,
+    requiredRoleId:     r.requiredRoleId ?? null,
+    requiredMinBalance: r.requiredMinBalance ?? null,
+    createdAt:          r.createdAt.toISOString(),
   };
 }
 
@@ -32,18 +34,21 @@ router.get("/giveaways", async (req, res): Promise<void> => {
 // ── POST /giveaways ────────────────────────────────────────────────────────────
 
 router.post("/giveaways", async (req, res): Promise<void> => {
-  const { channelId, prize, winnersCount, durationMinutes } = req.body as {
+  const { channelId, prize, winnersCount, durationMinutes, requiredRoleId, requiredMinBalance } = req.body as {
     channelId?: string; prize?: string; winnersCount?: number; durationMinutes?: number;
+    requiredRoleId?: string; requiredMinBalance?: number;
   };
   if (!channelId || !prize || !durationMinutes) {
     res.status(400).json({ error: "channelId, prize, durationMinutes are required" }); return;
   }
-  const endsAt = new Date(Date.now() + (durationMinutes) * 60 * 1000);
+  const endsAt = new Date(Date.now() + durationMinutes * 60 * 1000);
   const [row] = await db.insert(giveawaysTable).values({
     channelId,
     prize,
-    winnersCount: winnersCount ?? 1,
+    winnersCount:       winnersCount ?? 1,
     endsAt,
+    requiredRoleId:     requiredRoleId || null,
+    requiredMinBalance: requiredMinBalance ?? null,
   }).returning();
   res.status(201).json(toGiveaway(row));
 });

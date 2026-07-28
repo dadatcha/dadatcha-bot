@@ -1226,6 +1226,42 @@ async def before_config_refresh() -> None:
 
 GIVEAWAY_EMOJI = "🎉"
 
+
+async def _filter_eligible(
+    users: list[discord.User],
+    guild: Optional[discord.Guild],
+    giveaway: dict,
+) -> list[discord.User]:
+    """Return users that meet the giveaway's optional conditions."""
+    required_role_id: Optional[str] = giveaway.get("requiredRoleId")
+    min_balance: Optional[int] = giveaway.get("requiredMinBalance")
+
+    if not required_role_id and not min_balance:
+        return users  # no conditions — everyone is eligible
+
+    eligible: list[discord.User] = []
+    for user in users:
+        # ── Role check ──────────────────────────────────────────────────────
+        if required_role_id and guild:
+            try:
+                member = guild.get_member(user.id) or await guild.fetch_member(user.id)
+                role_ids = {str(r.id) for r in member.roles}
+                if required_role_id not in role_ids:
+                    continue
+            except Exception:
+                continue  # can't fetch member → exclude
+
+        # ── Balance check ────────────────────────────────────────────────────
+        if min_balance:
+            player = await api_get_json(f"/economy/players/{user.id}")
+            if not player or (player.get("balance") or 0) < min_balance:
+                continue
+
+        eligible.append(user)
+
+    return eligible
+
+
 async def _post_giveaway_embed(giveaway: dict) -> None:
     """Post the giveaway embed to the target channel and update the API with messageId/guildId."""
     channel_id = int(giveaway["channelId"])
@@ -1242,11 +1278,21 @@ async def _post_giveaway_embed(giveaway: dict) -> None:
     ends_at = datetime.fromisoformat(giveaway["endsAt"].replace("Z", "+00:00"))
     ends_ts = int(ends_at.timestamp())
 
+    # Build conditions text
+    conditions: list[str] = []
+    if giveaway.get("requiredRoleId"):
+        conditions.append(f"🎭 Rôle requis : <@&{giveaway['requiredRoleId']}>")
+    if giveaway.get("requiredMinBalance"):
+        conditions.append(f"💰 Solde minimum : {giveaway['requiredMinBalance']:,}")
+
+    cond_text = ("\n\n**Conditions :**\n" + "\n".join(conditions)) if conditions else ""
+
     embed = discord.Embed(
         title=f"{GIVEAWAY_EMOJI}  GIVEAWAY  {GIVEAWAY_EMOJI}",
         description=(
             f"**Prix :** {giveaway['prize']}\n\n"
-            f"Réagis avec {GIVEAWAY_EMOJI} pour participer !\n\n"
+            f"Réagis avec {GIVEAWAY_EMOJI} pour participer !"
+            f"{cond_text}\n\n"
             f"**Fin :** <t:{ends_ts}:R>  (<t:{ends_ts}:f>)\n"
             f"**Gagnants :** {giveaway['winnersCount']}"
         ),
@@ -1282,13 +1328,16 @@ async def _end_giveaway(giveaway: dict) -> None:
         return
 
     # Collect reactors (exclude the bot itself)
-    reactors: list[discord.User] = []
+    raw_reactors: list[discord.User] = []
     for reaction in message.reactions:
         if str(reaction.emoji) == GIVEAWAY_EMOJI:
             async for user in reaction.users():
                 if not user.bot:
-                    reactors.append(user)
+                    raw_reactors.append(user)
             break
+
+    # Apply conditions
+    reactors = await _filter_eligible(raw_reactors, message.guild, giveaway)
 
     winners: list[discord.User] = []
     if reactors:
@@ -1363,6 +1412,8 @@ giveaway_group = app_commands.Group(name="giveaway", description="Gestion des gi
     duration="Durée en minutes",
     channel="Salon où poster le giveaway",
     winners="Nombre de gagnants (défaut: 1)",
+    required_role="[Optionnel] Rôle requis pour participer",
+    min_balance="[Optionnel] Solde minimum requis pour participer",
 )
 async def giveaway_start(
     interaction: discord.Interaction,
@@ -1370,16 +1421,23 @@ async def giveaway_start(
     duration: int,
     channel: discord.TextChannel,
     winners: int = 1,
+    required_role: Optional[discord.Role] = None,
+    min_balance: Optional[int] = None,
 ) -> None:
     if not interaction.user.guild_permissions.administrator:  # type: ignore[union-attr]
         await interaction.response.send_message("❌ Commande réservée aux administrateurs.", ephemeral=True)
         return
-    result = await api_post("/giveaways", {
+    body: dict = {
         "prize": prize,
         "channelId": str(channel.id),
         "winnersCount": winners,
         "durationMinutes": duration,
-    })
+    }
+    if required_role:
+        body["requiredRoleId"] = str(required_role.id)
+    if min_balance is not None:
+        body["requiredMinBalance"] = min_balance
+    result = await api_post("/giveaways", body)
     if result:
         await interaction.response.send_message(
             f"✅ Giveaway **{prize}** créé ! Il sera posté dans {channel.mention} dans quelques secondes.",
@@ -1420,20 +1478,23 @@ async def giveaway_reroll(interaction: discord.Interaction, giveaway_id: int) ->
     message_id = int(giveaway["messageId"]) if giveaway.get("messageId") else None
     winners_count = giveaway["winnersCount"]
 
-    reactors: list[discord.User] = []
+    raw_reactors: list[discord.User] = []
+    guild: Optional[discord.Guild] = None
     if message_id:
         try:
             channel = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
             message = await channel.fetch_message(message_id)
+            guild = message.guild
             for reaction in message.reactions:
                 if str(reaction.emoji) == GIVEAWAY_EMOJI:
                     async for user in reaction.users():
                         if not user.bot:
-                            reactors.append(user)
+                            raw_reactors.append(user)
                     break
         except Exception as exc:
             logger.error("Reroll giveaway #%d: %s", giveaway_id, exc)
 
+    reactors = await _filter_eligible(raw_reactors, guild, giveaway)
     new_winners: list[discord.User] = []
     if reactors:
         new_winners = random.sample(reactors, min(winners_count, len(reactors)))

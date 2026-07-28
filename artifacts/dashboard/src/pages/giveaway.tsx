@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Gift, Plus, Trash2, Trophy, Clock, Users, Hash } from 'lucide-react';
+import { Gift, Plus, Trash2, Trophy, Clock, Users, Hash, Shield, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -24,6 +24,8 @@ type Giveaway = {
   endedAt: string | null;
   winners: string[];
   status: string;
+  requiredRoleId: string | null;
+  requiredMinBalance: number | null;
   createdAt: string;
 };
 
@@ -42,6 +44,28 @@ function timeLeft(endsAt: string): string {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+// ── ConditionBadges ───────────────────────────────────────────────────────────
+
+function ConditionBadges({ giveaway }: { giveaway: Giveaway }) {
+  if (!giveaway.requiredRoleId && !giveaway.requiredMinBalance) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {giveaway.requiredRoleId && (
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2 py-0.5">
+          <Shield className="w-2.5 h-2.5" />
+          Rôle&nbsp;<code className="font-mono">{giveaway.requiredRoleId}</code>
+        </span>
+      )}
+      {giveaway.requiredMinBalance && (
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">
+          <Coins className="w-2.5 h-2.5" />
+          Min&nbsp;{giveaway.requiredMinBalance.toLocaleString('fr-FR')}
+        </span>
+      )}
+    </div>
+  );
 }
 
 // ── GiveawayCard ──────────────────────────────────────────────────────────────
@@ -75,8 +99,7 @@ function GiveawayCard({ giveaway, onDeleted }: { giveaway: Giveaway; onDeleted: 
             <p className="text-xs text-muted-foreground">
               {active
                 ? <>Fin <span className="font-medium text-yellow-600">{timeLeft(giveaway.endsAt)}</span> · {formatDate(giveaway.endsAt)}</>
-                : <>Terminé le {formatDate(giveaway.endedAt ?? giveaway.endsAt)}</>
-              }
+                : <>Terminé le {formatDate(giveaway.endedAt ?? giveaway.endsAt)}</>}
             </p>
           </div>
         </div>
@@ -110,9 +133,11 @@ function GiveawayCard({ giveaway, onDeleted }: { giveaway: Giveaway; onDeleted: 
         </div>
       </div>
 
+      <ConditionBadges giveaway={giveaway} />
+
       {!active && giveaway.winners.length > 0 && (
-        <div className="flex items-center gap-2 pt-1 border-t">
-          <Trophy className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+        <div className="flex items-start gap-2 pt-1 border-t">
+          <Trophy className="w-3.5 h-3.5 text-yellow-500 shrink-0 mt-0.5" />
           <p className="text-xs font-medium text-muted-foreground">
             Gagnant{giveaway.winners.length > 1 ? 's' : ''} :{' '}
             {giveaway.winners.map(id => <code key={id} className="bg-muted px-1 rounded text-[10px] mr-1">{id}</code>)}
@@ -121,7 +146,7 @@ function GiveawayCard({ giveaway, onDeleted }: { giveaway: Giveaway; onDeleted: 
       )}
 
       {!active && giveaway.winners.length === 0 && giveaway.endedAt && (
-        <p className="text-xs text-muted-foreground border-t pt-1">Aucun participant</p>
+        <p className="text-xs text-muted-foreground border-t pt-1">Aucun participant éligible</p>
       )}
     </div>
   );
@@ -137,6 +162,8 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
     channelId: '',
     durationMinutes: 60,
     winnersCount: 1,
+    requiredRoleId: '',
+    requiredMinBalance: '',
   });
 
   const p = (u: Partial<typeof form>) => setForm(f => ({ ...f, ...u }));
@@ -145,12 +172,21 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return;
+    const data: Parameters<typeof create.mutate>[0]['data'] = {
+      prize: form.prize.trim(),
+      channelId: form.channelId.trim(),
+      durationMinutes: form.durationMinutes,
+      winnersCount: form.winnersCount,
+    };
+    if (form.requiredRoleId.trim()) data.requiredRoleId = form.requiredRoleId.trim();
+    if (form.requiredMinBalance.trim()) data.requiredMinBalance = Number(form.requiredMinBalance);
+
     create.mutate(
-      { data: { prize: form.prize.trim(), channelId: form.channelId.trim(), durationMinutes: form.durationMinutes, winnersCount: form.winnersCount } },
+      { data },
       {
         onSuccess: () => {
           toast({ title: '🎉 Giveaway créé !' });
-          setForm({ prize: '', channelId: '', durationMinutes: 60, winnersCount: 1 });
+          setForm({ prize: '', channelId: '', durationMinutes: 60, winnersCount: 1, requiredRoleId: '', requiredMinBalance: '' });
           onCreated();
         },
         onError: () => toast({ title: 'Erreur', variant: 'destructive' }),
@@ -159,29 +195,61 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-xl border bg-card p-5 space-y-4">
+    <form onSubmit={submit} className="rounded-xl border bg-card p-5 space-y-5">
       <p className="text-sm font-semibold">Nouveau giveaway</p>
 
+      {/* Core fields */}
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Prix 🎁</label>
           <Input placeholder="ex: 1000 sheckels, Nitro, …" value={form.prize} onChange={e => p({ prize: e.target.value })} />
         </div>
-
         <div className="col-span-2 space-y-1">
           <label className="text-xs font-medium text-muted-foreground">ID du salon Discord</label>
           <Input placeholder="123456789012345678" value={form.channelId} onChange={e => p({ channelId: e.target.value })} className="font-mono text-sm" />
         </div>
-
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Durée (minutes)</label>
           <Input type="number" min={1} value={form.durationMinutes} onChange={e => p({ durationMinutes: Number(e.target.value) })} />
         </div>
-
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Nombre de gagnants</label>
           <Input type="number" min={1} value={form.winnersCount} onChange={e => p({ winnersCount: Number(e.target.value) })} />
         </div>
+      </div>
+
+      {/* Conditions */}
+      <div className="rounded-lg border border-dashed p-4 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conditions facultatives</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Shield className="w-3 h-3" /> ID de rôle requis
+            </label>
+            <Input
+              placeholder="123456789… (optionnel)"
+              value={form.requiredRoleId}
+              onChange={e => p({ requiredRoleId: e.target.value })}
+              className="font-mono text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Coins className="w-3 h-3" /> Solde minimum
+            </label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="0 (optionnel)"
+              value={form.requiredMinBalance}
+              onChange={e => p({ requiredMinBalance: e.target.value })}
+            />
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Si un rôle est renseigné, seuls les membres qui le possèdent peuvent gagner.
+          Si un solde minimum est renseigné, seuls les membres qui l'atteignent peuvent gagner.
+        </p>
       </div>
 
       <Button type="submit" disabled={!valid || create.isPending} className="w-full gap-2">
@@ -222,14 +290,12 @@ export default function Giveaway() {
         </Button>
       </div>
 
-      {/* Create form */}
       {showForm && (
         <CreateForm onCreated={() => { refresh(); setShowForm(false); }} />
       )}
 
       {isLoading && <p className="text-sm text-muted-foreground">Chargement…</p>}
 
-      {/* Active */}
       {active.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">En cours ({active.length})</h2>
@@ -237,7 +303,6 @@ export default function Giveaway() {
         </section>
       )}
 
-      {/* Past */}
       {past.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Terminés ({past.length})</h2>
@@ -245,7 +310,6 @@ export default function Giveaway() {
         </section>
       )}
 
-      {/* Empty */}
       {!isLoading && active.length === 0 && past.length === 0 && !showForm && (
         <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground text-sm">
           Aucun giveaway. Clique sur <strong>Nouveau giveaway</strong> pour commencer.

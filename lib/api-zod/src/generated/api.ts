@@ -593,6 +593,8 @@ export const ListGiveawaysResponseItem = zod.object({
   "endedAt": zod.string().nullable(),
   "winners": zod.array(zod.string()),
   "status": zod.string(),
+  "requiredRoleId": zod.string().nullable(),
+  "requiredMinBalance": zod.number().nullable(),
   "createdAt": zod.string()
 })
 export const ListGiveawaysResponse = zod.array(ListGiveawaysResponseItem)
@@ -605,7 +607,9 @@ export const CreateGiveawayBody = zod.object({
   "channelId": zod.string(),
   "prize": zod.string(),
   "winnersCount": zod.number(),
-  "durationMinutes": zod.number()
+  "durationMinutes": zod.number(),
+  "requiredRoleId": zod.string().optional(),
+  "requiredMinBalance": zod.number().optional()
 })
 
 export const CreateGiveawayResponse = zod.object({
@@ -619,6 +623,8 @@ export const CreateGiveawayResponse = zod.object({
   "endedAt": zod.string().nullable(),
   "winners": zod.array(zod.string()),
   "status": zod.string(),
+  "requiredRoleId": zod.string().nullable(),
+  "requiredMinBalance": zod.number().nullable(),
   "createdAt": zod.string()
 })
 
@@ -641,6 +647,8 @@ export const GetGiveawayResponse = zod.object({
   "endedAt": zod.string().nullable(),
   "winners": zod.array(zod.string()),
   "status": zod.string(),
+  "requiredRoleId": zod.string().nullable(),
+  "requiredMinBalance": zod.number().nullable(),
   "createdAt": zod.string()
 })
 
@@ -669,6 +677,8 @@ export const UpdateGiveawayResponse = zod.object({
   "endedAt": zod.string().nullable(),
   "winners": zod.array(zod.string()),
   "status": zod.string(),
+  "requiredRoleId": zod.string().nullable(),
+  "requiredMinBalance": zod.number().nullable(),
   "createdAt": zod.string()
 })
 
@@ -705,6 +715,8 @@ export const EndGiveawayResponse = zod.object({
   "endedAt": zod.string().nullable(),
   "winners": zod.array(zod.string()),
   "status": zod.string(),
+  "requiredRoleId": zod.string().nullable(),
+  "requiredMinBalance": zod.number().nullable(),
   "createdAt": zod.string()
 })
 
@@ -731,6 +743,8 @@ export const RerollGiveawayResponse = zod.object({
   "endedAt": zod.string().nullable(),
   "winners": zod.array(zod.string()),
   "status": zod.string(),
+  "requiredRoleId": zod.string().nullable(),
+  "requiredMinBalance": zod.number().nullable(),
   "createdAt": zod.string()
 })
 

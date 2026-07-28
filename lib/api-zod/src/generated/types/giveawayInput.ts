@@ -11,4 +11,6 @@ export interface GiveawayInput {
   prize: string;
   winnersCount: number;
   durationMinutes: number;
+  requiredRoleId?: string;
+  requiredMinBalance?: number;
 }

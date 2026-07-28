@@ -249,6 +249,10 @@ export interface Giveaway {
   endedAt: string | null;
   winners: string[];
   status: string;
+  /** @nullable */
+  requiredRoleId: string | null;
+  /** @nullable */
+  requiredMinBalance: number | null;
   createdAt: string;
 }
 
@@ -257,6 +261,8 @@ export interface GiveawayInput {
   prize: string;
   winnersCount: number;
   durationMinutes: number;
+  requiredRoleId?: string;
+  requiredMinBalance?: number;
 }
 
 export interface GiveawayPatch {
