@@ -53,6 +53,7 @@ _eco: dict = {
     "depositEnabled": True, "withdrawEnabled": True, "giveEnabled": True, "leaderboardEnabled": True,
     "blackjackEnabled": True, "blackjackMaxBet": 1000,
     "rouletteEnabled": True, "rouletteMaxBet": 1000, "hlEnabled": True,
+    "guessEnabled": True, "guessMaxBet": 1000,
 }
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -193,6 +194,31 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "rl_red_btn":     {"fr": "Rouge  (2x)", "en": "Red  (2x)"},
     "rl_black_btn":   {"fr": "Noir  (2x)", "en": "Black  (2x)"},
     "rl_green_btn":   {"fr": "Vert / 0  (14x)", "en": "Green / 0  (14x)"},
+    # guess-number
+    "gn_title":        {"fr": "🔢 Devine le nombre", "en": "🔢 Guess the Number"},
+    "gn_win_title":    {"fr": "🎉 Gagné !", "en": "🎉 You won!"},
+    "gn_lose_title":   {"fr": "😞 Perdu", "en": "😞 Game over"},
+    "gn_desc":         {"fr": "J'ai choisi un nombre entre **1** et **100**.\n🎯 Tentatives restantes : **{attempts}** / {max}\n💰 Gain si tu trouves maintenant : ×**{mult}**", "en": "I picked a number between **1** and **100**.\n🎯 Attempts left: **{attempts}** / {max}\n💰 Payout if you guess now: ×**{mult}**"},
+    "gn_bet_footer":   {"fr": "Mise : {bet:,} {coin}", "en": "Bet: {bet:,} {coin}"},
+    "gn_wallet_footer":{"fr": "Portefeuille : {wallet:,} {coin}", "en": "Wallet: {wallet:,} {coin}"},
+    "gn_too_high":     {"fr": "trop haut ↓", "en": "too high ↓"},
+    "gn_too_low":      {"fr": "trop bas ↑", "en": "too low ↑"},
+    "gn_history":      {"fr": "Essais", "en": "Guesses"},
+    "gn_hint_label":   {"fr": "Indice", "en": "Hint"},
+    "gn_hint_hot":     {"fr": "🔥 Brûlant !", "en": "🔥 Burning hot!"},
+    "gn_hint_warm":    {"fr": "♨️ Chaud", "en": "♨️ Warm"},
+    "gn_hint_cold":    {"fr": "❄️ Froid", "en": "❄️ Cold"},
+    "gn_hint_frozen":  {"fr": "🥶 Glacial", "en": "🥶 Freezing"},
+    "gn_win":          {"fr": "C'était bien **{number}** ! Tu gagnes **{win:,}** {coin} (×{mult}) 🎉", "en": "It was **{number}**! You win **{win:,}** {coin} (×{mult}) 🎉"},
+    "gn_lose":         {"fr": "Plus de tentatives… C'était **{number}**.\nTu perds **{bet:,}** {coin}.", "en": "Out of attempts… It was **{number}**.\nYou lost **{bet:,}** {coin}."},
+    "gn_quit":         {"fr": "Tu as abandonné. C'était **{number}**.\nTu perds **{bet:,}** {coin}.", "en": "You quit. It was **{number}**.\nYou lost **{bet:,}** {coin}."},
+    "gn_invalid":      {"fr": "❌ Entre un nombre entier entre **1** et **100**.", "en": "❌ Enter a whole number between **1** and **100**."},
+    "gn_already":      {"fr": "❌ Tu as déjà essayé **{guess}** !", "en": "❌ You already tried **{guess}**!"},
+    "gn_guess_btn":    {"fr": "Deviner", "en": "Guess"},
+    "gn_quit_btn":     {"fr": "Abandonner", "en": "Quit"},
+    "gn_modal_label":  {"fr": "Ton nombre (1–100)", "en": "Your number (1–100)"},
+    "gn_bet_range":    {"fr": "La mise doit être entre 1 et {max:,} {coin}.", "en": "Bet must be between 1 and {max:,} {coin}."},
+    "err_not_your_game":{"fr": "❌ Ce n'est pas ta partie !", "en": "❌ This isn't your game!"},
     # shop
     "shop_err":       {"fr": "Impossible de charger le shop pour l'instant.", "en": "Could not load the shop right now."},
     "shop_empty":     {"fr": "Le shop est vide pour l'instant.", "en": "The shop is empty for now."},
@@ -1290,6 +1316,189 @@ async def roulette(interaction: discord.Interaction, bet: int = 100) -> None:
     embed = discord.Embed(title=_t("rl_title"), description=_t("rl_desc", bet=bet), colour=0x9B59B6)
     embed.add_field(name=_t("rl_payouts"), value="Red \u2192 2x\nBlack \u2192 2x\nGreen (0) \u2192 14x", inline=False)
     await interaction.response.send_message(embed=embed, view=view)
+
+
+# ── /guess-number ─────────────────────────────────────────────────────────────
+
+GUESS_MULTIPLIERS = [10.0, 7.0, 5.0, 3.0, 2.0, 1.5, 1.2]  # by attempt index (0-based)
+MAX_GUESS_ATTEMPTS = 7
+
+
+class GuessModal(discord.ui.Modal):
+    guess_input: discord.ui.TextInput = discord.ui.TextInput(
+        label="Nombre (1–100)",
+        placeholder="42",
+        min_length=1,
+        max_length=3,
+    )
+
+    def __init__(self, game_view: "GuessNumberView") -> None:
+        super().__init__(title=_t("gn_title"))
+        self.guess_input.label = _t("gn_modal_label")
+        self.game_view = game_view
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await self.game_view.process_guess(interaction, self.guess_input.value.strip())
+
+
+class GuessNumberView(discord.ui.View):
+    def __init__(
+        self,
+        bet: int,
+        player: discord.User | discord.Member,
+        initial_wallet: int,
+    ) -> None:
+        super().__init__(timeout=120)
+        self.bet            = bet
+        self.player         = player
+        self.initial_wallet = initial_wallet
+        self.secret         = random.randint(1, 100)
+        self.attempts: list[int] = []
+        self.ended          = False
+        self.guess_btn.label = _t("gn_guess_btn")
+        self.quit_btn.label  = _t("gn_quit_btn")
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _hint(self, guess: int) -> str:
+        diff = abs(guess - self.secret)
+        if diff <= 3:  return _t("gn_hint_hot")
+        if diff <= 10: return _t("gn_hint_warm")
+        if diff <= 25: return _t("gn_hint_cold")
+        return _t("gn_hint_frozen")
+
+    def _current_mult(self) -> float:
+        idx = min(len(self.attempts), len(GUESS_MULTIPLIERS) - 1)
+        return GUESS_MULTIPLIERS[idx]
+
+    # ── Embed builders ────────────────────────────────────────────────────────
+
+    def build_embed(self) -> discord.Embed:
+        remaining = MAX_GUESS_ATTEMPTS - len(self.attempts)
+        embed = discord.Embed(
+            title=_t("gn_title"),
+            description=_t(
+                "gn_desc",
+                attempts=remaining,
+                max=MAX_GUESS_ATTEMPTS,
+                mult=self._current_mult(),
+            ),
+            colour=0x6366F1,
+        )
+        if self.attempts:
+            lines = []
+            for g in self.attempts:
+                tag = _t("gn_too_low") if g < self.secret else _t("gn_too_high")
+                lines.append(f"**{g}** — {tag}")
+            embed.add_field(name=_t("gn_history"), value="\n".join(lines[-7:]), inline=True)
+            embed.add_field(name=_t("gn_hint_label"), value=self._hint(self.attempts[-1]), inline=True)
+        embed.set_footer(text=_t("gn_bet_footer", bet=self.bet, coin=_coin()))
+        return embed
+
+    def build_result_embed(self, won: bool, quit_: bool = False) -> discord.Embed:
+        if won:
+            mult    = GUESS_MULTIPLIERS[len(self.attempts) - 1]
+            gross   = int(self.bet * mult)
+            delta   = gross - self.bet
+            new_bal = self.initial_wallet + delta
+            embed   = discord.Embed(
+                title=_t("gn_win_title"),
+                description=_t("gn_win", number=self.secret, win=gross, mult=mult, coin=_coin()),
+                colour=0x22C55E,
+            )
+        else:
+            new_bal = self.initial_wallet - self.bet
+            key     = "gn_quit" if quit_ else "gn_lose"
+            embed   = discord.Embed(
+                title=_t("gn_lose_title"),
+                description=_t(key, number=self.secret, bet=self.bet, coin=_coin()),
+                colour=0xEF4444,
+            )
+        embed.set_footer(text=_t("gn_wallet_footer", wallet=max(0, new_bal), coin=_coin()))
+        return embed
+
+    # ── Core guess logic ──────────────────────────────────────────────────────
+
+    async def process_guess(self, interaction: discord.Interaction, raw: str) -> None:
+        if self.ended:
+            await interaction.response.defer()
+            return
+
+        try:
+            guess = int(raw)
+            if not 1 <= guess <= 100:
+                raise ValueError
+        except ValueError:
+            await interaction.response.send_message(_t("gn_invalid"), ephemeral=True)
+            return
+
+        if guess in self.attempts:
+            await interaction.response.send_message(_t("gn_already", guess=guess), ephemeral=True)
+            return
+
+        self.attempts.append(guess)
+
+        if guess == self.secret:
+            self.ended = True
+            for child in self.children:
+                child.disabled = True  # type: ignore[attr-defined]
+            mult  = GUESS_MULTIPLIERS[len(self.attempts) - 1]
+            gross = int(self.bet * mult)
+            delta = gross - self.bet
+            await set_wallet(self.player.id, self.initial_wallet + delta)
+            await interaction.response.edit_message(embed=self.build_result_embed(won=True), view=self)
+
+        elif len(self.attempts) >= MAX_GUESS_ATTEMPTS:
+            self.ended = True
+            for child in self.children:
+                child.disabled = True  # type: ignore[attr-defined]
+            await set_wallet(self.player.id, self.initial_wallet - self.bet)
+            await interaction.response.edit_message(embed=self.build_result_embed(won=False), view=self)
+
+        else:
+            await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    # ── Buttons ───────────────────────────────────────────────────────────────
+
+    @discord.ui.button(label="Deviner", style=discord.ButtonStyle.primary, emoji="🔢")
+    async def guess_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.player.id:
+            await interaction.response.send_message(_t("err_not_your_game"), ephemeral=True)
+            return
+        await interaction.response.send_modal(GuessModal(game_view=self))
+
+    @discord.ui.button(label="Abandonner", style=discord.ButtonStyle.secondary, emoji="🚪")
+    async def quit_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.player.id:
+            await interaction.response.send_message(_t("err_not_your_game"), ephemeral=True)
+            return
+        self.ended = True
+        for child in self.children:
+            child.disabled = True  # type: ignore[attr-defined]
+        await set_wallet(self.player.id, self.initial_wallet - self.bet)
+        await interaction.response.edit_message(embed=self.build_result_embed(won=False, quit_=True), view=self)
+
+    async def on_timeout(self) -> None:
+        self.ended = True
+        for child in self.children:
+            child.disabled = True  # type: ignore[attr-defined]
+
+
+@bot.tree.command(name="guess-number", description="Guess the secret number between 1 and 100 — win up to ×10 your bet")
+@app_commands.describe(bet="Amount of coins to bet")
+async def guess_number(interaction: discord.Interaction, bet: int) -> None:
+    if not await check_cmd(interaction, "guess-number"):
+        return
+    max_bet = _eco.get("guessMaxBet", 1000)
+    if bet < 1 or bet > max_bet:
+        await interaction.response.send_message(_t("gn_bet_range", max=max_bet, coin=_coin()), ephemeral=True)
+        return
+    eco = await get_economy(interaction.user)
+    if eco["wallet"] < bet:
+        await interaction.response.send_message(_t("err_not_enough_wallet", amount=eco["wallet"], coin=_coin()), ephemeral=True)
+        return
+    view = GuessNumberView(bet=bet, player=interaction.user, initial_wallet=eco["wallet"])
+    await interaction.response.send_message(embed=view.build_embed(), view=view)
 
 
 # ── Cooldown reset endpoints (internal — called by bot itself) ─────────────────
