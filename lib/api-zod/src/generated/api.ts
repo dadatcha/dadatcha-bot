@@ -462,6 +462,7 @@ export const ListRoleRewardsResponseItem = zod.object({
   "id": zod.number(),
   "triggerRoleId": zod.string(),
   "rewardRoleId": zod.string(),
+  "removeRoleId": zod.string().nullable(),
   "enabled": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -474,6 +475,7 @@ export const ListRoleRewardsResponse = zod.array(ListRoleRewardsResponseItem)
 export const CreateRoleRewardBody = zod.object({
   "triggerRoleId": zod.string(),
   "rewardRoleId": zod.string(),
+  "removeRoleId": zod.string().optional(),
   "enabled": zod.boolean().optional()
 })
 
@@ -481,6 +483,7 @@ export const CreateRoleRewardResponse = zod.object({
   "id": zod.number(),
   "triggerRoleId": zod.string(),
   "rewardRoleId": zod.string(),
+  "removeRoleId": zod.string().nullable(),
   "enabled": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -496,6 +499,7 @@ export const UpdateRoleRewardParams = zod.object({
 export const UpdateRoleRewardBody = zod.object({
   "triggerRoleId": zod.string(),
   "rewardRoleId": zod.string(),
+  "removeRoleId": zod.string().optional(),
   "enabled": zod.boolean().optional()
 })
 
@@ -503,6 +507,7 @@ export const UpdateRoleRewardResponse = zod.object({
   "id": zod.number(),
   "triggerRoleId": zod.string(),
   "rewardRoleId": zod.string(),
+  "removeRoleId": zod.string().nullable(),
   "enabled": zod.boolean(),
   "createdAt": zod.string()
 })

@@ -9,7 +9,7 @@ import { ModuleCard } from '@/components/ui/module-card';
 import { FieldRow } from '@/components/ui/field-row';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Shield, Plus, Trash2, ArrowRight } from 'lucide-react';
+import { Shield, Plus, Trash2, ArrowRight, ArrowDown, MinusCircle } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -17,6 +17,7 @@ type Rule = {
   id: number;
   triggerRoleId: string;
   rewardRoleId: string;
+  removeRoleId: string | null;
   enabled: boolean;
   createdAt: string;
 };
@@ -24,6 +25,7 @@ type Rule = {
 type DraftRule = {
   triggerRoleId: string;
   rewardRoleId: string;
+  removeRoleId: string;
   enabled: boolean;
 };
 
@@ -40,8 +42,9 @@ function RuleCard({ rule, onSaved, onDeleted }: {
 
   const [form, setForm] = useState<DraftRule>({
     triggerRoleId: rule.triggerRoleId,
-    rewardRoleId: rule.rewardRoleId,
-    enabled: rule.enabled,
+    rewardRoleId:  rule.rewardRoleId,
+    removeRoleId:  rule.removeRoleId ?? '',
+    enabled:       rule.enabled,
   });
   const [saved, setSaved] = useState<DraftRule>({ ...form });
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
@@ -49,10 +52,18 @@ function RuleCard({ rule, onSaved, onDeleted }: {
 
   function save() {
     update.mutate(
-      { id: rule.id, data: { triggerRoleId: form.triggerRoleId, rewardRoleId: form.rewardRoleId, enabled: form.enabled } },
       {
-        onSuccess: () => { setSaved({ ...form }); toast({ title: 'Saved' }); onSaved(); },
-        onError: () => toast({ title: 'Save failed', variant: 'destructive' }),
+        id: rule.id,
+        data: {
+          triggerRoleId: form.triggerRoleId,
+          rewardRoleId:  form.rewardRoleId,
+          removeRoleId:  form.removeRoleId || undefined,
+          enabled:       form.enabled,
+        },
+      },
+      {
+        onSuccess: () => { setSaved({ ...form }); toast({ title: 'Sauvegardé' }); onSaved(); },
+        onError:   () => toast({ title: 'Erreur de sauvegarde', variant: 'destructive' }),
       }
     );
   }
@@ -61,11 +72,13 @@ function RuleCard({ rule, onSaved, onDeleted }: {
     del.mutate(
       { id: rule.id },
       {
-        onSuccess: () => { toast({ title: 'Rule deleted' }); onDeleted(); },
-        onError: () => toast({ title: 'Delete failed', variant: 'destructive' }),
+        onSuccess: () => { toast({ title: 'Règle supprimée' }); onDeleted(); },
+        onError:   () => toast({ title: 'Erreur de suppression', variant: 'destructive' }),
       }
     );
   }
+
+  const shortId = (id: string) => id ? `…${id.slice(-6)}` : '—';
 
   const deleteBtn = (
     <Button
@@ -73,24 +86,31 @@ function RuleCard({ rule, onSaved, onDeleted }: {
       className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
       onClick={remove}
       disabled={del.isPending}
-      title="Delete rule"
+      title="Supprimer la règle"
     >
       <Trash2 className="w-3.5 h-3.5" />
     </Button>
   );
 
-  const shortId = (id: string) => id ? `…${id.slice(-6)}` : '—';
+  // Build a compact title showing the flow
+  const titleEl = (
+    <span className="flex items-center gap-1.5 font-mono text-sm flex-wrap">
+      <span className="text-indigo-400">{shortId(form.triggerRoleId)}</span>
+      <ArrowRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+      <span className="text-emerald-500">+{shortId(form.rewardRoleId)}</span>
+      {form.removeRoleId && (
+        <>
+          <span className="text-muted-foreground">/</span>
+          <span className="text-red-400">−{shortId(form.removeRoleId)}</span>
+        </>
+      )}
+    </span>
+  );
 
   return (
     <ModuleCard
-      title={
-        <span className="flex items-center gap-2 font-mono text-sm">
-          <span className="text-indigo-400">{shortId(form.triggerRoleId)}</span>
-          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-emerald-500">{shortId(form.rewardRoleId)}</span>
-        </span>
-      }
-      description="Si le membre obtient le rôle déclencheur, le rôle récompense lui est ajouté automatiquement."
+      title={titleEl}
+      description="Quand le rôle déclencheur est attribué, le rôle récompense est ajouté et (si configuré) le rôle à enlever est retiré."
       icon={Shield}
       iconColor="text-indigo-500"
       enabled={form.enabled}
@@ -102,7 +122,7 @@ function RuleCard({ rule, onSaved, onDeleted }: {
     >
       <FieldRow
         label="Rôle déclencheur"
-        hint="ID du rôle Discord dont l'obtention déclenche la règle."
+        hint="ID du rôle dont l'obtention déclenche la règle."
       >
         <Input
           value={form.triggerRoleId}
@@ -111,14 +131,34 @@ function RuleCard({ rule, onSaved, onDeleted }: {
           className="font-mono text-sm"
         />
       </FieldRow>
+
+      {/* Separator */}
+      <div className="flex items-center gap-2 py-1">
+        <ArrowDown className="w-3.5 h-3.5 text-muted-foreground ml-1 flex-shrink-0" />
+        <span className="text-xs text-muted-foreground">Actions déclenchées</span>
+        <div className="flex-1 border-t" />
+      </div>
+
       <FieldRow
-        label="Rôle récompense"
+        label={<span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Rôle à ajouter</span>}
         hint="ID du rôle Discord accordé automatiquement."
       >
         <Input
           value={form.rewardRoleId}
           onChange={e => p({ rewardRoleId: e.target.value })}
           placeholder="ex. 9876543210987654321"
+          className="font-mono text-sm"
+        />
+      </FieldRow>
+
+      <FieldRow
+        label={<span className="flex items-center gap-1.5"><MinusCircle className="w-3.5 h-3.5 text-red-400" /> Rôle à enlever</span>}
+        hint="ID du rôle Discord retiré automatiquement. Laisse vide pour ne rien retirer."
+      >
+        <Input
+          value={form.removeRoleId}
+          onChange={e => p({ removeRoleId: e.target.value })}
+          placeholder="Optionnel — ex. 1122334455667788990"
           className="font-mono text-sm"
         />
       </FieldRow>
@@ -134,17 +174,29 @@ function NewRuleForm({ onCreated, onCancel }: {
 }) {
   const { toast } = useToast();
   const create = useCreateRoleReward();
-  const [form, setForm] = useState<DraftRule>({ triggerRoleId: '', rewardRoleId: '', enabled: true });
+  const [form, setForm] = useState<DraftRule>({
+    triggerRoleId: '',
+    rewardRoleId:  '',
+    removeRoleId:  '',
+    enabled:       true,
+  });
   const p = (u: Partial<DraftRule>) => setForm(f => ({ ...f, ...u }));
 
   function submit() {
     if (!form.triggerRoleId.trim()) { toast({ title: 'Rôle déclencheur requis', variant: 'destructive' }); return; }
-    if (!form.rewardRoleId.trim()) { toast({ title: 'Rôle récompense requis', variant: 'destructive' }); return; }
+    if (!form.rewardRoleId.trim())  { toast({ title: 'Rôle à ajouter requis',   variant: 'destructive' }); return; }
     create.mutate(
-      { data: { triggerRoleId: form.triggerRoleId.trim(), rewardRoleId: form.rewardRoleId.trim(), enabled: form.enabled } },
+      {
+        data: {
+          triggerRoleId: form.triggerRoleId.trim(),
+          rewardRoleId:  form.rewardRoleId.trim(),
+          removeRoleId:  form.removeRoleId.trim() || undefined,
+          enabled:       form.enabled,
+        },
+      },
       {
         onSuccess: () => { toast({ title: 'Règle créée' }); onCreated(); },
-        onError: () => toast({ title: 'Erreur de création', variant: 'destructive' }),
+        onError:   () => toast({ title: 'Erreur de création', variant: 'destructive' }),
       }
     );
   }
@@ -155,6 +207,7 @@ function NewRuleForm({ onCreated, onCancel }: {
         <h3 className="font-semibold text-sm">Nouvelle règle</h3>
         <Button size="sm" variant="ghost" onClick={onCancel} className="h-7 px-2 text-muted-foreground">Annuler</Button>
       </div>
+
       <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 items-center">
         <span className="text-sm font-medium">
           Rôle déclencheur <span className="text-red-500">*</span>
@@ -165,8 +218,18 @@ function NewRuleForm({ onCreated, onCancel }: {
           placeholder="ID du rôle qui déclenche la règle"
           className="font-mono text-sm"
         />
-        <span className="text-sm font-medium">
-          Rôle récompense <span className="text-red-500">*</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <ArrowDown className="w-3.5 h-3.5 text-muted-foreground ml-1 flex-shrink-0" />
+        <span className="text-xs text-muted-foreground">Actions déclenchées</span>
+        <div className="flex-1 border-t" />
+      </div>
+
+      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 items-center">
+        <span className="text-sm font-medium flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+          Rôle à ajouter <span className="text-red-500">*</span>
         </span>
         <Input
           value={form.rewardRoleId}
@@ -174,10 +237,22 @@ function NewRuleForm({ onCreated, onCancel }: {
           placeholder="ID du rôle accordé automatiquement"
           className="font-mono text-sm"
         />
+        <span className="text-sm font-medium flex items-center gap-1.5">
+          <MinusCircle className="w-3.5 h-3.5 text-red-400" />
+          Rôle à enlever
+        </span>
+        <Input
+          value={form.removeRoleId}
+          onChange={e => p({ removeRoleId: e.target.value })}
+          placeholder="Optionnel — ID du rôle retiré automatiquement"
+          className="font-mono text-sm"
+        />
       </div>
+
       <p className="text-xs text-muted-foreground">
-        Pour trouver un ID de rôle : clic droit sur le rôle dans Discord → Copier l'identifiant (mode développeur requis).
+        Clic droit sur un rôle dans Discord → <strong>Copier l'identifiant</strong> (mode développeur requis).
       </p>
+
       <div className="flex justify-end">
         <Button onClick={submit} disabled={create.isPending} className="gap-2">
           <Plus className="w-4 h-4" /> Créer la règle
@@ -206,7 +281,9 @@ export default function RoleRewards() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Rôles automatiques</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Quand un membre obtient un <span className="font-medium">rôle déclencheur</span>, le bot lui ajoute automatiquement le <span className="font-medium">rôle récompense</span>.
+            Quand un membre obtient un <span className="font-medium">rôle déclencheur</span>,
+            le bot lui ajoute le <span className="font-medium">rôle récompense</span> et
+            peut simultanément lui <span className="font-medium">retirer un autre rôle</span>.
           </p>
         </div>
         {!adding && (

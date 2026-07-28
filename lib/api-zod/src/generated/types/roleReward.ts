@@ -10,6 +10,8 @@ export interface RoleReward {
   id: number;
   triggerRoleId: string;
   rewardRoleId: string;
+  /** @nullable */
+  removeRoleId: string | null;
   enabled: boolean;
   createdAt: string;
 }

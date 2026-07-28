@@ -187,6 +187,8 @@ export interface RoleReward {
   id: number;
   triggerRoleId: string;
   rewardRoleId: string;
+  /** @nullable */
+  removeRoleId: string | null;
   enabled: boolean;
   createdAt: string;
 }
@@ -194,6 +196,7 @@ export interface RoleReward {
 export interface RoleRewardInput {
   triggerRoleId: string;
   rewardRoleId: string;
+  removeRoleId?: string;
   enabled?: boolean;
 }
 

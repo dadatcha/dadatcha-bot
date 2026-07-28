@@ -144,11 +144,12 @@ export const shopItemsTable = pgTable("shop_items", {
 
 export type ShopItem = typeof shopItemsTable.$inferSelect;
 
-// Role rewards — automatically assign rewardRoleId when member gains triggerRoleId
+// Role rewards — automatically assign/remove roles when member gains triggerRoleId
 export const roleRewardsTable = pgTable("role_rewards", {
   id: serial("id").primaryKey(),
   triggerRoleId: text("trigger_role_id").notNull(),
   rewardRoleId: text("reward_role_id").notNull(),
+  removeRoleId: text("remove_role_id"),
   enabled: boolean("enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

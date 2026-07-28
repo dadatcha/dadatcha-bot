@@ -18,6 +18,7 @@ function toRoleReward(r: typeof roleRewardsTable.$inferSelect) {
     id: r.id,
     triggerRoleId: r.triggerRoleId,
     rewardRoleId: r.rewardRoleId,
+    removeRoleId: r.removeRoleId ?? null,
     enabled: r.enabled,
     createdAt: r.createdAt.toISOString(),
   };
@@ -47,6 +48,7 @@ router.post("/role-rewards", async (req, res): Promise<void> => {
     .values({
       triggerRoleId: d.triggerRoleId,
       rewardRoleId: d.rewardRoleId,
+      removeRoleId: d.removeRoleId ?? null,
       enabled: d.enabled ?? true,
     })
     .returning();
@@ -68,6 +70,7 @@ router.put("/role-rewards/:id", async (req, res): Promise<void> => {
     .set({
       triggerRoleId: d.triggerRoleId,
       rewardRoleId: d.rewardRoleId,
+      removeRoleId: d.removeRoleId ?? null,
       enabled: d.enabled ?? true,
     })
     .where(eq(roleRewardsTable.id, params.data.id))

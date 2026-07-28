@@ -311,26 +311,32 @@ async def on_member_update(before: discord.Member, after: discord.Member) -> Non
     guild = after.guild
     for rule in _role_rewards:
         trigger = rule.get("triggerRoleId", "")
-        reward = rule.get("rewardRoleId", "")
+        reward  = rule.get("rewardRoleId", "")
+        remove  = rule.get("removeRoleId") or ""
         if not trigger or not reward:
             continue
         if trigger not in added_ids:
             continue
-        # Member already has the reward role — skip
-        if any(str(r.id) == reward for r in after.roles):
-            continue
         try:
-            reward_role = guild.get_role(int(reward))
-            if reward_role is None:
-                reward_role = await guild.fetch_roles()  # type: ignore[assignment]
-                reward_role = next((r for r in guild.roles if str(r.id) == reward), None)
-            if reward_role is not None:
-                await after.add_roles(reward_role, reason=f"Role reward: trigger <@&{trigger}>")
-                msg = f"Role reward applied to {after} — trigger {trigger} → reward {reward}"
-                logger.info(msg)
-                await log_to_api("INFO", msg)
+            # Add reward role (if not already present)
+            if not any(str(r.id) == reward for r in after.roles):
+                reward_role = guild.get_role(int(reward))
+                if reward_role is not None:
+                    await after.add_roles(reward_role, reason=f"Role reward: trigger <@&{trigger}>")
+                    msg = f"Role reward: {after} +<@&{reward}> (trigger <@&{trigger}>)"
+                    logger.info(msg)
+                    await log_to_api("INFO", msg)
+
+            # Remove role (if configured and member still has it)
+            if remove and any(str(r.id) == remove for r in after.roles):
+                remove_role = guild.get_role(int(remove))
+                if remove_role is not None:
+                    await after.remove_roles(remove_role, reason=f"Role removal: trigger <@&{trigger}>")
+                    msg = f"Role removal: {after} -<@&{remove}> (trigger <@&{trigger}>)"
+                    logger.info(msg)
+                    await log_to_api("INFO", msg)
         except Exception as exc:
-            logger.error("Role reward error for %s: %s", after, exc)
+            logger.error("Role reward/removal error for %s: %s", after, exc)
 
 
 # ── Economy DB helpers ────────────────────────────────────────────────────────

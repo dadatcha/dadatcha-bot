@@ -821,11 +821,13 @@ components:
           type: string
         rewardRoleId:
           type: string
+        removeRoleId:
+          type: ["string", "null"]
         enabled:
           type: boolean
         createdAt:
           type: string
-      required: [id, triggerRoleId, rewardRoleId, enabled, createdAt]
+      required: [id, triggerRoleId, rewardRoleId, removeRoleId, enabled, createdAt]
 
     RoleRewardInput:
       type: object
@@ -833,6 +835,8 @@ components:
         triggerRoleId:
           type: string
         rewardRoleId:
+          type: string
+        removeRoleId:
           type: string
         enabled:
           type: boolean
