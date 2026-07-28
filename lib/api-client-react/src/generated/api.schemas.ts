@@ -195,6 +195,14 @@ export interface RoleReward {
   createdAt: string;
 }
 
+export interface CommandSyncJob {
+  status: string;
+  /** @nullable */
+  requestedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+}
+
 export interface SyncJob {
   id: number;
   status: string;

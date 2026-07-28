@@ -1186,8 +1186,33 @@ async def before_config_refresh() -> None:
     await bot.wait_until_ready()
 
 
+@tasks.loop(seconds=10)
+async def command_sync_poll_loop() -> None:
+    """Check for a pending command sync request and re-sync with Discord."""
+    job = await api_get_json("/command-sync")
+    if not job or job.get("status") != "pending":
+        return
+    await api_patch("/command-sync", {"status": "running"})
+    try:
+        await refresh_command_configs()
+        _apply_command_labels()
+        synced = await bot.tree.sync()
+        global _last_synced_labels
+        _last_synced_labels = {name: cfg.get("label", "") for name, cfg in _cmd_cfg.items()}
+        logger.info("Command sync: %d commands synced", len(synced))
+        await api_patch("/command-sync", {"status": "done"})
+    except Exception as exc:
+        logger.error("Command sync failed: %s", exc)
+        await api_patch("/command-sync", {"status": "error"})
+
+
 @sync_poll_loop.before_loop
 async def before_sync_poll() -> None:
+    await bot.wait_until_ready()
+
+
+@command_sync_poll_loop.before_loop
+async def before_command_sync_poll() -> None:
     await bot.wait_until_ready()
 
 
@@ -1218,6 +1243,8 @@ async def on_ready() -> None:
         config_refresh_loop.start()
     if not sync_poll_loop.is_running():
         sync_poll_loop.start()
+    if not command_sync_poll_loop.is_running():
+        command_sync_poll_loop.start()
 
     await send_heartbeat(connected=True)
     await log_to_api("INFO", f"Bot connected as {bot.user}")

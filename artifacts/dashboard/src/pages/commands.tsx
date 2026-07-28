@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   useListCommandConfigs, useUpdateCommandConfig,
   getListCommandConfigsQueryKey,
+  useTriggerCommandSync, useGetCommandSyncStatus,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Terminal, Coins, Gamepad2, ShoppingBag, Lock, Eye, EyeOff, Pencil, Check, X } from 'lucide-react';
+import { Terminal, Coins, Gamepad2, ShoppingBag, Lock, Eye, EyeOff, Pencil, Check, X, RefreshCw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,44 @@ type CmdConfig = {
   enabled: boolean;
   adminOnly: boolean;
 };
+
+// ── Sync banner ───────────────────────────────────────────────────────────────
+
+function SyncBanner() {
+  const { toast } = useToast();
+  const trigger = useTriggerCommandSync();
+  const [polling, setPolling] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { data: syncStatus } = useGetCommandSyncStatus({
+    query: { refetchInterval: polling ? 2000 : false },
+  });
+
+  useEffect(() => {
+    if (!polling) return;
+    const s = syncStatus?.status;
+    if (s === 'done') { setPolling(false); setStatus('done'); toast({ title: 'Commandes synchronisées avec Discord' }); }
+    if (s === 'error') { setPolling(false); setStatus('error'); toast({ title: 'Erreur lors de la synchronisation', variant: 'destructive' }); }
+  }, [syncStatus?.status, polling]);
+
+  const sync = () => {
+    setStatus('pending');
+    trigger.mutate(undefined as any, {
+      onSuccess: () => setPolling(true),
+      onError: () => { setStatus('error'); toast({ title: 'Erreur', variant: 'destructive' }); },
+    });
+  };
+
+  const running = polling || status === 'pending';
+
+  return (
+    <Button variant="outline" size="sm" onClick={sync} disabled={running} className="gap-2">
+      <RefreshCw className={`w-4 h-4 ${running ? 'animate-spin' : ''}`} />
+      {running ? 'Synchronisation…' : 'Synchroniser Discord'}
+    </Button>
+  );
+}
 
 // ── Category meta ──────────────────────────────────────────────────────────────
 
@@ -184,11 +223,14 @@ export default function Commands() {
 
   return (
     <div className="p-8 space-y-8 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Commandes</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Contrôle quelles commandes sont <span className="font-medium">actives</span> sur Discord et lesquelles sont réservées aux <span className="font-medium">administrateurs</span>.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Commandes</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Contrôle quelles commandes sont <span className="font-medium">actives</span> sur Discord et lesquelles sont réservées aux <span className="font-medium">administrateurs</span>.
+          </p>
+        </div>
+        <SyncBanner />
       </div>
 
       {/* Legend */}

@@ -11,6 +11,7 @@ export * from './botConfigInput';
 export * from './botStatus';
 export * from './commandConfig';
 export * from './commandConfigInput';
+export * from './commandSyncJob';
 export * from './economyConfig';
 export * from './economyConfigInput';
 export * from './getLogsParams';

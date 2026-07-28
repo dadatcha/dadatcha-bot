@@ -419,6 +419,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/RoleReward"
 
+  /command-sync:
+    post:
+      operationId: triggerCommandSync
+      tags: [commands]
+      summary: Request an immediate Discord slash command re-sync
+      responses:
+        "201":
+          description: Sync job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandSyncJob"
+    get:
+      operationId: getCommandSyncStatus
+      tags: [commands]
+      summary: Get the current command sync status
+      responses:
+        "200":
+          description: Current sync status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandSyncJob"
+
   /role-rewards-sync:
     post:
       operationId: triggerRoleRewardsSync
@@ -856,6 +880,17 @@ components:
         createdAt:
           type: string
       required: [id, triggerRoleId, rewardRoleId, removeRoleId, enabled, createdAt]
+
+    CommandSyncJob:
+      type: object
+      properties:
+        status:
+          type: string
+        requestedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+      required: [status, requestedAt, completedAt]
 
     SyncJob:
       type: object

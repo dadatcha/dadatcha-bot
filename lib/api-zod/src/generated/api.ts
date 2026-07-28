@@ -494,6 +494,26 @@ export const CreateRoleRewardResponse = zod.object({
 
 
 /**
+ * @summary Request an immediate Discord slash command re-sync
+ */
+export const TriggerCommandSyncResponse = zod.object({
+  "status": zod.string(),
+  "requestedAt": zod.string().nullable(),
+  "completedAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary Get the current command sync status
+ */
+export const GetCommandSyncStatusResponse = zod.object({
+  "status": zod.string(),
+  "requestedAt": zod.string().nullable(),
+  "completedAt": zod.string().nullable()
+})
+
+
+/**
  * @summary Request a full sync of role reward rules to all guild members
  */
 export const TriggerRoleRewardsSyncResponse = zod.object({

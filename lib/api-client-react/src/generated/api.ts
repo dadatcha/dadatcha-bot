@@ -25,6 +25,7 @@ import type {
   BotStatus,
   CommandConfig,
   CommandConfigInput,
+  CommandSyncJob,
   EconomyConfig,
   EconomyConfigInput,
   GetLogsParams,
@@ -1778,6 +1779,154 @@ export const useCreateRoleReward = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateRoleRewardMutationOptions(options));
     }
+
+export const getTriggerCommandSyncUrl = () => {
+
+
+
+
+  return `/api/command-sync`
+}
+
+/**
+ * @summary Request an immediate Discord slash command re-sync
+ */
+export const triggerCommandSync = async ( options?: RequestInit): Promise<CommandSyncJob> => {
+
+  return customFetch<CommandSyncJob>(getTriggerCommandSyncUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTriggerCommandSyncMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerCommandSync>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof triggerCommandSync>>, TError,void, TContext> => {
+
+const mutationKey = ['triggerCommandSync'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof triggerCommandSync>>, void> = () => {
+
+
+          return  triggerCommandSync(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TriggerCommandSyncMutationResult = NonNullable<Awaited<ReturnType<typeof triggerCommandSync>>>
+
+    export type TriggerCommandSyncMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request an immediate Discord slash command re-sync
+ */
+export const useTriggerCommandSync = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerCommandSync>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof triggerCommandSync>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getTriggerCommandSyncMutationOptions(options));
+    }
+
+export const getGetCommandSyncStatusUrl = () => {
+
+
+
+
+  return `/api/command-sync`
+}
+
+/**
+ * @summary Get the current command sync status
+ */
+export const getCommandSyncStatus = async ( options?: RequestInit): Promise<CommandSyncJob> => {
+
+  return customFetch<CommandSyncJob>(getGetCommandSyncStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommandSyncStatusQueryKey = () => {
+    return [
+    `/api/command-sync`
+    ] as const;
+    }
+
+
+export const getGetCommandSyncStatusQueryOptions = <TData = Awaited<ReturnType<typeof getCommandSyncStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommandSyncStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommandSyncStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommandSyncStatus>>> = ({ signal }) => getCommandSyncStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommandSyncStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommandSyncStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getCommandSyncStatus>>>
+export type GetCommandSyncStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the current command sync status
+ */
+
+export function useGetCommandSyncStatus<TData = Awaited<ReturnType<typeof getCommandSyncStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommandSyncStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommandSyncStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getTriggerRoleRewardsSyncUrl = () => {
 
