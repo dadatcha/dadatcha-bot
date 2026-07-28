@@ -200,6 +200,61 @@ function GiveawayCard({ g, onDeleted }: { g: Giveaway; onDeleted: () => void }) 
   );
 }
 
+// ── Channel selector ──────────────────────────────────────────────────────────
+
+type BotChannel = { id: string; name: string; guildId: string; guildName: string };
+
+function useChannels() {
+  const [channels, setChannels] = useState<BotChannel[]>([]);
+  useState(() => {
+    const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+    fetch(`${base}/api/bot/channels`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setChannels)
+      .catch(() => {});
+  });
+  return channels;
+}
+
+function ChannelSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const channels = useChannels();
+
+  if (channels.length === 0) {
+    return (
+      <Input
+        placeholder="ID du salon Discord"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="font-mono text-sm"
+      />
+    );
+  }
+
+  // Group by guild
+  const guilds = [...new Set(channels.map(c => c.guildId))];
+
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+    >
+      <option value="">— Choisir un salon —</option>
+      {guilds.map(gid => {
+        const gChannels = channels.filter(c => c.guildId === gid);
+        const guildName = gChannels[0]?.guildName ?? gid;
+        return (
+          <optgroup key={gid} label={`🏠 ${guildName}`}>
+            {gChannels.map(c => (
+              <option key={c.id} value={c.id}>#{c.name}</option>
+            ))}
+          </optgroup>
+        );
+      })}
+    </select>
+  );
+}
+
 // ── Create form ───────────────────────────────────────────────────────────────
 
 function CreateForm({ onCreated }: { onCreated: () => void }) {
@@ -266,8 +321,8 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
           <Input placeholder="ex: 1 000 sheckels, Nitro…" value={form.prize} onChange={e => p({ prize: e.target.value })} />
         </div>
         <div className="col-span-2 space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">ID du salon Discord</label>
-          <Input placeholder="123456789012345678" value={form.channelId} onChange={e => p({ channelId: e.target.value })} className="font-mono text-sm" />
+          <label className="text-xs font-medium text-muted-foreground">Salon Discord</label>
+          <ChannelSelect value={form.channelId} onChange={v => p({ channelId: v })} />
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Durée (minutes)</label>

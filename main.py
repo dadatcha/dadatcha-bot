@@ -1648,6 +1648,14 @@ class GiveawaySetupView(discord.ui.View):
     async def btn_base(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await interaction.response.send_modal(_BaseInfoModal(self))
 
+    @discord.ui.button(label="📢 Salon", style=discord.ButtonStyle.secondary, row=0)
+    async def btn_channel(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+        self._sync_launch_button()
+        await interaction.response.edit_message(
+            embed=self.cfg.summary_embed(),
+            view=_ChannelSelectView(self),
+        )
+
     @discord.ui.button(label="🎁 Récompenses", style=discord.ButtonStyle.secondary, row=0)
     async def btn_rewards(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         self._sync_launch_button()
@@ -1748,6 +1756,39 @@ class _SubView(discord.ui.View):
         await interaction.response.edit_message(
             embed=self.parent.cfg.summary_embed(), view=self.parent
         )
+
+
+class _ChannelSelectView(_SubView):
+    """Let the user pick the giveaway channel via a native ChannelSelect."""
+
+    def __init__(self, parent: GiveawaySetupView) -> None:
+        super().__init__(parent)
+        self._selected: discord.TextChannel | None = None
+        sel = discord.ui.ChannelSelect(
+            placeholder="Sélectionner le salon du giveaway",
+            min_values=1,
+            max_values=1,
+            channel_types=[discord.ChannelType.text],
+        )
+        sel.callback = self._on_select
+        self.add_item(sel)
+
+    async def _on_select(self, interaction: discord.Interaction) -> None:
+        for child in self.children:
+            if isinstance(child, discord.ui.ChannelSelect):
+                vals = child.values
+                self._selected = vals[0] if vals else None  # type: ignore[assignment]
+        await interaction.response.defer()
+
+    @discord.ui.button(label="✅ Confirmer", style=discord.ButtonStyle.green, row=1)
+    async def confirm(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+        if self._selected:
+            self.parent.cfg.channel_id = str(self._selected.id)
+        await self._back(interaction)
+
+    @discord.ui.button(label="↩️ Retour", style=discord.ButtonStyle.secondary, row=1)
+    async def back(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+        await self._back(interaction)
 
 
 class _RoleSelectView(_SubView):
@@ -1891,24 +1932,20 @@ class _RoleRewardView(_SubView):
 # ── Modals ─────────────────────────────────────────────────────────────────────
 
 class _BaseInfoModal(discord.ui.Modal, title="Infos de base du giveaway"):
-    prize_f = discord.ui.TextInput(label="Prix à gagner", placeholder="ex: 1 000 sheckels, Nitro…", max_length=200)
-    channel_f = discord.ui.TextInput(label="ID du salon Discord", placeholder="123456789012345678", max_length=30)
+    prize_f    = discord.ui.TextInput(label="Prix à gagner", placeholder="ex: 1 000 sheckels, Nitro…", max_length=200)
     duration_f = discord.ui.TextInput(label="Durée (minutes)", placeholder="60", max_length=6, default="60")
-    winners_f = discord.ui.TextInput(label="Nombre de gagnants", placeholder="1", max_length=3, default="1")
+    winners_f  = discord.ui.TextInput(label="Nombre de gagnants", placeholder="1", max_length=3, default="1")
 
     def __init__(self, parent: GiveawaySetupView) -> None:
         super().__init__()
         self.parent = parent
         if parent.cfg.prize:
             self.prize_f.default = parent.cfg.prize
-        if parent.cfg.channel_id:
-            self.channel_f.default = parent.cfg.channel_id
         self.duration_f.default = str(parent.cfg.duration_minutes)
         self.winners_f.default = str(parent.cfg.winners_count)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         self.parent.cfg.prize = self.prize_f.value.strip()
-        self.parent.cfg.channel_id = self.channel_f.value.strip()
         try:
             self.parent.cfg.duration_minutes = max(1, int(self.duration_f.value))
         except ValueError:
@@ -2127,6 +2164,23 @@ async def on_ready() -> None:
 
     await send_heartbeat(connected=True)
     await log_to_api("INFO", f"Bot connected as {bot.user}")
+
+    # Push text channels to API cache (used by the dashboard giveaway form)
+    try:
+        channels = [
+            {"id": str(ch.id), "name": ch.name,
+             "guildId": str(ch.guild.id), "guildName": ch.guild.name}
+            for guild in bot.guilds
+            for ch in guild.text_channels
+        ]
+        async with aiohttp.ClientSession() as session:
+            await session.post(
+                f"{API_BASE}/bot/channels",
+                json=channels,
+                timeout=aiohttp.ClientTimeout(total=5),
+            )
+    except Exception:
+        pass
 
 
 # ── /shop ─────────────────────────────────────────────────────────────────────

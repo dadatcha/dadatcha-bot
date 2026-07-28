@@ -233,4 +233,18 @@ router.post("/bot/logs", async (req, res): Promise<void> => {
   res.sendStatus(201);
 });
 
+// ── Channels cache ─────────────────────────────────────────────────────────────
+// In-memory — repopulated by the bot on every on_ready event.
+
+let _channelsCache: Array<{ id: string; name: string; guildId: string; guildName: string }> = [];
+
+router.post("/bot/channels", (req, res): void => {
+  if (Array.isArray(req.body)) _channelsCache = req.body;
+  res.sendStatus(204);
+});
+
+router.get("/bot/channels", (_req, res): void => {
+  res.json(_channelsCache);
+});
+
 export default router;
