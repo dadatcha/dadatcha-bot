@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import Overview from '@/pages/overview';
 import Economy from '@/pages/economy';
+import Shop from '@/pages/shop';
 import Games from '@/pages/games';
 import Reminder from '@/pages/reminder';
 import Logs from '@/pages/logs';
@@ -22,6 +23,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Overview} />
           <Route path="/economy" component={Economy} />
+          <Route path="/shop" component={Shop} />
           <Route path="/games" component={Games} />
           <Route path="/reminder" component={Reminder} />
           <Route path="/logs" component={Logs} />

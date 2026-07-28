@@ -10,6 +10,7 @@ tags:
   - name: health
   - name: bot
   - name: economy
+  - name: shop
   - name: logs
 
 paths:
@@ -268,6 +269,80 @@ paths:
         "404":
           description: Not found
 
+  /shop/items:
+    get:
+      operationId: listShopItems
+      tags: [shop]
+      summary: List all shop items
+      responses:
+        "200":
+          description: List of shop items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ShopItem"
+    post:
+      operationId: createShopItem
+      tags: [shop]
+      summary: Create a new shop item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShopItemInput"
+      responses:
+        "201":
+          description: Created item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopItem"
+
+  /shop/items/{id}:
+    put:
+      operationId: updateShopItem
+      tags: [shop]
+      summary: Update a shop item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShopItemInput"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopItem"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteShopItem
+      tags: [shop]
+      summary: Delete a shop item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
@@ -356,6 +431,48 @@ components:
         message:
           type: string
       required: [name, channelId, intervalMinutes, message]
+
+    ShopItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: integer
+        roleId:
+          type: ["string", "null"]
+        emoji:
+          type: string
+        enabled:
+          type: boolean
+        position:
+          type: integer
+        createdAt:
+          type: string
+      required: [id, name, description, price, roleId, emoji, enabled, position, createdAt]
+
+    ShopItemInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: integer
+        roleId:
+          type: string
+        emoji:
+          type: string
+        enabled:
+          type: boolean
+        position:
+          type: integer
+      required: [name, price]
 
     EconomyConfig:
       type: object

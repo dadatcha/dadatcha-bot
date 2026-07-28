@@ -324,3 +324,86 @@ export const UpdatePlayerBalanceResponse = zod.object({
 })
 
 
+/**
+ * @summary List all shop items
+ */
+export const ListShopItemsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "price": zod.number(),
+  "roleId": zod.string().nullable(),
+  "emoji": zod.string(),
+  "enabled": zod.boolean(),
+  "position": zod.number(),
+  "createdAt": zod.string()
+})
+export const ListShopItemsResponse = zod.array(ListShopItemsResponseItem)
+
+
+/**
+ * @summary Create a new shop item
+ */
+export const CreateShopItemBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "price": zod.number(),
+  "roleId": zod.string().optional(),
+  "emoji": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "position": zod.number().optional()
+})
+
+export const CreateShopItemResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "price": zod.number(),
+  "roleId": zod.string().nullable(),
+  "emoji": zod.string(),
+  "enabled": zod.boolean(),
+  "position": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a shop item
+ */
+export const UpdateShopItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateShopItemBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "price": zod.number(),
+  "roleId": zod.string().optional(),
+  "emoji": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "position": zod.number().optional()
+})
+
+export const UpdateShopItemResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "price": zod.number(),
+  "roleId": zod.string().nullable(),
+  "emoji": zod.string(),
+  "enabled": zod.boolean(),
+  "position": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a shop item
+ */
+export const DeleteShopItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteShopItemResponse = zod.void()
+
+

@@ -19,3 +19,5 @@ export * from './player';
 export * from './playerBalancePatch';
 export * from './reminder';
 export * from './reminderInput';
+export * from './shopItem';
+export * from './shopItemInput';

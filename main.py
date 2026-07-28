@@ -1003,6 +1003,138 @@ async def on_ready() -> None:
     await log_to_api("INFO", f"Bot connected as {bot.user}")
 
 
+# ── /shop ─────────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="shop", description="Browse items available in the shop")
+async def shop_cmd(interaction: discord.Interaction) -> None:
+    await interaction.response.defer()
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                items: list[dict] = await resp.json()
+    except Exception:
+        await interaction.followup.send("Could not load the shop right now.", ephemeral=True)
+        return
+
+    enabled = [it for it in items if it.get("enabled", True)]
+    enabled.sort(key=lambda it: (it.get("position", 0), it.get("id", 0)))
+
+    if not enabled:
+        await interaction.followup.send("The shop is empty for now.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="🛒 Shop",
+        description=f"Use `/buy <item>` to purchase. Prices in **{_coin()}**.",
+        colour=0x9B59B6,
+    )
+    for it in enabled:
+        emoji = it.get("emoji", "🛍️")
+        name = it.get("name", "?")
+        price = it.get("price", 0)
+        desc = it.get("description") or ""
+        role_id = it.get("roleId")
+        role_note = f"\n*Grants <@&{role_id}>*" if role_id else ""
+        embed.add_field(
+            name=f"{emoji} {name} — {price:,} {_coin()}",
+            value=(desc + role_note) if (desc or role_note) else "\u200b",
+            inline=False,
+        )
+    await interaction.followup.send(embed=embed)
+
+
+# ── /buy ──────────────────────────────────────────────────────────────────────
+
+async def _shop_items_autocomplete(
+    interaction: discord.Interaction, current: str
+) -> list[app_commands.Choice[str]]:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=3)
+            ) as resp:
+                items: list[dict] = await resp.json()
+    except Exception:
+        return []
+    enabled = [it for it in items if it.get("enabled", True)]
+    return [
+        app_commands.Choice(name=f"{it.get('emoji','')} {it['name']} — {it['price']:,} {_coin()}", value=str(it["id"]))
+        for it in enabled
+        if current.lower() in it["name"].lower()
+    ][:25]
+
+
+@bot.tree.command(name="buy", description="Buy an item from the shop")
+@app_commands.describe(item="Item to buy (type to search)")
+@app_commands.autocomplete(item=_shop_items_autocomplete)
+async def buy_cmd(interaction: discord.Interaction, item: str) -> None:
+    # Fetch shop items
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                items: list[dict] = await resp.json()
+    except Exception:
+        await interaction.response.send_message("Could not reach the shop right now.", ephemeral=True)
+        return
+
+    # Find the item by id or name
+    target: dict | None = None
+    for it in items:
+        if str(it.get("id")) == item or it.get("name", "").lower() == item.lower():
+            target = it
+            break
+
+    if not target:
+        await interaction.response.send_message("Item not found.", ephemeral=True)
+        return
+    if not target.get("enabled", True):
+        await interaction.response.send_message("This item is currently unavailable.", ephemeral=True)
+        return
+
+    price = target.get("price", 0)
+    eco = await get_economy(interaction.user)
+
+    if eco["wallet"] < price:
+        await interaction.response.send_message(
+            f"You need **{price:,}** {_coin()} but only have **{eco['wallet']:,}** {_coin()} in your wallet.",
+            ephemeral=True,
+        )
+        return
+
+    # Deduct wallet
+    new_wallet = eco["wallet"] - price
+    await set_wallet(interaction.user.id, new_wallet)
+
+    # Grant Discord role if configured
+    role_granted = False
+    role_id = target.get("roleId")
+    if role_id and interaction.guild:
+        try:
+            role = interaction.guild.get_role(int(role_id))
+            if role and isinstance(interaction.user, discord.Member):
+                await interaction.user.add_roles(role, reason=f"Shop purchase: {target['name']}")
+                role_granted = True
+        except Exception:
+            pass
+
+    emoji = target.get("emoji", "🛍️")
+    name = target.get("name", "?")
+    embed = discord.Embed(
+        title=f"{emoji} Purchase confirmed!",
+        description=f"You bought **{name}** for **{price:,}** {_coin()}.",
+        colour=0x2ECC71,
+    )
+    embed.add_field(name="Wallet", value=f"**{new_wallet:,}** {_coin()}", inline=True)
+    if role_granted:
+        embed.add_field(name="Role granted", value=f"<@&{role_id}>", inline=True)
+    await interaction.response.send_message(embed=embed)
+    await log_to_api("INFO", f"{interaction.user} bought '{name}' for {price} {_coin()} (wallet → {new_wallet})")
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:

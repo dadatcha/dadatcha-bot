@@ -124,3 +124,18 @@ export const userEconomyTable = pgTable("user_economy", {
 export const insertUserEconomySchema = createInsertSchema(userEconomyTable).omit({ updatedAt: true });
 export type InsertUserEconomy = z.infer<typeof insertUserEconomySchema>;
 export type UserEconomy = typeof userEconomyTable.$inferSelect;
+
+// Shop items
+export const shopItemsTable = pgTable("shop_items", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  price: integer("price").notNull().default(0),
+  roleId: text("role_id"),
+  emoji: text("emoji").notNull().default("🛍️"),
+  enabled: boolean("enabled").notNull().default(true),
+  position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ShopItem = typeof shopItemsTable.$inferSelect;

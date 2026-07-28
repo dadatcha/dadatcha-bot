@@ -57,6 +57,30 @@ export interface ReminderInput {
   message: string;
 }
 
+export interface ShopItem {
+  id: number;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  price: number;
+  /** @nullable */
+  roleId: string | null;
+  emoji: string;
+  enabled: boolean;
+  position: number;
+  createdAt: string;
+}
+
+export interface ShopItemInput {
+  name: string;
+  description?: string;
+  price: number;
+  roleId?: string;
+  emoji?: string;
+  enabled?: boolean;
+  position?: number;
+}
+
 export interface EconomyConfig {
   startingWallet: number;
   balanceEnabled: boolean;
