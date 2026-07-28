@@ -23,6 +23,22 @@ type CmdConfig = {
   adminOnly: boolean;
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Mirrors Python's _label_to_discord_name: produces the slash command name from a label. */
+function labelToDiscordName(label: string): string {
+  return (
+    label
+      .toLowerCase()
+      .replace(/ /g, '-')
+      .replace(/_/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-{2,}/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 32) || 'cmd'
+  );
+}
+
 // ── Sync banner ───────────────────────────────────────────────────────────────
 
 function SyncBanner() {
@@ -124,7 +140,7 @@ function CommandRow({ cmd, onSaved }: { cmd: CmdConfig; onSaved: () => void }) {
       <div className="min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <code className="text-xs font-semibold bg-muted px-1.5 py-0.5 rounded text-foreground shrink-0">
-            /{cmd.name}
+            /{editingLabel ? labelToDiscordName(labelDraft) : labelToDiscordName(label)}
           </code>
 
           {/* Editable label */}
