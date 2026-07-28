@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Coins, TrendingUp, Skull,
-  Gift, Trophy, Sparkles, Eye, Pencil, Check, X, Search, Users,
+  Gift, Trophy, Sparkles, Eye, Pencil, Check, X, Search, Users, MessageCircle,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ type Cfg = {
   blackjackEnabled: boolean; blackjackMaxBet: number;
   rouletteEnabled: boolean; rouletteMaxBet: number; hlEnabled: boolean;
   currencyName: string;
+  messageRewardEnabled: boolean; messageRewardMin: number; messageRewardMax: number; messageRewardCooldownSeconds: number;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -189,6 +190,23 @@ function EconomySettings() {
             </div>
           ))}
         </div>
+      </ModuleCard>
+
+      {/* Message reward */}
+      <ModuleCard title="Coins par message" description={`Récompense aléatoire en ${c} à chaque message envoyé dans le serveur.`}
+        icon={MessageCircle} iconColor="text-emerald-500"
+        enabled={form.messageRewardEnabled} onToggle={(v) => p({ messageRewardEnabled: v })}
+        onSave={() => saveModule({ messageRewardEnabled: form.messageRewardEnabled, messageRewardMin: form.messageRewardMin, messageRewardMax: form.messageRewardMax, messageRewardCooldownSeconds: form.messageRewardCooldownSeconds })}
+        saving={update.isPending} dirty={dirty}>
+        <FieldRow label="Minimum" hint={`Minimum de ${c} accordés par message.`}>
+          <NumberField value={form.messageRewardMin} onChange={(v) => p({ messageRewardMin: v })} min={0} suffix={c} />
+        </FieldRow>
+        <FieldRow label="Maximum" hint={`Maximum de ${c} accordés par message.`}>
+          <NumberField value={form.messageRewardMax} onChange={(v) => p({ messageRewardMax: v })} min={0} suffix={c} />
+        </FieldRow>
+        <FieldRow label="Cooldown" hint="Délai minimum entre deux récompenses pour le même joueur.">
+          <NumberField value={form.messageRewardCooldownSeconds} onChange={(v) => p({ messageRewardCooldownSeconds: v })} min={1} suffix="s" />
+        </FieldRow>
       </ModuleCard>
     </div>
   );

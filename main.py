@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import logging
 import os
 import random
@@ -232,6 +233,40 @@ async def refresh_economy_config() -> None:
 def _coin() -> str:
     """Return the current currency name (live from economy config)."""
     return _eco.get("currencyName", "coins")
+
+
+# ── Per-user message-reward cooldown (in-memory) ──────────────────────────────
+
+_msg_cooldowns: dict[int, float] = {}  # user_id → last rewarded timestamp (monotonic)
+
+
+@bot.event
+async def on_message(message: discord.Message) -> None:
+    """Award random coins for chat messages when the feature is enabled."""
+    # Ignore bots and DMs
+    if message.author.bot or not message.guild:
+        await bot.process_commands(message)
+        return
+
+    if _eco.get("messageRewardEnabled", False):
+        cooldown_secs = int(_eco.get("messageRewardCooldownSeconds", 60))
+        now = time.monotonic()
+        last = _msg_cooldowns.get(message.author.id, 0.0)
+
+        if now - last >= cooldown_secs:
+            _msg_cooldowns[message.author.id] = now
+            min_r = int(_eco.get("messageRewardMin", 1))
+            max_r = int(_eco.get("messageRewardMax", 10))
+            if max_r < min_r:
+                max_r = min_r
+            earned = random.randint(min_r, max_r)
+            try:
+                eco = await get_economy(message.author)
+                await set_wallet(message.author.id, eco["wallet"] + earned)
+            except Exception:
+                pass  # never let a reward error crash on_message
+
+    await bot.process_commands(message)
 
 
 # ── Economy DB helpers ────────────────────────────────────────────────────────

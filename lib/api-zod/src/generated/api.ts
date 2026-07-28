@@ -194,7 +194,11 @@ export const GetEconomyConfigResponse = zod.object({
   "rouletteEnabled": zod.boolean(),
   "rouletteMaxBet": zod.number(),
   "hlEnabled": zod.boolean(),
-  "currencyName": zod.string()
+  "currencyName": zod.string(),
+  "messageRewardEnabled": zod.boolean(),
+  "messageRewardMin": zod.number(),
+  "messageRewardMax": zod.number(),
+  "messageRewardCooldownSeconds": zod.number()
 })
 
 
@@ -228,7 +232,11 @@ export const UpdateEconomyConfigBody = zod.object({
   "rouletteEnabled": zod.boolean().optional(),
   "rouletteMaxBet": zod.number().optional(),
   "hlEnabled": zod.boolean().optional(),
-  "currencyName": zod.string().optional()
+  "currencyName": zod.string().optional(),
+  "messageRewardEnabled": zod.boolean().optional(),
+  "messageRewardMin": zod.number().optional(),
+  "messageRewardMax": zod.number().optional(),
+  "messageRewardCooldownSeconds": zod.number().optional()
 })
 
 export const UpdateEconomyConfigResponse = zod.object({
@@ -258,7 +266,11 @@ export const UpdateEconomyConfigResponse = zod.object({
   "rouletteEnabled": zod.boolean(),
   "rouletteMaxBet": zod.number(),
   "hlEnabled": zod.boolean(),
-  "currencyName": zod.string()
+  "currencyName": zod.string(),
+  "messageRewardEnabled": zod.boolean(),
+  "messageRewardMin": zod.number(),
+  "messageRewardMax": zod.number(),
+  "messageRewardCooldownSeconds": zod.number()
 })
 
 

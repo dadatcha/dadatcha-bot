@@ -67,6 +67,10 @@ function toEconomyConfig(r: typeof economyConfigTable.$inferSelect) {
     rouletteMaxBet: r.rouletteMaxBet,
     hlEnabled: r.hlEnabled,
     currencyName: r.currencyName ?? "coins",
+    messageRewardEnabled: r.messageRewardEnabled,
+    messageRewardMin: r.messageRewardMin,
+    messageRewardMax: r.messageRewardMax,
+    messageRewardCooldownSeconds: r.messageRewardCooldownSeconds,
   };
 }
 

@@ -531,6 +531,14 @@ components:
           type: boolean
         currencyName:
           type: string
+        messageRewardEnabled:
+          type: boolean
+        messageRewardMin:
+          type: integer
+        messageRewardMax:
+          type: integer
+        messageRewardCooldownSeconds:
+          type: integer
       required:
         - startingWallet
         - balanceEnabled
@@ -559,6 +567,10 @@ components:
         - rouletteMaxBet
         - hlEnabled
         - currencyName
+        - messageRewardEnabled
+        - messageRewardMin
+        - messageRewardMax
+        - messageRewardCooldownSeconds
 
     EconomyConfigInput:
       type: object
@@ -617,6 +629,14 @@ components:
           type: boolean
         currencyName:
           type: string
+        messageRewardEnabled:
+          type: boolean
+        messageRewardMin:
+          type: integer
+        messageRewardMax:
+          type: integer
+        messageRewardCooldownSeconds:
+          type: integer
 
     Player:
       type: object
