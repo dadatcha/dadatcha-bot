@@ -419,6 +419,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/RoleReward"
 
+  /role-rewards-sync:
+    post:
+      operationId: triggerRoleRewardsSync
+      tags: [roles]
+      summary: Request a full sync of role reward rules to all guild members
+      responses:
+        "201":
+          description: Sync job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncJob"
+    get:
+      operationId: getLatestRoleRewardsSync
+      tags: [roles]
+      summary: Get the latest sync job status
+      responses:
+        "200":
+          description: Latest sync job (null when none exists)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncJob"
+
   /role-rewards/{id}:
     put:
       operationId: updateRoleReward
@@ -828,6 +852,25 @@ components:
         createdAt:
           type: string
       required: [id, triggerRoleId, rewardRoleId, removeRoleId, enabled, createdAt]
+
+    SyncJob:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        total:
+          type: ["integer", "null"]
+        processed:
+          type: ["integer", "null"]
+        errors:
+          type: ["integer", "null"]
+        requestedAt:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+      required: [id, status, total, processed, errors, requestedAt, completedAt]
 
     RoleRewardInput:
       type: object

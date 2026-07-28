@@ -25,3 +25,4 @@ export * from './roleReward';
 export * from './roleRewardInput';
 export * from './shopItem';
 export * from './shopItemInput';
+export * from './syncJob';

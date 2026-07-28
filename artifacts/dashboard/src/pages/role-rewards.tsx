@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   useListRoleRewards, useCreateRoleReward, useUpdateRoleReward, useDeleteRoleReward,
+  useTriggerRoleRewardsSync, useGetLatestRoleRewardsSync,
   getListRoleRewardsQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,7 +10,7 @@ import { ModuleCard } from '@/components/ui/module-card';
 import { FieldRow } from '@/components/ui/field-row';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Shield, Plus, Trash2, ArrowRight, ArrowDown, MinusCircle } from 'lucide-react';
+import { Shield, Plus, Trash2, ArrowRight, ArrowDown, MinusCircle, RefreshCw, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -261,6 +262,80 @@ function NewRuleForm({ onCreated, onCancel }: {
   );
 }
 
+// ── Sync banner ───────────────────────────────────────────────────────────────
+
+function SyncBanner() {
+  const { toast } = useToast();
+  const trigger = useTriggerRoleRewardsSync();
+  const [polling, setPolling] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { data: latest, refetch } = useGetLatestRoleRewardsSync({
+    query: { enabled: true, refetchInterval: polling ? 2000 : false },
+  });
+
+  const status = latest?.status ?? null;
+
+  // Stop polling once job is done or errored
+  useEffect(() => {
+    if (status === 'done' || status === 'error') {
+      setPolling(false);
+    }
+  }, [status]);
+
+  function handleSync() {
+    trigger.mutate(undefined, {
+      onSuccess: () => setPolling(true),
+      onError:   () => toast({ title: 'Impossible de lancer la synchronisation', variant: 'destructive' }),
+    });
+  }
+
+  const isRunning = status === 'pending' || status === 'running';
+  const isDone    = status === 'done';
+  const isError   = status === 'error';
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border bg-muted/40 px-4 py-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">Synchroniser tous les membres</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Applique immédiatement toutes les règles actives à l'ensemble des membres du serveur.
+        </p>
+        {isDone && latest && (
+          <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {latest.total} membres analysés — {latest.processed} action(s) appliquée(s)
+            {(latest.errors ?? 0) > 0 ? `, ${latest.errors} erreur(s)` : ''}
+          </p>
+        )}
+        {isError && (
+          <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5" /> Erreur lors de la synchronisation
+          </p>
+        )}
+        {isRunning && (
+          <p className="text-xs text-blue-500 mt-1 flex items-center gap-1">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            {status === 'pending' ? 'En attente du bot…' : 'Synchronisation en cours…'}
+          </p>
+        )}
+      </div>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleSync}
+        disabled={trigger.isPending || isRunning}
+        className="gap-2 flex-shrink-0"
+      >
+        {isRunning
+          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          : <RefreshCw className="w-3.5 h-3.5" />}
+        Synchroniser
+      </Button>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function RoleRewards() {
@@ -291,6 +366,7 @@ export default function RoleRewards() {
           </Button>
         )}
       </div>
+      <SyncBanner />
 
       {adding && (
         <NewRuleForm

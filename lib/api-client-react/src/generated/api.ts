@@ -38,7 +38,8 @@ import type {
   RoleReward,
   RoleRewardInput,
   ShopItem,
-  ShopItemInput
+  ShopItemInput,
+  SyncJob
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1777,6 +1778,154 @@ export const useCreateRoleReward = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateRoleRewardMutationOptions(options));
     }
+
+export const getTriggerRoleRewardsSyncUrl = () => {
+
+
+
+
+  return `/api/role-rewards-sync`
+}
+
+/**
+ * @summary Request a full sync of role reward rules to all guild members
+ */
+export const triggerRoleRewardsSync = async ( options?: RequestInit): Promise<SyncJob> => {
+
+  return customFetch<SyncJob>(getTriggerRoleRewardsSyncUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTriggerRoleRewardsSyncMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerRoleRewardsSync>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof triggerRoleRewardsSync>>, TError,void, TContext> => {
+
+const mutationKey = ['triggerRoleRewardsSync'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof triggerRoleRewardsSync>>, void> = () => {
+
+
+          return  triggerRoleRewardsSync(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TriggerRoleRewardsSyncMutationResult = NonNullable<Awaited<ReturnType<typeof triggerRoleRewardsSync>>>
+
+    export type TriggerRoleRewardsSyncMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request a full sync of role reward rules to all guild members
+ */
+export const useTriggerRoleRewardsSync = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerRoleRewardsSync>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof triggerRoleRewardsSync>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getTriggerRoleRewardsSyncMutationOptions(options));
+    }
+
+export const getGetLatestRoleRewardsSyncUrl = () => {
+
+
+
+
+  return `/api/role-rewards-sync`
+}
+
+/**
+ * @summary Get the latest sync job status
+ */
+export const getLatestRoleRewardsSync = async ( options?: RequestInit): Promise<SyncJob> => {
+
+  return customFetch<SyncJob>(getGetLatestRoleRewardsSyncUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLatestRoleRewardsSyncQueryKey = () => {
+    return [
+    `/api/role-rewards-sync`
+    ] as const;
+    }
+
+
+export const getGetLatestRoleRewardsSyncQueryOptions = <TData = Awaited<ReturnType<typeof getLatestRoleRewardsSync>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLatestRoleRewardsSync>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLatestRoleRewardsSyncQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLatestRoleRewardsSync>>> = ({ signal }) => getLatestRoleRewardsSync({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLatestRoleRewardsSync>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLatestRoleRewardsSyncQueryResult = NonNullable<Awaited<ReturnType<typeof getLatestRoleRewardsSync>>>
+export type GetLatestRoleRewardsSyncQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the latest sync job status
+ */
+
+export function useGetLatestRoleRewardsSync<TData = Awaited<ReturnType<typeof getLatestRoleRewardsSync>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLatestRoleRewardsSync>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLatestRoleRewardsSyncQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getUpdateRoleRewardUrl = (id: number,) => {
 

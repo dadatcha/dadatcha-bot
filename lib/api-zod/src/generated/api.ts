@@ -490,6 +490,34 @@ export const CreateRoleRewardResponse = zod.object({
 
 
 /**
+ * @summary Request a full sync of role reward rules to all guild members
+ */
+export const TriggerRoleRewardsSyncResponse = zod.object({
+  "id": zod.number(),
+  "status": zod.string(),
+  "total": zod.number().nullable(),
+  "processed": zod.number().nullable(),
+  "errors": zod.number().nullable(),
+  "requestedAt": zod.string(),
+  "completedAt": zod.string().nullable()
+})
+
+
+/**
+ * @summary Get the latest sync job status
+ */
+export const GetLatestRoleRewardsSyncResponse = zod.object({
+  "id": zod.number(),
+  "status": zod.string(),
+  "total": zod.number().nullable(),
+  "processed": zod.number().nullable(),
+  "errors": zod.number().nullable(),
+  "requestedAt": zod.string(),
+  "completedAt": zod.string().nullable()
+})
+
+
+/**
  * @summary Update a role reward rule
  */
 export const UpdateRoleRewardParams = zod.object({

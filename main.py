@@ -1096,6 +1096,63 @@ async def config_refresh_loop() -> None:
     await refresh_command_configs()
 
 
+@tasks.loop(seconds=10)
+async def sync_poll_loop() -> None:
+    """Check for pending role-reward sync jobs and process them."""
+    job = await api_get_json("/role-rewards-sync")
+    if not job or job.get("status") != "pending":
+        return
+
+    job_id = job["id"]
+    logger.info("Role-reward sync job #%d — starting", job_id)
+    await api_patch(f"/role-rewards-sync/{job_id}", {"status": "running"})
+
+    total = 0
+    processed = 0
+    errors = 0
+
+    for guild in bot.guilds:
+        try:
+            members = [m async for m in guild.fetch_members(limit=None)]
+        except Exception as exc:
+            logger.error("Sync: failed to fetch members for guild %s: %s", guild, exc)
+            await api_patch(f"/role-rewards-sync/{job_id}", {
+                "status": "error", "total": 0, "processed": 0, "errors": 1,
+            })
+            return
+
+        total += len(members)
+        for member in members:
+            member_role_ids = {str(r.id) for r in member.roles}
+            for rule in _role_rewards:
+                trigger = rule.get("triggerRoleId", "")
+                reward  = rule.get("rewardRoleId", "")
+                remove  = rule.get("removeRoleId") or ""
+                if not trigger or trigger not in member_role_ids:
+                    continue
+                try:
+                    # Add reward role if configured and missing
+                    if reward and reward not in member_role_ids:
+                        reward_role = guild.get_role(int(reward))
+                        if reward_role:
+                            await member.add_roles(reward_role, reason="Sync: role reward")
+                    # Remove role if configured and present
+                    if remove and remove in member_role_ids:
+                        remove_role = guild.get_role(int(remove))
+                        if remove_role:
+                            await member.remove_roles(remove_role, reason="Sync: role removal")
+                    processed += 1
+                except Exception as exc:
+                    logger.error("Sync: error on member %s: %s", member, exc)
+                    errors += 1
+
+    await api_patch(f"/role-rewards-sync/{job_id}", {
+        "status": "done", "total": total, "processed": processed, "errors": errors,
+    })
+    logger.info("Role-reward sync job #%d — done (%d members, %d actions, %d errors)",
+                job_id, total, processed, errors)
+
+
 @heartbeat_loop.before_loop
 async def before_heartbeat() -> None:
     await bot.wait_until_ready()
@@ -1103,6 +1160,11 @@ async def before_heartbeat() -> None:
 
 @config_refresh_loop.before_loop
 async def before_config_refresh() -> None:
+    await bot.wait_until_ready()
+
+
+@sync_poll_loop.before_loop
+async def before_sync_poll() -> None:
     await bot.wait_until_ready()
 
 
@@ -1128,6 +1190,8 @@ async def on_ready() -> None:
         heartbeat_loop.start()
     if not config_refresh_loop.is_running():
         config_refresh_loop.start()
+    if not sync_poll_loop.is_running():
+        sync_poll_loop.start()
 
     await send_heartbeat(connected=True)
     await log_to_api("INFO", f"Bot connected as {bot.user}")

@@ -193,6 +193,20 @@ export interface RoleReward {
   createdAt: string;
 }
 
+export interface SyncJob {
+  id: number;
+  status: string;
+  /** @nullable */
+  total: number | null;
+  /** @nullable */
+  processed: number | null;
+  /** @nullable */
+  errors: number | null;
+  requestedAt: string;
+  /** @nullable */
+  completedAt: string | null;
+}
+
 export interface RoleRewardInput {
   triggerRoleId: string;
   rewardRoleId?: string;

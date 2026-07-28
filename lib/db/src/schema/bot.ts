@@ -156,6 +156,19 @@ export const roleRewardsTable = pgTable("role_rewards", {
 
 export type RoleReward = typeof roleRewardsTable.$inferSelect;
 
+// Sync jobs — track "apply rules to all members" requests from the dashboard
+export const roleRewardsSyncJobsTable = pgTable("role_rewards_sync_jobs", {
+  id:          serial("id").primaryKey(),
+  status:      text("status").notNull().default("pending"), // pending | running | done | error
+  total:       integer("total"),
+  processed:   integer("processed"),
+  errors:      integer("errors"),
+  requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+export type RoleRewardsSyncJob = typeof roleRewardsSyncJobsTable.$inferSelect;
+
 // Per-command visibility/permission config
 export const commandConfigsTable = pgTable("command_configs", {
   commandName: text("command_name").primaryKey(),
