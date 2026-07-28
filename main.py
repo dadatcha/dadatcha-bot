@@ -242,6 +242,14 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "inv_src_buy":     {"fr": "achat", "en": "purchase"},
     "inv_src_giveaway":{"fr": "giveaway", "en": "giveaway"},
     "inv_src_admin":   {"fr": "admin", "en": "admin"},
+    # /give-item
+    "gi_title":      {"fr": "🎁 Item offert", "en": "🎁 Item given"},
+    "gi_desc":       {"fr": "{emoji} **{name}** ×{qty} offert à {mention}.", "en": "{emoji} **{name}** ×{qty} given to {mention}."},
+    "gi_role":       {"fr": "Rôle accordé", "en": "Role granted"},
+    "gi_not_found":  {"fr": "❌ Item introuvable. Utilise l'autocomplétion pour en choisir un.", "en": "❌ Item not found. Use autocomplete to select one."},
+    "gi_err":        {"fr": "❌ Impossible d'ajouter l'item à l'inventaire.", "en": "❌ Could not add the item to the inventory."},
+    "gi_no_items":   {"fr": "❌ Aucun item dans le shop. Crée-en un d'abord.", "en": "❌ No items in the shop. Create one first."},
+    "gi_notify":     {"fr": "🎁 Tu as reçu {emoji} **{name}** ×{qty} offert par un admin !", "en": "🎁 You received {emoji} **{name}** ×{qty} from an admin!"},
     # /config
     "config_lang_set":     {"fr": "✅ Langue changée en **Français** 🇫🇷", "en": "✅ Language changed to **English** 🇬🇧"},
     "config_lang_already": {"fr": "La langue est déjà réglée sur **{lang}**.", "en": "The language is already set to **{lang}**."},
@@ -2878,6 +2886,121 @@ async def inventory_cmd(interaction: discord.Interaction, member: Optional[disco
     )
     embed.set_footer(text=f"{n} item{'s' if n > 1 else ''}")
     await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+# ── /give-item ────────────────────────────────────────────────────────────────
+
+async def _all_items_autocomplete(
+    interaction: discord.Interaction, current: str
+) -> list[app_commands.Choice[str]]:
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=3)
+            ) as resp:
+                items: list[dict] = await resp.json()
+    except Exception:
+        return []
+    return [
+        app_commands.Choice(
+            name=f"{it.get('emoji', '')} {it['name']}{'' if it.get('enabled', True) else ' [off]'}",
+            value=str(it["id"]),
+        )
+        for it in items
+        if current.lower() in it["name"].lower()
+    ][:25]
+
+
+@bot.tree.command(name="give-item", description="Give a shop item to a player [Admin]")
+@app_commands.describe(
+    member="Player to receive the item",
+    item="Item to give (autocomplete)",
+    quantity="Number of copies to give (default 1)",
+)
+@app_commands.autocomplete(item=_all_items_autocomplete)
+async def give_item(
+    interaction: discord.Interaction,
+    member: discord.Member,
+    item: str,
+    quantity: int = 1,
+) -> None:
+    if not await check_cmd(interaction, "give-item"):
+        return
+    if not isinstance(interaction.user, discord.Member) or not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+
+    # Fetch all shop items
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_BASE}/shop/items", timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                items: list[dict] = await resp.json()
+    except Exception:
+        await interaction.response.send_message(_t("gi_err"), ephemeral=True)
+        return
+
+    if not items:
+        await interaction.response.send_message(_t("gi_no_items"), ephemeral=True)
+        return
+
+    # Find item by id (autocomplete) or name fallback
+    target: dict | None = None
+    for it in items:
+        if str(it.get("id")) == item or it.get("name", "").lower() == item.lower():
+            target = it
+            break
+
+    if not target:
+        await interaction.response.send_message(_t("gi_not_found"), ephemeral=True)
+        return
+
+    qty = max(1, quantity)
+
+    # Add to inventory via API
+    result = await api_post("/inventory", {
+        "userId": str(member.id),
+        "itemId": target["id"],
+        "quantity": qty,
+        "source": "admin",
+    })
+    if result is None:
+        await interaction.response.send_message(_t("gi_err"), ephemeral=True)
+        return
+
+    # Grant Discord role if item has one configured
+    role_granted = False
+    role_id = target.get("roleId")
+    if role_id and interaction.guild:
+        try:
+            role = interaction.guild.get_role(int(role_id))
+            if role:
+                await member.add_roles(role, reason=f"Admin give-item: {target['name']}")
+                role_granted = True
+        except Exception:
+            pass
+
+    emoji = target.get("emoji", "📦")
+    name  = target.get("name", "?")
+
+    embed = discord.Embed(
+        title=_t("gi_title"),
+        description=_t("gi_desc", emoji=emoji, name=name, qty=qty, mention=member.mention),
+        colour=0x2ECC71,
+    )
+    if role_granted:
+        embed.add_field(name=_t("gi_role"), value=f"<@&{role_id}>", inline=True)
+
+    await interaction.response.send_message(embed=embed)
+
+    # DM the recipient (best-effort — fails silently if DMs are closed)
+    try:
+        await member.send(_t("gi_notify", emoji=emoji, name=name, qty=qty))
+    except Exception:
+        pass
+
+    await log_to_api("INFO", f"Admin {interaction.user} gave '{name}' ×{qty} to {member} (id={member.id})")
 
 
 # ── Random activity loop ──────────────────────────────────────────────────────
