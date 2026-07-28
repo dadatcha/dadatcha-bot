@@ -1403,6 +1403,7 @@ async def leaderboard(interaction: discord.Interaction) -> None:
 async def level_cmd(interaction: discord.Interaction, player: Optional[discord.Member] = None) -> None:
     if not await check_cmd(interaction, "level"):
         return
+    await interaction.response.defer()
     target = player or interaction.user
     eco = await get_economy(target)
     lvl = eco.get("level", 0)
@@ -1413,7 +1414,7 @@ async def level_cmd(interaction: discord.Interaction, player: Optional[discord.M
     embed.add_field(name=_t("lvl_xp"),   value=f"**{xp:,}** XP", inline=True)
     if isinstance(target, discord.Member) and target.avatar:
         embed.set_thumbnail(url=target.avatar.url)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
 
 
 # ── /level-top ─────────────────────────────────────────────────────────────────
