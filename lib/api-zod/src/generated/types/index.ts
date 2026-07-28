@@ -19,5 +19,7 @@ export * from './player';
 export * from './playerBalancePatch';
 export * from './reminder';
 export * from './reminderInput';
+export * from './roleReward';
+export * from './roleRewardInput';
 export * from './shopItem';
 export * from './shopItemInput';

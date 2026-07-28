@@ -72,10 +72,14 @@ _reminders_today: int = 0
 _reminders: dict[int, dict] = {}          # id → reminder dict from API
 _reminder_tasks: dict[int, asyncio.Task] = {}  # id → running asyncio.Task
 
+# Role reward rules — overwritten at runtime by refresh_role_rewards()
+_role_rewards: list[dict] = []  # list of {triggerRoleId, rewardRoleId, enabled}
+
 # ── Bot setup ─────────────────────────────────────────────────────────────────
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True   # required for on_member_update (role rewards)
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -230,6 +234,14 @@ async def refresh_economy_config() -> None:
         logger.info("Economy config refreshed — currency: %s", _eco.get("currencyName", "coins"))
 
 
+async def refresh_role_rewards() -> None:
+    global _role_rewards
+    data = await api_get_list("/role-rewards")
+    if data is not None:
+        _role_rewards = [r for r in data if r.get("enabled", True)]
+        logger.info("Role rewards refreshed — %d active rule(s)", len(_role_rewards))
+
+
 def _coin() -> str:
     """Return the current currency name (live from economy config)."""
     return _eco.get("currencyName", "coins")
@@ -267,6 +279,44 @@ async def on_message(message: discord.Message) -> None:
                 pass  # never let a reward error crash on_message
 
     await bot.process_commands(message)
+
+
+# ── Role reward automation ────────────────────────────────────────────────────
+
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member) -> None:
+    """When a member gains a new role, apply any matching role reward rules."""
+    if not _role_rewards:
+        return
+
+    # Find roles that were just added
+    added_ids = {str(r.id) for r in after.roles} - {str(r.id) for r in before.roles}
+    if not added_ids:
+        return
+
+    guild = after.guild
+    for rule in _role_rewards:
+        trigger = rule.get("triggerRoleId", "")
+        reward = rule.get("rewardRoleId", "")
+        if not trigger or not reward:
+            continue
+        if trigger not in added_ids:
+            continue
+        # Member already has the reward role — skip
+        if any(str(r.id) == reward for r in after.roles):
+            continue
+        try:
+            reward_role = guild.get_role(int(reward))
+            if reward_role is None:
+                reward_role = await guild.fetch_roles()  # type: ignore[assignment]
+                reward_role = next((r for r in guild.roles if str(r.id) == reward), None)
+            if reward_role is not None:
+                await after.add_roles(reward_role, reason=f"Role reward: trigger <@&{trigger}>")
+                msg = f"Role reward applied to {after} — trigger {trigger} → reward {reward}"
+                logger.info(msg)
+                await log_to_api("INFO", msg)
+        except Exception as exc:
+            logger.error("Role reward error for %s: %s", after, exc)
 
 
 # ── Economy DB helpers ────────────────────────────────────────────────────────
@@ -1001,6 +1051,7 @@ async def heartbeat_loop() -> None:
 async def config_refresh_loop() -> None:
     await refresh_reminders()
     await refresh_economy_config()
+    await refresh_role_rewards()
 
 
 @heartbeat_loop.before_loop
@@ -1022,6 +1073,7 @@ async def on_ready() -> None:
 
     await refresh_reminders()
     await refresh_economy_config()
+    await refresh_role_rewards()
 
     try:
         synced = await bot.tree.sync()

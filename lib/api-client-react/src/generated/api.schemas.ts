@@ -169,6 +169,20 @@ export interface PlayerBalancePatch {
   bank?: number;
 }
 
+export interface RoleReward {
+  id: number;
+  triggerRoleId: string;
+  rewardRoleId: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface RoleRewardInput {
+  triggerRoleId: string;
+  rewardRoleId: string;
+  enabled?: boolean;
+}
+
 export interface LogEntry {
   id: number;
   level: string;

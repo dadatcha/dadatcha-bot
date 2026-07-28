@@ -419,3 +419,66 @@ export const DeleteShopItemParams = zod.object({
 export const DeleteShopItemResponse = zod.void()
 
 
+/**
+ * @summary List all role reward rules
+ */
+export const ListRoleRewardsResponseItem = zod.object({
+  "id": zod.number(),
+  "triggerRoleId": zod.string(),
+  "rewardRoleId": zod.string(),
+  "enabled": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListRoleRewardsResponse = zod.array(ListRoleRewardsResponseItem)
+
+
+/**
+ * @summary Create a role reward rule
+ */
+export const CreateRoleRewardBody = zod.object({
+  "triggerRoleId": zod.string(),
+  "rewardRoleId": zod.string(),
+  "enabled": zod.boolean().optional()
+})
+
+export const CreateRoleRewardResponse = zod.object({
+  "id": zod.number(),
+  "triggerRoleId": zod.string(),
+  "rewardRoleId": zod.string(),
+  "enabled": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a role reward rule
+ */
+export const UpdateRoleRewardParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateRoleRewardBody = zod.object({
+  "triggerRoleId": zod.string(),
+  "rewardRoleId": zod.string(),
+  "enabled": zod.boolean().optional()
+})
+
+export const UpdateRoleRewardResponse = zod.object({
+  "id": zod.number(),
+  "triggerRoleId": zod.string(),
+  "rewardRoleId": zod.string(),
+  "enabled": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a role reward rule
+ */
+export const DeleteRoleRewardParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteRoleRewardResponse = zod.void()
+
+

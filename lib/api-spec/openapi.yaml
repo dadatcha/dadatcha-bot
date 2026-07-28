@@ -11,6 +11,7 @@ tags:
   - name: bot
   - name: economy
   - name: shop
+  - name: roles
   - name: logs
 
 paths:
@@ -331,6 +332,80 @@ paths:
       operationId: deleteShopItem
       tags: [shop]
       summary: Delete a shop item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /role-rewards:
+    get:
+      operationId: listRoleRewards
+      tags: [roles]
+      summary: List all role reward rules
+      responses:
+        "200":
+          description: List of rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoleReward"
+    post:
+      operationId: createRoleReward
+      tags: [roles]
+      summary: Create a role reward rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleRewardInput"
+      responses:
+        "201":
+          description: Created rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleReward"
+
+  /role-rewards/{id}:
+    put:
+      operationId: updateRoleReward
+      tags: [roles]
+      summary: Update a role reward rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleRewardInput"
+      responses:
+        "200":
+          description: Updated rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleReward"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteRoleReward
+      tags: [roles]
+      summary: Delete a role reward rule
       parameters:
         - name: id
           in: path
@@ -668,6 +743,32 @@ components:
           type: integer
         bank:
           type: integer
+
+    RoleReward:
+      type: object
+      properties:
+        id:
+          type: integer
+        triggerRoleId:
+          type: string
+        rewardRoleId:
+          type: string
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, triggerRoleId, rewardRoleId, enabled, createdAt]
+
+    RoleRewardInput:
+      type: object
+      properties:
+        triggerRoleId:
+          type: string
+        rewardRoleId:
+          type: string
+        enabled:
+          type: boolean
+      required: [triggerRoleId, rewardRoleId]
 
     LogEntry:
       type: object

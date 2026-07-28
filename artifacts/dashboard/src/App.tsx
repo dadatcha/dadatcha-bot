@@ -6,6 +6,7 @@ import { Route, Switch, Router as WouterRouter } from 'wouter';
 import Overview from '@/pages/overview';
 import Economy from '@/pages/economy';
 import Shop from '@/pages/shop';
+import RoleRewards from '@/pages/role-rewards';
 import Games from '@/pages/games';
 import Reminder from '@/pages/reminder';
 import Logs from '@/pages/logs';
@@ -24,6 +25,7 @@ function Router() {
           <Route path="/" component={Overview} />
           <Route path="/economy" component={Economy} />
           <Route path="/shop" component={Shop} />
+          <Route path="/roles" component={RoleRewards} />
           <Route path="/games" component={Games} />
           <Route path="/reminder" component={Reminder} />
           <Route path="/logs" component={Logs} />

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Coins, Gamepad2, Bell, ScrollText, Circle, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, Coins, Gamepad2, Bell, ScrollText, Circle, ShoppingBag, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGetBotStatus } from '@workspace/api-client-react';
 
@@ -22,6 +22,7 @@ const sections: { label: string; items: NavItem[] }[] = [
     items: [
       { path: '/economy', label: 'Economy', icon: Coins },
       { path: '/shop', label: 'Shop', icon: ShoppingBag },
+      { path: '/roles', label: 'Rôles auto', icon: Shield },
       { path: '/games', label: 'Games', icon: Gamepad2 },
       { path: '/reminder', label: 'Reminder', icon: Bell },
     ],

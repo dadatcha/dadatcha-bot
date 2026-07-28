@@ -33,6 +33,8 @@ import type {
   PlayerBalancePatch,
   Reminder,
   ReminderInput,
+  RoleReward,
+  RoleRewardInput,
   ShopItem,
   ShopItemInput
 } from './api.schemas';
@@ -1475,5 +1477,296 @@ export const useDeleteShopItem = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteShopItemMutationOptions(options));
+    }
+
+export const getListRoleRewardsUrl = () => {
+
+
+
+
+  return `/api/role-rewards`
+}
+
+/**
+ * @summary List all role reward rules
+ */
+export const listRoleRewards = async ( options?: RequestInit): Promise<RoleReward[]> => {
+
+  return customFetch<RoleReward[]>(getListRoleRewardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRoleRewardsQueryKey = () => {
+    return [
+    `/api/role-rewards`
+    ] as const;
+    }
+
+
+export const getListRoleRewardsQueryOptions = <TData = Awaited<ReturnType<typeof listRoleRewards>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRoleRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRoleRewardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoleRewards>>> = ({ signal }) => listRoleRewards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRoleRewards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRoleRewardsQueryResult = NonNullable<Awaited<ReturnType<typeof listRoleRewards>>>
+export type ListRoleRewardsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all role reward rules
+ */
+
+export function useListRoleRewards<TData = Awaited<ReturnType<typeof listRoleRewards>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRoleRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRoleRewardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateRoleRewardUrl = () => {
+
+
+
+
+  return `/api/role-rewards`
+}
+
+/**
+ * @summary Create a role reward rule
+ */
+export const createRoleReward = async (roleRewardInput: RoleRewardInput, options?: RequestInit): Promise<RoleReward> => {
+
+  return customFetch<RoleReward>(getCreateRoleRewardUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(roleRewardInput)
+  }
+);}
+
+
+
+
+
+export const getCreateRoleRewardMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRoleReward>>, TError,{data: BodyType<RoleRewardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRoleReward>>, TError,{data: BodyType<RoleRewardInput>}, TContext> => {
+
+const mutationKey = ['createRoleReward'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRoleReward>>, {data: BodyType<RoleRewardInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createRoleReward(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRoleRewardMutationResult = NonNullable<Awaited<ReturnType<typeof createRoleReward>>>
+    export type CreateRoleRewardMutationBody = BodyType<RoleRewardInput>
+    export type CreateRoleRewardMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a role reward rule
+ */
+export const useCreateRoleReward = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRoleReward>>, TError,{data: BodyType<RoleRewardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRoleReward>>,
+        TError,
+        {data: BodyType<RoleRewardInput>},
+        TContext
+      > => {
+      return useMutation(getCreateRoleRewardMutationOptions(options));
+    }
+
+export const getUpdateRoleRewardUrl = (id: number,) => {
+
+
+
+
+  return `/api/role-rewards/${id}`
+}
+
+/**
+ * @summary Update a role reward rule
+ */
+export const updateRoleReward = async (id: number,
+    roleRewardInput: RoleRewardInput, options?: RequestInit): Promise<RoleReward> => {
+
+  return customFetch<RoleReward>(getUpdateRoleRewardUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(roleRewardInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateRoleRewardMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRoleReward>>, TError,{id: number;data: BodyType<RoleRewardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRoleReward>>, TError,{id: number;data: BodyType<RoleRewardInput>}, TContext> => {
+
+const mutationKey = ['updateRoleReward'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRoleReward>>, {id: number;data: BodyType<RoleRewardInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateRoleReward(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRoleRewardMutationResult = NonNullable<Awaited<ReturnType<typeof updateRoleReward>>>
+    export type UpdateRoleRewardMutationBody = BodyType<RoleRewardInput>
+    export type UpdateRoleRewardMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a role reward rule
+ */
+export const useUpdateRoleReward = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRoleReward>>, TError,{id: number;data: BodyType<RoleRewardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRoleReward>>,
+        TError,
+        {id: number;data: BodyType<RoleRewardInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateRoleRewardMutationOptions(options));
+    }
+
+export const getDeleteRoleRewardUrl = (id: number,) => {
+
+
+
+
+  return `/api/role-rewards/${id}`
+}
+
+/**
+ * @summary Delete a role reward rule
+ */
+export const deleteRoleReward = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteRoleRewardUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteRoleRewardMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRoleReward>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteRoleReward>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteRoleReward'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRoleReward>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteRoleReward(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteRoleRewardMutationResult = NonNullable<Awaited<ReturnType<typeof deleteRoleReward>>>
+
+    export type DeleteRoleRewardMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a role reward rule
+ */
+export const useDeleteRoleReward = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteRoleReward>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteRoleReward>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteRoleRewardMutationOptions(options));
     }
 
