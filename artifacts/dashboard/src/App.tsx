@@ -15,6 +15,7 @@ import RandomActivity from '@/pages/random-activity';
 import Tickets from '@/pages/tickets';
 import Welcome from '@/pages/welcome';
 import CustomCommands from '@/pages/custom-commands';
+import Diagnostics from '@/pages/diagnostics';
 import Logs from '@/pages/logs';
 import NotFound from '@/pages/not-found';
 
@@ -40,6 +41,7 @@ function Router() {
           <Route path="/tickets" component={Tickets} />
           <Route path="/welcome" component={Welcome} />
           <Route path="/custom-commands" component={CustomCommands} />
+          <Route path="/diagnostics" component={Diagnostics} />
           <Route path="/logs" component={Logs} />
           <Route component={NotFound} />
         </Switch>

@@ -152,6 +152,13 @@ STRINGS: dict[str, dict[str, str] | list] = {
     "setmoney_desc":    {"fr": "Le portefeuille de {mention} a été fixé à **{amount:,}** {coin}.", "en": "{mention}'s wallet set to **{amount:,}** {coin}."},
     "resetmoney_title": {"fr": "Balance réinitialisée", "en": "Balance Reset"},
     "resetmoney_desc":  {"fr": "Le portefeuille et la banque de {mention} ont été réinitialisés à **0** {coin}.", "en": "{mention}'s wallet and bank have been reset to **0** {coin}."},
+    # drop-money
+    "drop_title":       {"fr": "💰 Drop de coins !", "en": "💰 Coin Drop!"},
+    "drop_desc":        {"fr": "**{amount:,} {coin}** ont été lâchés dans le salon !\nSois le premier à les ramasser.", "en": "**{amount:,} {coin}** dropped in the channel!\nBe the first to grab them."},
+    "drop_claimed":     {"fr": "💰 **{mention}** a ramassé **{amount:,} {coin}** !", "en": "💰 **{mention}** grabbed **{amount:,} {coin}**!"},
+    "drop_expired":     {"fr": "⌛ Personne n'a ramassé les coins — ils ont disparu.", "en": "⌛ Nobody grabbed the coins — they vanished."},
+    "drop_btn":         {"fr": "💰 Ramasser !", "en": "💰 Grab!"},
+    "drop_started":     {"fr": "✅ Drop de **{amount:,} {coin}** lancé dans {channel}.", "en": "✅ Dropped **{amount:,} {coin}** in {channel}."},
     # daily
     "daily_title":    {"fr": "Récompense quotidienne", "en": "Daily Reward"},
     "daily_desc":     {"fr": "Tu as réclamé **{amount:,}** coins !\nPortefeuille : **{wallet:,}** {coin}", "en": "You claimed **{amount:,}** coins!\nWallet: **{wallet:,}** {coin}"},
@@ -951,15 +958,14 @@ async def _handle_custom_commands(message: discord.Message) -> None:
             if footer_text:
                 embed.set_footer(text=_apply_custom_vars(footer_text, message, target=target_member))
             if reply_mode:
-                sent = await message.reply(embed=embed)
+                await message.reply(embed=embed)
             else:
-                sent = await message.channel.send(embed=embed)
+                await message.channel.send(embed=embed)
         else:
             if reply_mode:
-                sent = await message.reply(response_text)
+                await message.reply(response_text)
             else:
-                sent = await message.channel.send(response_text)
-
+                await message.channel.send(response_text)
 
         # Apply rewards after sending the response
         if cmd.get("rewardEnabled", False) and target_member is not None:
@@ -1278,6 +1284,97 @@ async def resetmoney(interaction: discord.Interaction, player: discord.Member) -
     embed = discord.Embed(title=_t("resetmoney_title"), description=_t("resetmoney_desc", mention=player.mention, coin=_coin()), colour=0xE74C3C)
     await interaction.followup.send(embed=embed)
     await log_to_api("INFO", f"Admin {interaction.user} reset {player}'s balance to 0")
+
+
+# ── /drop-money ───────────────────────────────────────────────────────────────
+
+class DropView(discord.ui.View):
+    """Single-use button: first member to click claims the dropped coins."""
+
+    def __init__(self, amount: int, dropper_id: int) -> None:
+        super().__init__(timeout=300)  # 5 min window
+        self.amount     = amount
+        self.dropper_id = dropper_id
+        self.claimed    = False
+
+    async def on_timeout(self) -> None:
+        # Disable the button and update the embed to show nobody claimed it
+        for child in self.children:
+            child.disabled = True  # type: ignore[attr-defined]
+        if self.message:
+            expired_embed = discord.Embed(
+                title       = _t("drop_title"),
+                description = _t("drop_expired"),
+                colour      = 0x95A5A6,
+            )
+            try:
+                await self.message.edit(embed=expired_embed, view=self)
+            except Exception:
+                pass
+
+    @discord.ui.button(label="💰 Ramasser !", style=discord.ButtonStyle.success)
+    async def grab(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if self.claimed:
+            await interaction.response.send_message("❌ Trop tard, quelqu'un d'autre a déjà ramassé ces coins !", ephemeral=True)
+            return
+        self.claimed = True
+        self.stop()
+
+        # Credit the claimer
+        try:
+            eco = await get_economy(interaction.user)
+            await set_wallet(interaction.user.id, eco["wallet"] + self.amount)
+        except Exception:
+            self.claimed = False
+            await interaction.response.send_message("❌ Erreur lors de l'attribution des coins. Réessaie.", ephemeral=True)
+            return
+
+        # Update button label and disable it
+        button.label    = _t("drop_btn")
+        button.disabled = True
+
+        claimed_embed = discord.Embed(
+            title       = _t("drop_title"),
+            description = _t("drop_claimed", mention=interaction.user.mention, amount=self.amount, coin=_coin()),
+            colour      = 0x2ECC71,
+        )
+        await interaction.response.edit_message(embed=claimed_embed, view=self)
+        await log_to_api("INFO", f"{interaction.user} grabbed a drop of {self.amount} {_coin()} (dropped by ID {self.dropper_id})")
+
+
+@bot.tree.command(name="drop-money", description="[Admin] Drop coins in the channel — first member to click claims them")
+@app_commands.describe(
+    amount="Amount of coins to drop",
+    message="Optional flavour text shown on the drop embed",
+)
+async def drop_money(
+    interaction: discord.Interaction,
+    amount: app_commands.Range[int, 1],
+    message: str = "",
+) -> None:
+    if not await check_cmd(interaction, "drop-money"): return
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    desc = _t("drop_desc", amount=amount, coin=_coin())
+    if message:
+        desc = f"*{message}*\n\n{desc}"
+
+    embed = discord.Embed(title=_t("drop_title"), description=desc, colour=0xF1C40F)
+    embed.set_footer(text=f"Lancé par {interaction.user.display_name}")
+
+    view = DropView(amount=amount, dropper_id=interaction.user.id)
+    sent = await interaction.channel.send(embed=embed, view=view)  # type: ignore[union-attr]
+    view.message = sent
+
+    await interaction.followup.send(
+        _t("drop_started", amount=amount, coin=_coin(), channel=interaction.channel.mention),  # type: ignore[union-attr]
+        ephemeral=True,
+    )
+    await log_to_api("INFO", f"Admin {interaction.user} dropped {amount} {_coin()} in #{interaction.channel}")
 
 
 # ── /addlevel ─────────────────────────────────────────────────────────────────
@@ -3150,7 +3247,7 @@ async def before_command_sync_poll() -> None:
 _CMD_CATEGORY: dict[str, str] = {
     # Economy
     "balance": "economy", "addmoney": "economy", "removemoney": "economy",
-    "setmoney": "economy", "resetmoney": "economy", "daily": "economy",
+    "setmoney": "economy", "resetmoney": "economy", "drop-money": "economy", "daily": "economy",
     "work": "economy", "crime": "economy", "deposit": "economy",
     "withdraw": "economy", "give": "economy", "leaderboard": "economy",
     "level": "economy", "level-top": "economy",

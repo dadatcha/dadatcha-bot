@@ -14,6 +14,7 @@ import randomActivityRouter from "./random-activity";
 import ticketsRouter from "./tickets";
 import welcomeRouter from "./welcome";
 import customCommandsRouter from "./custom-commands";
+import diagnosticsRouter from "./diagnostics";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(randomActivityRouter);
 router.use(ticketsRouter);
 router.use(welcomeRouter);
 router.use(customCommandsRouter);
+router.use(diagnosticsRouter);
 
 export default router;
