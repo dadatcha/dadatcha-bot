@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  useGetEconomyConfig, useUpdateEconomyConfig, getGetEconomyConfigQueryKey,
+  useGetEconomyConfig, useUpdateEconomyConfig, getGetEconomyConfigQueryKey, getGetEconomyConfigQueryOptions,
   useListPlayers, useUpdatePlayerBalance, getListPlayersQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -64,12 +64,15 @@ function EconomySettings() {
 
   const syncConfig = async () => {
     setSyncing(true);
-    await queryClient.invalidateQueries({ queryKey: getGetEconomyConfigQueryKey() });
-    await queryClient.refetchQueries({ queryKey: getGetEconomyConfigQueryKey() });
-    const fresh = queryClient.getQueryData<Cfg>(getGetEconomyConfigQueryKey());
-    if (fresh) { setForm(fresh); setSaved(fresh); }
-    setSyncing(false);
-    toast({ title: 'Configuration synchronisée' });
+    try {
+      const fresh = await queryClient.fetchQuery({ ...getGetEconomyConfigQueryOptions(), staleTime: 0 });
+      if (fresh) { setForm(fresh as Cfg); setSaved(fresh as Cfg); }
+      toast({ title: 'Configuration synchronisée' });
+    } catch {
+      toast({ title: 'Erreur de synchronisation', variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
   };
 
   function saveModule(fields: Partial<Cfg>) {
