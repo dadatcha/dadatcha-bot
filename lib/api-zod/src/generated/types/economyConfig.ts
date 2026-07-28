@@ -33,4 +33,5 @@ export interface EconomyConfig {
   rouletteEnabled: boolean;
   rouletteMaxBet: number;
   hlEnabled: boolean;
+  currencyName: string;
 }

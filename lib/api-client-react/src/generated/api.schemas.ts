@@ -84,6 +84,7 @@ export interface EconomyConfig {
   rouletteEnabled: boolean;
   rouletteMaxBet: number;
   hlEnabled: boolean;
+  currencyName: string;
 }
 
 export interface EconomyConfigInput {
@@ -113,6 +114,7 @@ export interface EconomyConfigInput {
   rouletteEnabled?: boolean;
   rouletteMaxBet?: number;
   hlEnabled?: boolean;
+  currencyName?: string;
 }
 
 export interface Player {

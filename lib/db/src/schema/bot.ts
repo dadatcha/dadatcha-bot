@@ -103,6 +103,7 @@ export const economyConfigTable = pgTable("economy_config", {
   rouletteEnabled: boolean("roulette_enabled").notNull().default(true),
   rouletteMaxBet: integer("roulette_max_bet").notNull().default(1000),
   hlEnabled: boolean("hl_enabled").notNull().default(true),
+  currencyName: text("currency_name").notNull().default("coins"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 

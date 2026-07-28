@@ -13,8 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Coins, Wallet, TrendingUp, Skull, ArrowDownToLine, ArrowUpFromLine,
-  Gift, Trophy, DollarSign, Eye, Pencil, Check, X, Search, Users,
+  Coins, TrendingUp, Skull,
+  Gift, Trophy, Sparkles, Eye, Pencil, Check, X, Search, Users,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -29,6 +29,7 @@ type Cfg = {
   depositEnabled: boolean; withdrawEnabled: boolean; giveEnabled: boolean; leaderboardEnabled: boolean;
   blackjackEnabled: boolean; blackjackMaxBet: number;
   rouletteEnabled: boolean; rouletteMaxBet: number; hlEnabled: boolean;
+  currencyName: string;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -77,27 +78,45 @@ function EconomySettings() {
 
   if (!form) return <div className="py-12 text-center text-muted-foreground text-sm">Loading…</div>;
 
+  const c = form.currencyName || 'coins';
+
   return (
     <div className="space-y-4">
-      {/* Starting wallet */}
+      {/* Currency name */}
+      <ModuleCard title="Currency" description="Name of the virtual currency shown in all bot messages."
+        icon={Sparkles} iconColor="text-violet-500"
+        enabled={true} onToggle={() => {}}
+        onSave={() => saveModule({ currencyName: form.currencyName })}
+        saving={update.isPending} dirty={dirty}>
+        <FieldRow label="Currency name" hint={`Shown after every amount — e.g. "500 ${c}".`}>
+          <input
+            value={form.currencyName}
+            onChange={e => p({ currencyName: e.target.value })}
+            placeholder="coins"
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </FieldRow>
+      </ModuleCard>
+
+      {/* Starting wallet / balance */}
       <ModuleCard title="/balance & /money" description="Show a player's wallet and bank balance."
         icon={Eye} enabled={form.balanceEnabled && form.moneyEnabled}
         onToggle={(v) => p({ balanceEnabled: v, moneyEnabled: v })}
         onSave={() => saveModule({ balanceEnabled: form.balanceEnabled, moneyEnabled: form.moneyEnabled, startingWallet: form.startingWallet })}
         saving={update.isPending} dirty={dirty}>
-        <FieldRow label="Starting wallet" hint="Coins given to new players on first command.">
-          <NumberField value={form.startingWallet} onChange={(v) => p({ startingWallet: v })} min={0} suffix="coins" />
+        <FieldRow label="Starting wallet" hint={`${c} given to new players on first command.`}>
+          <NumberField value={form.startingWallet} onChange={(v) => p({ startingWallet: v })} min={0} suffix={c} />
         </FieldRow>
       </ModuleCard>
 
       {/* Daily */}
-      <ModuleCard title="/daily" description="Claim a daily coin reward once every 24 hours."
+      <ModuleCard title="/daily" description={`Claim a daily ${c} reward once every 24 hours.`}
         icon={Gift} iconColor="text-yellow-500"
         enabled={form.dailyEnabled} onToggle={(v) => p({ dailyEnabled: v })}
         onSave={() => saveModule({ dailyEnabled: form.dailyEnabled, dailyAmount: form.dailyAmount, dailyCooldownHours: form.dailyCooldownHours })}
         saving={update.isPending} dirty={dirty}>
-        <FieldRow label="Reward amount" hint="Coins awarded per claim.">
-          <NumberField value={form.dailyAmount} onChange={(v) => p({ dailyAmount: v })} min={1} suffix="coins" />
+        <FieldRow label="Reward amount" hint={`${c} awarded per claim.`}>
+          <NumberField value={form.dailyAmount} onChange={(v) => p({ dailyAmount: v })} min={1} suffix={c} />
         </FieldRow>
         <FieldRow label="Cooldown" hint="Hours between claims.">
           <NumberField value={form.dailyCooldownHours} onChange={(v) => p({ dailyCooldownHours: v })} min={1} suffix="h" />
@@ -105,16 +124,16 @@ function EconomySettings() {
       </ModuleCard>
 
       {/* Work */}
-      <ModuleCard title="/work" description="Earn coins by working. Has a cooldown between uses."
+      <ModuleCard title="/work" description={`Earn ${c} by working. Has a cooldown between uses.`}
         icon={TrendingUp} iconColor="text-green-500"
         enabled={form.workEnabled} onToggle={(v) => p({ workEnabled: v })}
         onSave={() => saveModule({ workEnabled: form.workEnabled, workMinAmount: form.workMinAmount, workMaxAmount: form.workMaxAmount, workCooldownHours: form.workCooldownHours })}
         saving={update.isPending} dirty={dirty}>
         <FieldRow label="Min earnings">
-          <NumberField value={form.workMinAmount} onChange={(v) => p({ workMinAmount: v })} min={1} suffix="coins" />
+          <NumberField value={form.workMinAmount} onChange={(v) => p({ workMinAmount: v })} min={1} suffix={c} />
         </FieldRow>
         <FieldRow label="Max earnings">
-          <NumberField value={form.workMaxAmount} onChange={(v) => p({ workMaxAmount: v })} min={1} suffix="coins" />
+          <NumberField value={form.workMaxAmount} onChange={(v) => p({ workMaxAmount: v })} min={1} suffix={c} />
         </FieldRow>
         <FieldRow label="Cooldown">
           <NumberField value={form.workCooldownHours} onChange={(v) => p({ workCooldownHours: v })} min={1} suffix="h" />
@@ -122,7 +141,7 @@ function EconomySettings() {
       </ModuleCard>
 
       {/* Crime */}
-      <ModuleCard title="/crime" description="High-risk earn: chance of big reward or fine."
+      <ModuleCard title="/crime" description={`High-risk earn: chance of big reward or fine in ${c}.`}
         icon={Skull} iconColor="text-red-500"
         enabled={form.crimeEnabled} onToggle={(v) => p({ crimeEnabled: v })}
         onSave={() => saveModule({ crimeEnabled: form.crimeEnabled, crimeWinMin: form.crimeWinMin, crimeWinMax: form.crimeWinMax, crimeLoseMin: form.crimeLoseMin, crimeLoseMax: form.crimeLoseMax, crimeWinChance: form.crimeWinChance, crimeCooldownHours: form.crimeCooldownHours })}
@@ -131,16 +150,16 @@ function EconomySettings() {
           <NumberField value={form.crimeWinChance} onChange={(v) => p({ crimeWinChance: Math.min(100, Math.max(0, v)) })} min={0} max={100} suffix="%" />
         </FieldRow>
         <FieldRow label="Win min">
-          <NumberField value={form.crimeWinMin} onChange={(v) => p({ crimeWinMin: v })} min={1} suffix="coins" />
+          <NumberField value={form.crimeWinMin} onChange={(v) => p({ crimeWinMin: v })} min={1} suffix={c} />
         </FieldRow>
         <FieldRow label="Win max">
-          <NumberField value={form.crimeWinMax} onChange={(v) => p({ crimeWinMax: v })} min={1} suffix="coins" />
+          <NumberField value={form.crimeWinMax} onChange={(v) => p({ crimeWinMax: v })} min={1} suffix={c} />
         </FieldRow>
         <FieldRow label="Fine min">
-          <NumberField value={form.crimeLoseMin} onChange={(v) => p({ crimeLoseMin: v })} min={0} suffix="coins" />
+          <NumberField value={form.crimeLoseMin} onChange={(v) => p({ crimeLoseMin: v })} min={0} suffix={c} />
         </FieldRow>
         <FieldRow label="Fine max">
-          <NumberField value={form.crimeLoseMax} onChange={(v) => p({ crimeLoseMax: v })} min={0} suffix="coins" />
+          <NumberField value={form.crimeLoseMax} onChange={(v) => p({ crimeLoseMax: v })} min={0} suffix={c} />
         </FieldRow>
         <FieldRow label="Cooldown">
           <NumberField value={form.crimeCooldownHours} onChange={(v) => p({ crimeCooldownHours: v })} min={1} suffix="h" />
@@ -156,9 +175,9 @@ function EconomySettings() {
         saving={update.isPending} dirty={dirty}>
         <div className="space-y-3">
           {([
-            ['depositEnabled', '/deposit', 'Move coins from wallet to bank'],
-            ['withdrawEnabled', '/withdraw', 'Move coins from bank to wallet'],
-            ['giveEnabled', '/give', 'Transfer coins to another player'],
+            ['depositEnabled', '/deposit', `Move ${c} from wallet to bank`],
+            ['withdrawEnabled', '/withdraw', `Move ${c} from bank to wallet`],
+            ['giveEnabled', '/give', `Transfer ${c} to another player`],
             ['leaderboardEnabled', '/leaderboard', 'Show top 10 richest players'],
           ] as [keyof Cfg, string, string][]).map(([key, cmd, desc]) => (
             <div key={key} className="flex items-center justify-between py-1">

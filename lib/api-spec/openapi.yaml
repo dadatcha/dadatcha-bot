@@ -412,6 +412,8 @@ components:
           type: integer
         hlEnabled:
           type: boolean
+        currencyName:
+          type: string
       required:
         - startingWallet
         - balanceEnabled
@@ -439,6 +441,7 @@ components:
         - rouletteEnabled
         - rouletteMaxBet
         - hlEnabled
+        - currencyName
 
     EconomyConfigInput:
       type: object
@@ -495,6 +498,8 @@ components:
           type: integer
         hlEnabled:
           type: boolean
+        currencyName:
+          type: string
 
     Player:
       type: object

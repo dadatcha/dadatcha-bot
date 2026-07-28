@@ -66,6 +66,7 @@ function toEconomyConfig(r: typeof economyConfigTable.$inferSelect) {
     rouletteEnabled: r.rouletteEnabled,
     rouletteMaxBet: r.rouletteMaxBet,
     hlEnabled: r.hlEnabled,
+    currencyName: r.currencyName ?? "coins",
   };
 }
 

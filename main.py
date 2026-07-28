@@ -226,7 +226,12 @@ async def refresh_economy_config() -> None:
     data = await api_get_json("/economy/config")
     if data:
         _eco.update(data)
-        logger.info("Economy config refreshed")
+        logger.info("Economy config refreshed — currency: %s", _eco.get("currencyName", "coins"))
+
+
+def _coin() -> str:
+    """Return the current currency name (live from economy config)."""
+    return _eco.get("currencyName", "coins")
 
 
 # ── Economy DB helpers ────────────────────────────────────────────────────────
@@ -300,9 +305,9 @@ def is_admin(interaction: discord.Interaction) -> bool:
 async def balance(interaction: discord.Interaction) -> None:
     eco = await get_economy(interaction.user)
     embed = discord.Embed(title=f"Balance — {interaction.user.display_name}", colour=0x2ECC71)
-    embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** coins", inline=True)
-    embed.add_field(name="Bank", value=f"**{eco['bank']:,}** coins", inline=True)
-    embed.add_field(name="Total", value=f"**{eco['wallet'] + eco['bank']:,}** coins", inline=True)
+    embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** {_coin()}", inline=True)
+    embed.add_field(name="Bank", value=f"**{eco['bank']:,}** {_coin()}", inline=True)
+    embed.add_field(name="Total", value=f"**{eco['wallet'] + eco['bank']:,}** {_coin()}", inline=True)
     await interaction.response.send_message(embed=embed)
 
 
@@ -313,15 +318,15 @@ async def balance(interaction: discord.Interaction) -> None:
 async def money(interaction: discord.Interaction, player: discord.Member) -> None:
     eco = await get_economy(player)
     embed = discord.Embed(title=f"Balance — {player.display_name}", colour=0x3498DB)
-    embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** coins", inline=True)
-    embed.add_field(name="Bank", value=f"**{eco['bank']:,}** coins", inline=True)
-    embed.add_field(name="Total", value=f"**{eco['wallet'] + eco['bank']:,}** coins", inline=True)
+    embed.add_field(name="Wallet", value=f"**{eco['wallet']:,}** {_coin()}", inline=True)
+    embed.add_field(name="Bank", value=f"**{eco['bank']:,}** {_coin()}", inline=True)
+    embed.add_field(name="Total", value=f"**{eco['wallet'] + eco['bank']:,}** {_coin()}", inline=True)
     await interaction.response.send_message(embed=embed)
 
 
 # ── /addmoney ─────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="addmoney", description="[Admin] Add coins to a player's wallet or bank")
+@bot.tree.command(name="addmoney", description="[Admin] Add {_coin()} to a player's wallet or bank")
 @app_commands.describe(player="Target player", amount="Amount to add", location="Where to add the coins")
 @app_commands.choices(location=[
     app_commands.Choice(name="Wallet", value="wallet"),
@@ -343,25 +348,25 @@ async def addmoney(
         await set_bank(player.id, new_bank)
         embed = discord.Embed(
             title="Coins Added",
-            description=f"Added **{amount:,}** coins to {player.mention}'s **bank**.\nNew bank: **{new_bank:,}** coins",
+            description=f"Added **{amount:,}** {_coin()} to {player.mention}'s **bank**.\nNew bank: **{new_bank:,}** {_coin()}",
             colour=0x2ECC71,
         )
-        await log_to_api("INFO", f"Admin {interaction.user} added {amount} coins to {player}'s bank (new bank: {new_bank})")
+        await log_to_api("INFO", f"Admin {interaction.user} added {amount} {_coin()} to {player}'s bank (new bank: {new_bank})")
     else:
         new_wallet = eco["wallet"] + amount
         await set_wallet(player.id, new_wallet)
         embed = discord.Embed(
             title="Coins Added",
-            description=f"Added **{amount:,}** coins to {player.mention}'s **wallet**.\nNew wallet: **{new_wallet:,}** coins",
+            description=f"Added **{amount:,}** {_coin()} to {player.mention}'s **wallet**.\nNew wallet: **{new_wallet:,}** {_coin()}",
             colour=0x2ECC71,
         )
-        await log_to_api("INFO", f"Admin {interaction.user} added {amount} coins to {player}'s wallet (new wallet: {new_wallet})")
+        await log_to_api("INFO", f"Admin {interaction.user} added {amount} {_coin()} to {player}'s wallet (new wallet: {new_wallet})")
     await interaction.response.send_message(embed=embed)
 
 
 # ── /removemoney ──────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="removemoney", description="[Admin] Remove coins from a player's wallet or bank")
+@bot.tree.command(name="removemoney", description="[Admin] Remove {_coin()} from a player's wallet or bank")
 @app_commands.describe(player="Target player", amount="Amount to remove", location="Where to remove the coins from")
 @app_commands.choices(location=[
     app_commands.Choice(name="Wallet", value="wallet"),
@@ -383,19 +388,19 @@ async def removemoney(
         await set_bank(player.id, new_bank)
         embed = discord.Embed(
             title="Coins Removed",
-            description=f"Removed **{amount:,}** coins from {player.mention}'s **bank**.\nNew bank: **{new_bank:,}** coins",
+            description=f"Removed **{amount:,}** {_coin()} from {player.mention}'s **bank**.\nNew bank: **{new_bank:,}** {_coin()}",
             colour=0xE74C3C,
         )
-        await log_to_api("INFO", f"Admin {interaction.user} removed {amount} coins from {player}'s bank (new bank: {new_bank})")
+        await log_to_api("INFO", f"Admin {interaction.user} removed {amount} {_coin()} from {player}'s bank (new bank: {new_bank})")
     else:
         new_wallet = max(0, eco["wallet"] - amount)
         await set_wallet(player.id, new_wallet)
         embed = discord.Embed(
             title="Coins Removed",
-            description=f"Removed **{amount:,}** coins from {player.mention}'s **wallet**.\nNew wallet: **{new_wallet:,}** coins",
+            description=f"Removed **{amount:,}** {_coin()} from {player.mention}'s **wallet**.\nNew wallet: **{new_wallet:,}** {_coin()}",
             colour=0xE74C3C,
         )
-        await log_to_api("INFO", f"Admin {interaction.user} removed {amount} coins from {player}'s wallet (new wallet: {new_wallet})")
+        await log_to_api("INFO", f"Admin {interaction.user} removed {amount} {_coin()} from {player}'s wallet (new wallet: {new_wallet})")
     await interaction.response.send_message(embed=embed)
 
 
@@ -411,7 +416,7 @@ async def setmoney(interaction: discord.Interaction, player: discord.Member, amo
     await set_wallet(player.id, amount)
     embed = discord.Embed(
         title="Balance Set",
-        description=f"{player.mention}'s wallet set to **{amount:,}** coins.",
+        description=f"{player.mention}'s wallet set to **{amount:,}** {_coin()}.",
         colour=0xF1C40F,
     )
     await interaction.response.send_message(embed=embed)
@@ -430,7 +435,7 @@ async def resetmoney(interaction: discord.Interaction, player: discord.Member) -
     await set_both(player.id, 0, 0)
     embed = discord.Embed(
         title="Balance Reset",
-        description=f"{player.mention}'s wallet and bank have been reset to **0** coins.",
+        description=f"{player.mention}'s wallet and bank have been reset to **0** {_coin()}.",
         colour=0xE74C3C,
     )
     await interaction.response.send_message(embed=embed)
@@ -457,7 +462,7 @@ async def daily(interaction: discord.Interaction) -> None:
     await api_patch(f"/economy/players/{interaction.user.id}/daily", {"wallet": new_wallet})
     embed = discord.Embed(
         title="Daily Reward",
-        description=f"You claimed **{amount:,}** coins!\nWallet: **{new_wallet:,}** coins",
+        description=f"You claimed **{amount:,}** coins!\nWallet: **{new_wallet:,}** {_coin()}",
         colour=0xF1C40F,
     )
     embed.set_footer(text=f"Come back in {_eco['dailyCooldownHours']}h for your next reward.")
@@ -488,7 +493,7 @@ async def work(interaction: discord.Interaction) -> None:
     ]
     embed = discord.Embed(
         title="Work",
-        description=f"You {random.choice(jobs)} and earned **{earned:,}** coins!\nWallet: **{new_wallet:,}** coins",
+        description=f"You {random.choice(jobs)} and earned **{earned:,}** coins!\nWallet: **{new_wallet:,}** {_coin()}",
         colour=0x2ECC71,
     )
     embed.set_footer(text=f"Work again in {_eco['workCooldownHours']}h.")
@@ -519,7 +524,7 @@ async def crime(interaction: discord.Interaction) -> None:
         crimes = ["robbed a store", "hacked a server", "scammed a trader", "picked a pocket"]
         embed = discord.Embed(
             title="Crime Succeeded",
-            description=f"You {random.choice(crimes)} and got away with **{gained:,}** coins!\nWallet: **{new_wallet:,}** coins",
+            description=f"You {random.choice(crimes)} and got away with **{gained:,}** coins!\nWallet: **{new_wallet:,}** {_coin()}",
             colour=0x9B59B6,
         )
     else:
@@ -528,7 +533,7 @@ async def crime(interaction: discord.Interaction) -> None:
         await api_patch(f"/economy/players/{interaction.user.id}/crime", {"wallet": new_wallet})
         embed = discord.Embed(
             title="Crime Failed",
-            description=f"You got caught and paid a **{fine:,}** coin fine!\nWallet: **{new_wallet:,}** coins",
+            description=f"You got caught and paid a **{fine:,}** coin fine!\nWallet: **{new_wallet:,}** {_coin()}",
             colour=0xE74C3C,
         )
     embed.set_footer(text=f"Try again in {_eco['crimeCooldownHours']}h.")
@@ -537,7 +542,7 @@ async def crime(interaction: discord.Interaction) -> None:
 
 # ── /deposit ──────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="deposit", description="Deposit coins from your wallet into the bank")
+@bot.tree.command(name="deposit", description="Deposit {_coin()} from your wallet into the bank")
 @app_commands.describe(amount="Amount to deposit")
 async def deposit(interaction: discord.Interaction, amount: int) -> None:
     if not _eco["depositEnabled"]:
@@ -549,7 +554,7 @@ async def deposit(interaction: discord.Interaction, amount: int) -> None:
         return
     if amount > eco["wallet"]:
         await interaction.response.send_message(
-            f"You only have **{eco['wallet']:,}** coins in your wallet.", ephemeral=True
+            f"You only have **{eco['wallet']:,}** {_coin()} in your wallet.", ephemeral=True
         )
         return
     new_wallet = eco["wallet"] - amount
@@ -557,7 +562,7 @@ async def deposit(interaction: discord.Interaction, amount: int) -> None:
     await set_both(interaction.user.id, new_wallet, new_bank)
     embed = discord.Embed(
         title="Deposit",
-        description=f"Deposited **{amount:,}** coins into the bank.",
+        description=f"Deposited **{amount:,}** {_coin()} into the bank.",
         colour=0x3498DB,
     )
     embed.add_field(name="Wallet", value=f"**{new_wallet:,}**", inline=True)
@@ -567,7 +572,7 @@ async def deposit(interaction: discord.Interaction, amount: int) -> None:
 
 # ── /withdraw ─────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="withdraw", description="Withdraw coins from the bank into your wallet")
+@bot.tree.command(name="withdraw", description="Withdraw {_coin()} from the bank into your wallet")
 @app_commands.describe(amount="Amount to withdraw")
 async def withdraw(interaction: discord.Interaction, amount: int) -> None:
     if not _eco["withdrawEnabled"]:
@@ -579,7 +584,7 @@ async def withdraw(interaction: discord.Interaction, amount: int) -> None:
         return
     if amount > eco["bank"]:
         await interaction.response.send_message(
-            f"You only have **{eco['bank']:,}** coins in the bank.", ephemeral=True
+            f"You only have **{eco['bank']:,}** {_coin()} in the bank.", ephemeral=True
         )
         return
     new_wallet = eco["wallet"] + amount
@@ -587,7 +592,7 @@ async def withdraw(interaction: discord.Interaction, amount: int) -> None:
     await set_both(interaction.user.id, new_wallet, new_bank)
     embed = discord.Embed(
         title="Withdraw",
-        description=f"Withdrew **{amount:,}** coins from the bank.",
+        description=f"Withdrew **{amount:,}** {_coin()} from the bank.",
         colour=0x3498DB,
     )
     embed.add_field(name="Wallet", value=f"**{new_wallet:,}**", inline=True)
@@ -597,22 +602,22 @@ async def withdraw(interaction: discord.Interaction, amount: int) -> None:
 
 # ── /give ─────────────────────────────────────────────────────────────────────
 
-@bot.tree.command(name="give", description="Give coins from your wallet to another player")
+@bot.tree.command(name="give", description="Give {_coin()} from your wallet to another player")
 @app_commands.describe(player="Who to give to", amount="How many coins")
 async def give(interaction: discord.Interaction, player: discord.Member, amount: app_commands.Range[int, 1]) -> None:
     if not _eco["giveEnabled"]:
         await interaction.response.send_message("The `/give` command is currently disabled.", ephemeral=True)
         return
     if player.id == interaction.user.id:
-        await interaction.response.send_message("You cannot give coins to yourself.", ephemeral=True)
+        await interaction.response.send_message("You cannot give {_coin()} to yourself.", ephemeral=True)
         return
     if player.bot:
-        await interaction.response.send_message("You cannot give coins to a bot.", ephemeral=True)
+        await interaction.response.send_message("You cannot give {_coin()} to a bot.", ephemeral=True)
         return
     eco = await get_economy(interaction.user)
     if amount > eco["wallet"]:
         await interaction.response.send_message(
-            f"You only have **{eco['wallet']:,}** coins in your wallet.", ephemeral=True
+            f"You only have **{eco['wallet']:,}** {_coin()} in your wallet.", ephemeral=True
         )
         return
     eco_target = await get_economy(player)
@@ -620,7 +625,7 @@ async def give(interaction: discord.Interaction, player: discord.Member, amount:
     await set_wallet(player.id, eco_target["wallet"] + amount)
     embed = discord.Embed(
         title="Transfer",
-        description=f"You gave **{amount:,}** coins to {player.mention}.",
+        description=f"You gave **{amount:,}** {_coin()} to {player.mention}.",
         colour=0x2ECC71,
     )
     await interaction.response.send_message(embed=embed)
@@ -653,7 +658,7 @@ async def leaderboard(interaction: discord.Interaction) -> None:
     for i, p in enumerate(top):
         medal = medals[i] if i < 3 else f"`{i+1}.`"
         total = p["wallet"] + p["bank"]
-        lines.append(f"{medal} **{p['username']}** — {total:,} coins")
+        lines.append(f"{medal} **{p['username']}** — {total:,} {_coin()}")
     embed.description = "\n".join(lines) if lines else "No players yet."
     await interaction.followup.send(embed=embed)
 
@@ -715,7 +720,7 @@ class BlackjackView(discord.ui.View):
             value=fmt_hand(self.player),
             inline=False,
         )
-        embed.set_footer(text=f"Bet: {self.bet} coins")
+        embed.set_footer(text=f"Bet: {self.bet} {_coin()}")
         return embed
 
     async def end_game(self, interaction: discord.Interaction, reason: str) -> None:
@@ -727,7 +732,7 @@ class BlackjackView(discord.ui.View):
 
         if player_total > 21:
             delta = -self.bet
-            result = f"\U0001f4a5 Bust! You lost **{self.bet:,}** coins."
+            result = f"\U0001f4a5 Bust! You lost **{self.bet:,}** {_coin()}."
             colour = 0xE74C3C
         elif reason == "stand":
             while hand_total(self.dealer) < 17:
@@ -735,7 +740,7 @@ class BlackjackView(discord.ui.View):
             dealer_total = hand_total(self.dealer)
             if dealer_total > 21 or player_total > dealer_total:
                 delta = self.bet
-                result = f"\U0001f3c6 You win **{self.bet:,}** coins!"
+                result = f"\U0001f3c6 You win **{self.bet:,}** {_coin()}!"
                 colour = 0x2ECC71
             elif player_total == dealer_total:
                 delta = 0
@@ -743,11 +748,11 @@ class BlackjackView(discord.ui.View):
                 colour = 0xF1C40F
             else:
                 delta = -self.bet
-                result = f"\U0001f61e Dealer wins. You lost **{self.bet:,}** coins."
+                result = f"\U0001f61e Dealer wins. You lost **{self.bet:,}** {_coin()}."
                 colour = 0xE74C3C
         else:
             delta = int(self.bet * 1.5)
-            result = f"\U0001f389 Blackjack! You win **{delta:,}** coins!"
+            result = f"\U0001f389 Blackjack! You win **{delta:,}** {_coin()}!"
             colour = 0xF1C40F
 
         new_wallet = max(0, self.initial_wallet + delta)
@@ -755,7 +760,7 @@ class BlackjackView(discord.ui.View):
 
         embed = self.build_embed(title=result, hide_dealer=False)
         embed.colour = colour
-        embed.set_footer(text=f"Wallet: {new_wallet:,} coins")
+        embed.set_footer(text=f"Wallet: {new_wallet:,} {_coin()}")
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="Hit", style=discord.ButtonStyle.primary, emoji="\U0001f0cf")
@@ -776,19 +781,19 @@ class BlackjackView(discord.ui.View):
 
 
 @bot.tree.command(name="blackjack", description="Play a round of blackjack")
-@app_commands.describe(bet="How many coins to bet")
+@app_commands.describe(bet="How many {_coin()} to bet")
 async def blackjack(interaction: discord.Interaction, bet: int = 100) -> None:
     if not _eco["blackjackEnabled"]:
         await interaction.response.send_message("The `/blackjack` command is currently disabled.", ephemeral=True)
         return
     max_bet = _eco["blackjackMaxBet"]
     if bet < 1 or bet > max_bet:
-        await interaction.response.send_message(f"Bet must be between 1 and {max_bet:,} coins.", ephemeral=True)
+        await interaction.response.send_message(f"Bet must be between 1 and {max_bet:,} {_coin()}.", ephemeral=True)
         return
     eco = await get_economy(interaction.user)
     if eco["wallet"] < bet:
         await interaction.response.send_message(
-            f"You only have **{eco['wallet']:,}** coins in your wallet.", ephemeral=True
+            f"You only have **{eco['wallet']:,}** {_coin()} in your wallet.", ephemeral=True
         )
         return
     deck = new_deck()
@@ -902,11 +907,11 @@ class RouletteView(discord.ui.View):
         if won:
             winnings = self.bet * multipliers[choice]
             delta = winnings - self.bet
-            title = f"\U0001f3b0 {colour_emoji} {result} — You win **{winnings:,}** coins!"
+            title = f"\U0001f3b0 {colour_emoji} {result} — You win **{winnings:,}** {_coin()}!"
             colour = 0x2ECC71
         else:
             delta = -self.bet
-            title = f"\U0001f3b0 {colour_emoji} {result} — You lost **{self.bet:,}** coins."
+            title = f"\U0001f3b0 {colour_emoji} {result} — You lost **{self.bet:,}** {_coin()}."
             colour = 0xE74C3C
 
         new_wallet = max(0, self.initial_wallet + delta)
@@ -914,26 +919,26 @@ class RouletteView(discord.ui.View):
 
         embed = discord.Embed(
             title=title,
-            description=f"You bet **{choice}** with **{self.bet:,}** coins.\nWallet: **{new_wallet:,}** coins",
+            description=f"You bet **{choice}** with **{self.bet:,}** coins.\nWallet: **{new_wallet:,}** {_coin()}",
             colour=colour,
         )
         await interaction.response.edit_message(embed=embed, view=self)
 
 
 @bot.tree.command(name="roulette", description="Spin the roulette wheel")
-@app_commands.describe(bet="How many coins to bet")
+@app_commands.describe(bet="How many {_coin()} to bet")
 async def roulette(interaction: discord.Interaction, bet: int = 100) -> None:
     if not _eco["rouletteEnabled"]:
         await interaction.response.send_message("The `/roulette` command is currently disabled.", ephemeral=True)
         return
     max_bet = _eco["rouletteMaxBet"]
     if bet < 1 or bet > max_bet:
-        await interaction.response.send_message(f"Bet must be between 1 and {max_bet:,} coins.", ephemeral=True)
+        await interaction.response.send_message(f"Bet must be between 1 and {max_bet:,} {_coin()}.", ephemeral=True)
         return
     eco = await get_economy(interaction.user)
     if eco["wallet"] < bet:
         await interaction.response.send_message(
-            f"You only have **{eco['wallet']:,}** coins in your wallet.", ephemeral=True
+            f"You only have **{eco['wallet']:,}** {_coin()} in your wallet.", ephemeral=True
         )
         return
     view = RouletteView(bet=bet, player_user=interaction.user, initial_wallet=eco["wallet"])

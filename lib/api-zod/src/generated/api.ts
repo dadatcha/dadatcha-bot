@@ -193,7 +193,8 @@ export const GetEconomyConfigResponse = zod.object({
   "blackjackMaxBet": zod.number(),
   "rouletteEnabled": zod.boolean(),
   "rouletteMaxBet": zod.number(),
-  "hlEnabled": zod.boolean()
+  "hlEnabled": zod.boolean(),
+  "currencyName": zod.string()
 })
 
 
@@ -226,7 +227,8 @@ export const UpdateEconomyConfigBody = zod.object({
   "blackjackMaxBet": zod.number().optional(),
   "rouletteEnabled": zod.boolean().optional(),
   "rouletteMaxBet": zod.number().optional(),
-  "hlEnabled": zod.boolean().optional()
+  "hlEnabled": zod.boolean().optional(),
+  "currencyName": zod.string().optional()
 })
 
 export const UpdateEconomyConfigResponse = zod.object({
@@ -255,7 +257,8 @@ export const UpdateEconomyConfigResponse = zod.object({
   "blackjackMaxBet": zod.number(),
   "rouletteEnabled": zod.boolean(),
   "rouletteMaxBet": zod.number(),
-  "hlEnabled": zod.boolean()
+  "hlEnabled": zod.boolean(),
+  "currencyName": zod.string()
 })
 
 
