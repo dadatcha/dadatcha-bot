@@ -254,7 +254,19 @@ export default function Commands() {
             Contrôle quelles commandes sont <span className="font-medium">actives</span> sur Discord et lesquelles sont réservées aux <span className="font-medium">administrateurs</span>.
           </p>
         </div>
-        <SyncBanner />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refresh}
+            disabled={isLoading}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Rafraîchir
+          </Button>
+          <SyncBanner />
+        </div>
       </div>
 
       {/* Legend */}
