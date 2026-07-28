@@ -951,14 +951,16 @@ async def _handle_custom_commands(message: discord.Message) -> None:
             if footer_text:
                 embed.set_footer(text=_apply_custom_vars(footer_text, message, target=target_member))
             if reply_mode:
-                await message.reply(embed=embed)
+                sent = await message.reply(embed=embed)
             else:
-                await message.channel.send(embed=embed)
+                sent = await message.channel.send(embed=embed)
         else:
             if reply_mode:
-                await message.reply(response_text)
+                sent = await message.reply(response_text)
             else:
-                await message.channel.send(response_text)
+                sent = await message.channel.send(response_text)
+
+        logger.info("DBG cc SENT pid=%s trigger=%r sent_msg_id=%s", os.getpid(), trigger, sent.id)
 
         # Apply rewards after sending the response
         if cmd.get("rewardEnabled", False) and target_member is not None:
