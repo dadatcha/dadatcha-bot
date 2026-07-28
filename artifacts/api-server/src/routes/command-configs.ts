@@ -35,8 +35,12 @@ const KNOWN_COMMANDS = [
   { name: "giveaway-start",  label: "Giveaway Start",  description: "Ouvrir le panneau de création de giveaway [Admin]", category: "giveaway" },
   { name: "giveaway-end",    label: "Giveaway End",    description: "Terminer un giveaway immédiatement [Admin]",          category: "giveaway" },
   { name: "giveaway-reroll", label: "Giveaway Reroll", description: "Retirer un nouveau gagnant [Admin]",                  category: "giveaway" },
-  { name: "config-language", label: "Config Language", description: "Changer la langue du bot [Admin]",                    category: "config"         },
-  { name: "set-rdm-msg",    label: "Set Random Msg",  description: "Configurer les messages aléatoires du bot [Admin]",  category: "random-activity" },
+  { name: "config-language", label: "Config Language", description: "Changer la langue du bot [Admin]",                          category: "config"          },
+  { name: "rdm-config",     label: "Rdm Config",      description: "Voir ou modifier la config des msgs aléatoires [Admin]",  category: "random-activity" },
+  { name: "rdm-toggle",     label: "Rdm Toggle",      description: "Activer / désactiver les msgs aléatoires en un clic [Admin]", category: "random-activity" },
+  { name: "rdm-add",        label: "Rdm Add",         description: "Ajouter un message au pool [Admin]",                     category: "random-activity" },
+  { name: "rdm-list",       label: "Rdm List",        description: "Lister tous les messages du pool avec leurs IDs [Admin]", category: "random-activity" },
+  { name: "rdm-remove",     label: "Rdm Remove",      description: "Supprimer un message du pool par son ID [Admin]",        category: "random-activity" },
 ] as const;
 
 const KNOWN_COMMAND_NAMES = new Set(KNOWN_COMMANDS.map(c => c.name));
