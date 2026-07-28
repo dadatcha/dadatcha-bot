@@ -120,7 +120,7 @@ function EconomySettings() {
       </ModuleCard>
 
       {/* Starting wallet / balance */}
-      <ModuleCard title="/balance & /money" description="Show a player's wallet and bank balance."
+      <ModuleCard title="/balance" description="Show a player's wallet and bank balance."
         icon={Eye} enabled={form.balanceEnabled && form.moneyEnabled}
         onToggle={(v) => p({ balanceEnabled: v, moneyEnabled: v })}
         onSave={() => saveModule({ balanceEnabled: form.balanceEnabled, moneyEnabled: form.moneyEnabled, startingWallet: form.startingWallet })}
