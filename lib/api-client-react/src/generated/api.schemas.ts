@@ -182,6 +182,7 @@ export interface CommandConfig {
 export interface CommandConfigInput {
   enabled?: boolean;
   adminOnly?: boolean;
+  label?: string;
 }
 
 export interface RoleReward {

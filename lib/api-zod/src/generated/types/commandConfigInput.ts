@@ -9,4 +9,5 @@
 export interface CommandConfigInput {
   enabled?: boolean;
   adminOnly?: boolean;
+  label?: string;
 }

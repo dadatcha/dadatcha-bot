@@ -5,9 +5,10 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Terminal, Coins, Gamepad2, ShoppingBag, Lock, Eye, EyeOff } from 'lucide-react';
+import { Terminal, Coins, Gamepad2, ShoppingBag, Lock, Eye, EyeOff, Pencil, Check, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -35,18 +36,42 @@ function CommandRow({ cmd, onSaved }: { cmd: CmdConfig; onSaved: () => void }) {
   const { toast } = useToast();
   const update = useUpdateCommandConfig();
 
-  const [enabled,   setEnabled]   = useState(cmd.enabled);
-  const [adminOnly, setAdminOnly] = useState(cmd.adminOnly);
-  const dirty = enabled !== cmd.enabled || adminOnly !== cmd.adminOnly;
+  const [enabled,      setEnabled]      = useState(cmd.enabled);
+  const [adminOnly,    setAdminOnly]    = useState(cmd.adminOnly);
+  const [label,        setLabel]        = useState(cmd.label);
+  const [editingLabel, setEditingLabel] = useState(false);
+  const [labelDraft,   setLabelDraft]   = useState(cmd.label);
 
-  function save() {
+  const dirty = enabled !== cmd.enabled || adminOnly !== cmd.adminOnly || label !== cmd.label;
+
+  function save(overrides?: { label?: string }) {
+    const finalLabel = overrides?.label ?? label;
     update.mutate(
-      { name: cmd.name, data: { enabled, adminOnly } },
+      { name: cmd.name, data: { enabled, adminOnly, label: finalLabel } },
       {
         onSuccess: () => { toast({ title: `/${cmd.name} sauvegardé` }); onSaved(); },
         onError:   () => toast({ title: 'Erreur de sauvegarde', variant: 'destructive' }),
       }
     );
+  }
+
+  function commitLabel() {
+    const trimmed = labelDraft.trim() || cmd.label;
+    setLabel(trimmed);
+    setLabelDraft(trimmed);
+    setEditingLabel(false);
+    update.mutate(
+      { name: cmd.name, data: { enabled, adminOnly, label: trimmed } },
+      {
+        onSuccess: () => { toast({ title: `Nom mis à jour` }); onSaved(); },
+        onError:   () => toast({ title: 'Erreur de sauvegarde', variant: 'destructive' }),
+      }
+    );
+  }
+
+  function cancelLabel() {
+    setLabelDraft(label);
+    setEditingLabel(false);
   }
 
   return (
@@ -56,12 +81,36 @@ function CommandRow({ cmd, onSaved }: { cmd: CmdConfig; onSaved: () => void }) {
       !enabled && 'opacity-60',
       dirty ? 'border-indigo-200 bg-indigo-50/30' : 'border-border bg-card',
     )}>
-      {/* Name + description */}
+      {/* Name + label + description */}
       <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <code className="text-xs font-semibold bg-muted px-1.5 py-0.5 rounded text-foreground">
+        <div className="flex items-center gap-2 flex-wrap">
+          <code className="text-xs font-semibold bg-muted px-1.5 py-0.5 rounded text-foreground shrink-0">
             /{cmd.name}
           </code>
+
+          {/* Editable label */}
+          {editingLabel ? (
+            <div className="flex items-center gap-1">
+              <Input
+                autoFocus
+                value={labelDraft}
+                onChange={e => setLabelDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') commitLabel(); if (e.key === 'Escape') cancelLabel(); }}
+                className="h-6 text-xs px-2 w-36"
+              />
+              <Button size="sm" variant="ghost" onClick={commitLabel} className="h-6 w-6 p-0 text-indigo-600"><Check className="w-3 h-3" /></Button>
+              <Button size="sm" variant="ghost" onClick={cancelLabel}  className="h-6 w-6 p-0 text-muted-foreground"><X className="w-3 h-3" /></Button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setLabelDraft(label); setEditingLabel(true); }}
+              className="group flex items-center gap-1 text-xs font-medium text-foreground hover:text-indigo-600 transition-colors"
+            >
+              {label}
+              <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+            </button>
+          )}
+
           {!enabled && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-orange-500 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded">
               <EyeOff className="w-2.5 h-2.5" /> Masquée
@@ -83,7 +132,6 @@ function CommandRow({ cmd, onSaved }: { cmd: CmdConfig; onSaved: () => void }) {
           checked={enabled}
           onCheckedChange={v => {
             setEnabled(v);
-            // If disabling, also clear adminOnly to avoid confusion
             if (!v) setAdminOnly(false);
           }}
         />
@@ -103,7 +151,7 @@ function CommandRow({ cmd, onSaved }: { cmd: CmdConfig; onSaved: () => void }) {
       <Button
         size="sm"
         variant={dirty ? 'default' : 'ghost'}
-        onClick={save}
+        onClick={() => save()}
         disabled={!dirty || update.isPending}
         className={cn('h-7 px-3 text-xs', !dirty && 'opacity-0 pointer-events-none')}
       >

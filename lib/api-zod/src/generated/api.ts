@@ -445,7 +445,8 @@ export const UpdateCommandConfigParams = zod.object({
 
 export const UpdateCommandConfigBody = zod.object({
   "enabled": zod.boolean().optional(),
-  "adminOnly": zod.boolean().optional()
+  "adminOnly": zod.boolean().optional(),
+  "label": zod.string().optional()
 })
 
 export const UpdateCommandConfigResponse = zod.object({

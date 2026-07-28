@@ -79,12 +79,14 @@ router.put("/command-configs/:name", async (req, res): Promise<void> => {
       commandName: name,
       enabled:   d.enabled  ?? true,
       adminOnly: d.adminOnly ?? false,
+      label:     d.label ?? null,
     })
     .onConflictDoUpdate({
       target: commandConfigsTable.commandName,
       set: {
-        enabled:   d.enabled  ?? true,
-        adminOnly: d.adminOnly ?? false,
+        ...(d.enabled   !== undefined && { enabled:   d.enabled }),
+        ...(d.adminOnly !== undefined && { adminOnly: d.adminOnly }),
+        ...(d.label     !== undefined && { label:     d.label }),
         updatedAt: new Date(),
       },
     })

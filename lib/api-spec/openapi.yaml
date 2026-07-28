@@ -837,6 +837,8 @@ components:
           type: boolean
         adminOnly:
           type: boolean
+        label:
+          type: string
 
     RoleReward:
       type: object
