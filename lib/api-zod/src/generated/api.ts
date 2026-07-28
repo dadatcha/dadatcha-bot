@@ -599,6 +599,7 @@ export const ListGiveawaysResponseItem = zod.object({
   "forbiddenRoleIds": zod.array(zod.string()),
   "hostId": zod.string().nullable(),
   "mentionedUserIds": zod.array(zod.string()),
+  "mentionedRoleIds": zod.array(zod.string()),
   "rewards": zod.array(zod.object({
   "type": zod.string(),
   "amount": zod.number().optional(),
@@ -626,6 +627,7 @@ export const CreateGiveawayBody = zod.object({
   "forbiddenRoleIds": zod.array(zod.string()).optional(),
   "hostId": zod.string().optional(),
   "mentionedUserIds": zod.array(zod.string()).optional(),
+  "mentionedRoleIds": zod.array(zod.string()).optional(),
   "rewards": zod.array(zod.object({
   "type": zod.string(),
   "amount": zod.number().optional(),
@@ -653,6 +655,7 @@ export const CreateGiveawayResponse = zod.object({
   "forbiddenRoleIds": zod.array(zod.string()),
   "hostId": zod.string().nullable(),
   "mentionedUserIds": zod.array(zod.string()),
+  "mentionedRoleIds": zod.array(zod.string()),
   "rewards": zod.array(zod.object({
   "type": zod.string(),
   "amount": zod.number().optional(),
@@ -689,6 +692,7 @@ export const GetGiveawayResponse = zod.object({
   "forbiddenRoleIds": zod.array(zod.string()),
   "hostId": zod.string().nullable(),
   "mentionedUserIds": zod.array(zod.string()),
+  "mentionedRoleIds": zod.array(zod.string()),
   "rewards": zod.array(zod.object({
   "type": zod.string(),
   "amount": zod.number().optional(),
@@ -731,6 +735,7 @@ export const UpdateGiveawayResponse = zod.object({
   "forbiddenRoleIds": zod.array(zod.string()),
   "hostId": zod.string().nullable(),
   "mentionedUserIds": zod.array(zod.string()),
+  "mentionedRoleIds": zod.array(zod.string()),
   "rewards": zod.array(zod.object({
   "type": zod.string(),
   "amount": zod.number().optional(),
@@ -781,6 +786,7 @@ export const EndGiveawayResponse = zod.object({
   "forbiddenRoleIds": zod.array(zod.string()),
   "hostId": zod.string().nullable(),
   "mentionedUserIds": zod.array(zod.string()),
+  "mentionedRoleIds": zod.array(zod.string()),
   "rewards": zod.array(zod.object({
   "type": zod.string(),
   "amount": zod.number().optional(),
@@ -821,6 +827,7 @@ export const RerollGiveawayResponse = zod.object({
   "forbiddenRoleIds": zod.array(zod.string()),
   "hostId": zod.string().nullable(),
   "mentionedUserIds": zod.array(zod.string()),
+  "mentionedRoleIds": zod.array(zod.string()),
   "rewards": zod.array(zod.object({
   "type": zod.string(),
   "amount": zod.number().optional(),

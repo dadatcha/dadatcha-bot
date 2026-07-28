@@ -18,5 +18,6 @@ export interface GiveawayInput {
   forbiddenRoleIds?: string[];
   hostId?: string;
   mentionedUserIds?: string[];
+  mentionedRoleIds?: string[];
   rewards?: GiveawayReward[];
 }

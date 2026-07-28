@@ -1365,9 +1365,9 @@ async def _post_giveaway_embed(giveaway: dict) -> None:
     ends_ts = int(ends_at.timestamp())
     embed = _build_giveaway_embed(giveaway, ends_ts)
 
-    # Ping mentioned users before the embed
-    mentioned = giveaway.get("mentionedUserIds") or []
-    mention_ping = " ".join(f"<@{uid}>" for uid in mentioned) if mentioned else ""
+    # Ping mentioned roles before the embed
+    mentioned = giveaway.get("mentionedRoleIds") or []
+    mention_ping = " ".join(f"<@&{rid}>" for rid in mentioned) if mentioned else ""
 
     try:
         if mention_ping:
@@ -1592,7 +1592,7 @@ class _GiveawayCfg:
         self.duration_minutes: int = 60
         self.winners_count: int = 1
         self.host_id: Optional[str] = None
-        self.mentioned_user_ids: list[str] = []
+        self.mentioned_role_ids: list[str] = []
         self.required_role_ids: list[str] = []
         self.forbidden_role_ids: list[str] = []
         self.required_min_balance: Optional[int] = None
@@ -1612,8 +1612,8 @@ class _GiveawayCfg:
         }
         if self.host_id:
             body["hostId"] = self.host_id
-        if self.mentioned_user_ids:
-            body["mentionedUserIds"] = self.mentioned_user_ids
+        if self.mentioned_role_ids:
+            body["mentionedRoleIds"] = self.mentioned_role_ids
         if self.required_role_ids:
             body["requiredRoleIds"] = self.required_role_ids
         if self.forbidden_role_ids:
@@ -1641,8 +1641,8 @@ class _GiveawayCfg:
         if self.host_id:
             lines.append(f"**👤 Organisateur :** <@{self.host_id}>")
 
-        if self.mentioned_user_ids:
-            pings = " ".join(f"<@{uid}>" for uid in self.mentioned_user_ids)
+        if self.mentioned_role_ids:
+            pings = " ".join(f"<@&{rid}>" for rid in self.mentioned_role_ids)
             lines.append(f"**💬 Mentions :** {pings}")
 
         # Conditions
@@ -1743,12 +1743,12 @@ class GiveawaySetupView(discord.ui.View):
             view=_UserSelectView(self, "host", 1, "l'organisateur"),
         )
 
-    @discord.ui.button(label="💬 Mentions", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label="💬 Mentions (rôles)", style=discord.ButtonStyle.secondary, row=1)
     async def btn_mentions(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         self._sync_launch_button()
         await interaction.response.edit_message(
             embed=self.cfg.summary_embed(),
-            view=_UserSelectView(self, "mentions", 10, "les membres à mentionner"),
+            view=_RoleSelectView(self, "mentions", "les rôles à mentionner"),
         )
 
     @discord.ui.button(label="💰 Solde min.", style=discord.ButtonStyle.secondary, row=1)
@@ -1885,8 +1885,10 @@ class _RoleSelectView(_SubView):
         ids = [str(r.id) for r in self._selected]
         if self.field == "allowed":
             self.parent.cfg.required_role_ids = ids
-        else:
+        elif self.field == "forbidden":
             self.parent.cfg.forbidden_role_ids = ids
+        else:  # mentions
+            self.parent.cfg.mentioned_role_ids = ids
         await self._back(interaction)
 
     @discord.ui.button(label="↩️ Retour", style=discord.ButtonStyle.secondary, row=1)

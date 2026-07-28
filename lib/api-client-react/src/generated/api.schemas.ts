@@ -267,6 +267,7 @@ export interface Giveaway {
   /** @nullable */
   hostId: string | null;
   mentionedUserIds: string[];
+  mentionedRoleIds: string[];
   rewards: GiveawayReward[];
   createdAt: string;
 }
@@ -282,6 +283,7 @@ export interface GiveawayInput {
   forbiddenRoleIds?: string[];
   hostId?: string;
   mentionedUserIds?: string[];
+  mentionedRoleIds?: string[];
   rewards?: GiveawayReward[];
 }
 

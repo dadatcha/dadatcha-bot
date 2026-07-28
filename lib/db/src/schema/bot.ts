@@ -211,6 +211,7 @@ export const giveawaysTable = pgTable("giveaways", {
   forbiddenRoleIds:    text("forbidden_role_ids").array().notNull().default([]),
   hostId:              text("host_id"),
   mentionedUserIds:    text("mentioned_user_ids").array().notNull().default([]),
+  mentionedRoleIds:    text("mentioned_role_ids").array().notNull().default([]),
   rewards:             json("rewards").$type<GiveawayReward[]>().notNull().default([]),
   createdAt:           timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

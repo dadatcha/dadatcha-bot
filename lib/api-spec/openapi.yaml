@@ -1148,13 +1148,17 @@ components:
           type: array
           items:
             type: string
+        mentionedRoleIds:
+          type: array
+          items:
+            type: string
         rewards:
           type: array
           items:
             $ref: "#/components/schemas/GiveawayReward"
         createdAt:
           type: string
-      required: [id, channelId, messageId, guildId, prize, winnersCount, endsAt, endedAt, winners, status, requiredRoleId, requiredMinBalance, requiredRoleIds, forbiddenRoleIds, hostId, mentionedUserIds, rewards, createdAt]
+      required: [id, channelId, messageId, guildId, prize, winnersCount, endsAt, endedAt, winners, status, requiredRoleId, requiredMinBalance, requiredRoleIds, forbiddenRoleIds, hostId, mentionedUserIds, mentionedRoleIds, rewards, createdAt]
 
     GiveawayInput:
       type: object
@@ -1182,6 +1186,10 @@ components:
         hostId:
           type: string
         mentionedUserIds:
+          type: array
+          items:
+            type: string
+        mentionedRoleIds:
           type: array
           items:
             type: string

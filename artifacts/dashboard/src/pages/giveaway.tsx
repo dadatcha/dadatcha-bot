@@ -37,7 +37,7 @@ type Giveaway = {
   requiredRoleIds: string[];
   forbiddenRoleIds: string[];
   hostId: string | null;
-  mentionedUserIds: string[];
+  mentionedRoleIds: string[];
   rewards: GiveawayReward[];
   createdAt: string;
 };
@@ -149,13 +149,13 @@ function GiveawayCard({ g, onDeleted }: { g: Giveaway; onDeleted: () => void }) 
       </div>
 
       {/* People */}
-      {(g.hostId || g.mentionedUserIds?.length > 0) && (
+      {(g.hostId || g.mentionedRoleIds?.length > 0) && (
         <div className="flex flex-wrap gap-1.5">
           {g.hostId && (
             <Chip icon={User} color="blue">Host <code className="font-mono text-[9px]">{g.hostId}</code></Chip>
           )}
-          {g.mentionedUserIds?.map(uid => (
-            <Chip key={uid} icon={MessageCircle} color="blue"><code className="font-mono text-[9px]">{uid}</code></Chip>
+          {g.mentionedRoleIds?.map(rid => (
+            <Chip key={rid} icon={MessageCircle} color="blue">@&amp;<code className="font-mono text-[9px]">{rid}</code></Chip>
           ))}
         </div>
       )}
@@ -262,7 +262,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
   const create = useCreateGiveaway();
   const [form, setForm] = useState({
     prize: '', channelId: '', durationMinutes: 60, winnersCount: 1,
-    hostId: '', mentionedUserIds: '',
+    hostId: '', mentionedRoleIds: '',
     requiredRoleIds: '', forbiddenRoleIds: '',
     requiredMinBalance: '',
     // rewards added as chips
@@ -295,7 +295,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       rewards: form.rewards,
     };
     if (form.hostId.trim()) data.hostId = form.hostId.trim();
-    if (form.mentionedUserIds.trim()) data.mentionedUserIds = form.mentionedUserIds.split(',').map(s => s.trim()).filter(Boolean);
+    if (form.mentionedRoleIds.trim()) data.mentionedRoleIds = form.mentionedRoleIds.split(',').map(s => s.trim()).filter(Boolean);
     if (form.requiredRoleIds.trim()) data.requiredRoleIds = form.requiredRoleIds.split(',').map(s => s.trim()).filter(Boolean);
     if (form.forbiddenRoleIds.trim()) data.forbiddenRoleIds = form.forbiddenRoleIds.split(',').map(s => s.trim()).filter(Boolean);
     if (form.requiredMinBalance.trim()) data.requiredMinBalance = Number(form.requiredMinBalance);
@@ -303,7 +303,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
     create.mutate({ data }, {
       onSuccess: () => {
         toast({ title: '🎉 Giveaway créé !' });
-        setForm({ prize: '', channelId: '', durationMinutes: 60, winnersCount: 1, hostId: '', mentionedUserIds: '', requiredRoleIds: '', forbiddenRoleIds: '', requiredMinBalance: '', rewards: [], rewardType: 'money', rewardAmount: '', rewardRoleId: '', rewardRoleName: '', rewardItemId: '', rewardItemName: '' });
+        setForm({ prize: '', channelId: '', durationMinutes: 60, winnersCount: 1, hostId: '', mentionedRoleIds: '', requiredRoleIds: '', forbiddenRoleIds: '', requiredMinBalance: '', rewards: [], rewardType: 'money', rewardAmount: '', rewardRoleId: '', rewardRoleName: '', rewardItemId: '', rewardItemName: '' });
         onCreated();
       },
       onError: () => toast({ title: 'Erreur', variant: 'destructive' }),
@@ -343,8 +343,8 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
             <Input placeholder="ID utilisateur" value={form.hostId} onChange={e => p({ hostId: e.target.value })} className="font-mono text-sm" />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><MessageCircle className="w-3 h-3" /> Membres à mentionner</label>
-            <Input placeholder="ID1, ID2, …" value={form.mentionedUserIds} onChange={e => p({ mentionedUserIds: e.target.value })} className="font-mono text-sm" />
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><MessageCircle className="w-3 h-3" /> Rôles à mentionner (IDs, virgule)</label>
+            <Input placeholder="ID1, ID2, …" value={form.mentionedRoleIds} onChange={e => p({ mentionedRoleIds: e.target.value })} className="font-mono text-sm" />
           </div>
         </div>
       </div>

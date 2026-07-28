@@ -29,6 +29,7 @@ export interface Giveaway {
   /** @nullable */
   hostId: string | null;
   mentionedUserIds: string[];
+  mentionedRoleIds: string[];
   rewards: GiveawayReward[];
   createdAt: string;
 }
