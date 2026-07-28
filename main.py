@@ -318,8 +318,8 @@ async def on_member_update(before: discord.Member, after: discord.Member) -> Non
         if trigger not in added_ids:
             continue
         try:
-            # Add reward role (if not already present)
-            if not any(str(r.id) == reward for r in after.roles):
+            # Add reward role (if configured and not already present)
+            if reward and not any(str(r.id) == reward for r in after.roles):
                 reward_role = guild.get_role(int(reward))
                 if reward_role is not None:
                     await after.add_roles(reward_role, reason=f"Role reward: trigger <@&{trigger}>")

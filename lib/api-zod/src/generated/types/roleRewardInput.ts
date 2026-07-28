@@ -8,7 +8,7 @@
 
 export interface RoleRewardInput {
   triggerRoleId: string;
-  rewardRoleId: string;
+  rewardRoleId?: string;
   removeRoleId?: string;
   enabled?: boolean;
 }

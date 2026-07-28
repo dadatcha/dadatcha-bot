@@ -47,7 +47,7 @@ router.post("/role-rewards", async (req, res): Promise<void> => {
     .insert(roleRewardsTable)
     .values({
       triggerRoleId: d.triggerRoleId,
-      rewardRoleId: d.rewardRoleId,
+      rewardRoleId: d.rewardRoleId ?? '',
       removeRoleId: d.removeRoleId ?? null,
       enabled: d.enabled ?? true,
     })
@@ -69,7 +69,7 @@ router.put("/role-rewards/:id", async (req, res): Promise<void> => {
     .update(roleRewardsTable)
     .set({
       triggerRoleId: d.triggerRoleId,
-      rewardRoleId: d.rewardRoleId,
+      rewardRoleId: d.rewardRoleId ?? '',
       removeRoleId: d.removeRoleId ?? null,
       enabled: d.enabled ?? true,
     })

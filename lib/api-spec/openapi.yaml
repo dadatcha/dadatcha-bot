@@ -840,7 +840,7 @@ components:
           type: string
         enabled:
           type: boolean
-      required: [triggerRoleId, rewardRoleId]
+      required: [triggerRoleId]
 
     LogEntry:
       type: object

@@ -184,7 +184,6 @@ function NewRuleForm({ onCreated, onCancel }: {
 
   function submit() {
     if (!form.triggerRoleId.trim()) { toast({ title: 'Rôle déclencheur requis', variant: 'destructive' }); return; }
-    if (!form.rewardRoleId.trim())  { toast({ title: 'Rôle à ajouter requis',   variant: 'destructive' }); return; }
     create.mutate(
       {
         data: {
@@ -229,7 +228,7 @@ function NewRuleForm({ onCreated, onCancel }: {
       <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 items-center">
         <span className="text-sm font-medium flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-          Rôle à ajouter <span className="text-red-500">*</span>
+          Rôle à ajouter
         </span>
         <Input
           value={form.rewardRoleId}
