@@ -57,7 +57,7 @@ Many other commands are available in the #cmds\U0001f916
 /work
 And more!"""
 
-API_BASE = "http://localhost:80/api"
+# API_BASE = "http://localhost:80/api"
 
 # Economy config — overwritten at runtime by refresh_economy_config()
 _eco: dict = {
