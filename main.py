@@ -6047,6 +6047,6 @@ async def overview(ctx):
     view = RestartView(owner_id=ctx.author.id)
     await ctx.send(embed=embed, view=view)
     
-        if __name__ == "__main__":
+    if __name__ == "__main__":
     keep_alive()
     bot.run(os.environ.get("DISCORD_TOKEN")) # ou ton token direct
