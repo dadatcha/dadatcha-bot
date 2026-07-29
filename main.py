@@ -17,7 +17,6 @@ from discord import app_commands
 from discord.ext import commands, tasks
 from flask import Flask
 from threading import Thread
-import os
 
 # --- Mini serveur web pour Render ---
 app = Flask('')
