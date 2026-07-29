@@ -57,7 +57,6 @@ Many other commands are available in the #cmds\U0001f916
 /work
 And more!"""
 
-# Utilise une variable d'environnement si elle existe, sinon une valeur par défaut sécurisée
 API_BASE = os.environ.get("API_BASE", "http://127.0.0.1:10000/api")
 
 # Economy config — overwritten at runtime by refresh_economy_config()
