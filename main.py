@@ -57,7 +57,7 @@ Many other commands are available in the #cmds\U0001f916
 /work
 And more!"""
 
-API_BASE = os.environ.get("API_BASE", "http://127.0.0.1:10000/api")
+#API_BASE = os.environ.get("API_BASE", "http://127.0.0.1:10000/api")
 
 # Economy config — overwritten at runtime by refresh_economy_config()
 _eco: dict = {
@@ -840,6 +840,16 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ── API helpers ───────────────────────────────────────────────────────────────
 
+import os
+import aiohttp
+from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Définition de l'API_BASE pour éviter le NameError et les crashs
+API_BASE = os.environ.get("API_BASE", "http://127.0.0.1:10000/api")
+
 # ── Global HTTP session (reused across all API calls) ─────────────────────────
 
 _session: Optional[aiohttp.ClientSession] = None
@@ -948,6 +958,15 @@ async def send_heartbeat(connected: bool) -> None:
         "remindersSentToday": _reminders_today,
     }
     await api_post("/bot/heartbeat", payload)
+
+
+# Association du bouton au message (bien indenté)
+    view = RestartView(owner_id=ctx.author.id)
+    await ctx.send(embed=embed, view=view)
+    
+    if __name__ == "__main__":
+        keep_alive()
+        bot.run(os.environ.get("DISCORD_TOKEN"))
 
 
 async def _do_send_reminder(r: dict) -> None:
