@@ -863,6 +863,19 @@ async def get_http_session() -> aiohttp.ClientSession:
     return _session
 
 
+# ── Global HTTP session (reused across all API calls) ─────────────────────────
+
+_session: Optional[aiohttp.ClientSession] = None
+
+
+async def get_http_session() -> aiohttp.ClientSession:
+    """Return the shared aiohttp session, creating it if needed."""
+    global _session
+    if _session is None or _session.closed:
+        _session = aiohttp.ClientSession()
+    return _session
+
+
 async def api_post(path: str, payload: dict) -> Optional[dict]:
     try:
         s = await get_http_session()
@@ -871,8 +884,8 @@ async def api_post(path: str, payload: dict) -> Optional[dict]:
         ) as resp:
             if resp.content_type == "application/json":
                 return await resp.json()
-    except Exception:
-        logger.warning("api_post %s failed", path, exc_info=True)
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
     return None
 
 
@@ -884,8 +897,8 @@ async def api_patch(path: str, payload: dict) -> Optional[dict]:
         ) as resp:
             if resp.content_type == "application/json":
                 return await resp.json()
-    except Exception:
-        logger.warning("api_patch %s failed", path, exc_info=True)
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
     return None
 
 
@@ -900,8 +913,8 @@ async def api_delete(path: str) -> Optional[bool]:
                 return True
             if resp.status == 404:
                 return False
-    except Exception:
-        logger.warning("api_delete %s failed", path, exc_info=True)
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
     return None
 
 
@@ -913,8 +926,8 @@ async def api_put(path: str, payload: dict) -> Optional[dict]:
         ) as resp:
             if resp.content_type == "application/json":
                 return await resp.json()
-    except Exception:
-        logger.warning("api_put %s failed", path, exc_info=True)
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
     return None
 
 
@@ -926,8 +939,8 @@ async def api_get_json(path: str) -> Optional[dict]:
         ) as resp:
             if resp.status == 200:
                 return await resp.json()
-    except Exception:
-        logger.warning("api_get_json %s failed", path, exc_info=True)
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
     return None
 
 
@@ -939,8 +952,8 @@ async def api_get_list(path: str) -> Optional[list]:
         ) as resp:
             if resp.status == 200:
                 return await resp.json()
-    except Exception:
-        logger.warning("api_get_list %s failed", path, exc_info=True)
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
     return None
 
 
