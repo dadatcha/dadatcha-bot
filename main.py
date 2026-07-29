@@ -18,6 +18,17 @@ from discord.ext import commands, tasks
 from flask import Flask
 from threading import Thread
 
+logger = logging.getLogger(__name__)
+
+# Définition de RestartView pour éviter le NameError
+class RestartView(discord.ui.View):
+    def __init__(self, owner_id: int):
+        super().__init__()
+        self.owner_id = owner_id
+
+# Définition de l'API_BASE pour éviter le NameError
+API_BASE = os.environ.get("API_BASE", "http://127.0.0.1:10000/api")
+
 # --- Mini serveur web pour Render ---
 app = Flask('')
 
@@ -33,6 +44,99 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
+
+# ── Global HTTP session (reused across all API calls) ─────────────────────────
+
+_session: Optional[aiohttp.ClientSession] = None
+
+
+async def get_http_session() -> aiohttp.ClientSession:
+    """Return the shared aiohttp session, creating it if needed."""
+    global _session
+    if _session is None or _session.closed:
+        _session = aiohttp.ClientSession()
+    return _session
+
+
+async def api_post(path: str, payload: dict) -> Optional[dict]:
+    try:
+        s = await get_http_session()
+        async with s.post(
+            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.content_type == "application/json":
+                return await resp.json()
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
+    return None
+
+
+async def api_patch(path: str, payload: dict) -> Optional[dict]:
+    try:
+        s = await get_http_session()
+        async with s.patch(
+            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.content_type == "application/json":
+                return await resp.json()
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
+    return None
+
+
+async def api_delete(path: str) -> Optional[bool]:
+    """Returns True on 204 success, False on 404, None on error."""
+    try:
+        s = await get_http_session()
+        async with s.delete(
+            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.status == 204:
+                return True
+            if resp.status == 404:
+                return False
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
+    return None
+
+
+async def api_put(path: str, payload: dict) -> Optional[dict]:
+    try:
+        s = await get_http_session()
+        async with s.put(
+            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.content_type == "application/json":
+                return await resp.json()
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
+    return None
+
+
+async def api_get_json(path: str) -> Optional[dict]:
+    try:
+        s = await get_http_session()
+        async with s.get(
+            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.status == 200:
+                return await resp.json()
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
+    return None
+
+
+async def api_get_list(path: str) -> Optional[list]:
+    try:
+        s = await get_http_session()
+        async with s.get(
+            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
+        ) as resp:
+            if resp.status == 200:
+                return await resp.json()
+    except (aiohttp.ClientError, OSError, Exception):
+        pass
+    return None
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
