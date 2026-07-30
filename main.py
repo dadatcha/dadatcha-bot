@@ -1076,15 +1076,6 @@ async def send_heartbeat(connected: bool) -> None:
     }
     await api_post("/bot/heartbeat", payload)
 
-# Association du bouton au message (bien indenté)
-    view = RestartView(owner_id=ctx.author.id)
-    await ctx.send(embed=embed, view=view)
-    
-    if __name__ == "__main__":
-        keep_alive()
-        bot.run(os.environ.get("DISCORD_TOKEN"))
-
-
 async def _do_send_reminder(r: dict) -> None:
     """Send one reminder if the last message in the channel is not from the bot."""
     global _last_reminder_at, _reminders_today
