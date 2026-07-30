@@ -6190,15 +6190,13 @@ async def overview(ctx):
         inline=False,
     )
     
-    # Association du bouton au message (le ctx fonctionne ici car c'est une commande)
-    view = RestartView(owner_id=ctx.author.id)
-    await ctx.send(embed=embed, view=view)
     
 
 # Association du bouton au message
     view = RestartView(owner_id=ctx.author.id)
     await ctx.send(embed=embed, view=view)
 
-    if __name__ == "__main__":
-        keep_alive()
-        bot.run(os.environ.get("DISCORD_TOKEN"))
+
+if __name__ == "__main__":
+  keep_alive()
+  bot.run(os.environ.get("DISCORD_TOKEN"))
