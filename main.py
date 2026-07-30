@@ -5027,12 +5027,17 @@ async def on_ready() -> None:
     if not random_activity_loop.is_running():
         random_activity_loop.start()
 
-    await send_heartbeat(connected=True)
-    await log_to_api("INFO", f"Bot connected as {bot.user}")
+    # Appels sécurisés pour éviter le plantage si l'API locale démarre doucement
+    try:
+        await send_heartbeat(connected=True)
+        await log_to_api("INFO", f"Bot connected as {bot.user}")
+    except Exception:
+        pass
+
     # Pre-warm the shared HTTP session
     await get_http_session()
 
-    # Push channels & roles to API cache (used by dashboard mention picker)
+    # Push channels & roles to API cache (safely handled)
     try:
         s = await get_http_session()
         channels = [
@@ -5071,8 +5076,7 @@ async def on_ready() -> None:
             len(roles),
         )
     except Exception:
-        logger.warning("Failed to push channel/role lists to API", exc_info=True)
-
+        logger.warning("Failed to push channel/role lists to API (API might still be starting)", exc_info=True)
 
 @bot.tree.error
 async def on_app_command_error(
