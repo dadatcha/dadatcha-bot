@@ -147,7 +147,8 @@ if __name__ == "__main__":
         print("Démarrage du bot Dadatcha-bot...")
         # bot.run(TOKEN)
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+API_BASE = os.environ.get("API_BASE", "")
+
 
 DEFAULT_CHANNEL_ID = 1_531_418_977_677_475_992
 DEFAULT_REMINDER_MESSAGE = """Here is the lotto channel.
@@ -173,6 +174,9 @@ And more!"""
 #API_BASE = os.environ.get("API_BASE", "http://127.0.0.1:10000/api")
 
 # Economy config — overwritten at runtime by refresh_economy_config()
+
+# Economy config — overwritten at runtime by refresh_economy_config()\d    
+
 _eco: dict = {
     "startingWallet": 200,
     "balanceEnabled": True,
@@ -3798,7 +3802,10 @@ async def _post_giveaway_embed(giveaway: dict) -> None:
             )
             return
 
-    ends_at = datetime.fromisoformat(giveaway["endsAt"].replace("Z", "+00:00"))
+    ends_at_str = giveaway["endsAt"]
+    if ends_at_str.endswith("Z"):
+        ends_at_str = ends_at_str[:-1] + "+00:00"
+    ends_at = datetime.fromisoformat(ends_at_str)
     ends_ts = int(ends_at.timestamp())
     embed = _build_giveaway_embed(giveaway, ends_ts)
 
@@ -3974,9 +3981,10 @@ async def _end_giveaway(giveaway: dict) -> None:
     await _deliver_rewards(winners, giveaway, message.guild)
 
     # Update the original embed to show it's ended
-    ends_ts = int(
-        datetime.fromisoformat(giveaway["endsAt"].replace("Z", "+00:00")).timestamp()
-    )
+    ends_at_str = giveaway["endsAt"]
+    if ends_at_str.endswith("Z"):
+        ends_at_str = ends_at_str[:-1] + "+00:00"
+    ends_ts = int(datetime.fromisoformat(ends_at_str).timestamp())
     rewards: list[dict] = giveaway.get("rewards") or []
     reward_text = ""
     if rewards:
@@ -4040,9 +4048,10 @@ async def giveaway_poll_loop() -> None:
         if not giveaway.get("messageId"):
             await _post_giveaway_embed(giveaway)
             continue
-        # End if expired
-        ends_at = datetime.fromisoformat(giveaway["endsAt"].replace("Z", "+00:00"))
-        if now >= ends_at:
+            ends_at_str = giveaway["endsAt"]
+            if ends_at_str.endswith("Z"):
+                ends_at_str = ends_at_str[:-1] + "+00:00"
+            ends_at = datetime.fromisoformat(ends_at_str)
             await _end_giveaway(giveaway)
 
 
