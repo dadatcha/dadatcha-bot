@@ -18,36 +18,28 @@ from discord.ext import commands, tasks
 from flask import Flask
 from threading import Thread
 
-logger = logging.getLogger(__name__)
+# ── Configuration Flask pour Render ──────────────────────────────────
 
-# Définition de RestartView pour éviter le NameError
-class RestartView(discord.ui.View):
-    def __init__(self, owner_id: int):
-        super().__init__()
-        self.owner_id = owner_id
-
-# Définition de l'API_BASE pour éviter le NameError
-API_BASE = os.environ.get("API_BASE", "http://127.0.0.1:10000/api")
-
-# --- Mini serveur web pour Render ---
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Je suis en ligne !"
+    return "Dadatcha-bot est en ligne !"
 
 def run():
-    port = int(os.environ.get("PORT", 10000))
+    # Render attribue dynamiquement un port via la variable d'environnement PORT
+    port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
     t = Thread(target=run)
+    t.daemon = True
     t.start()
-
 
 # ── Global HTTP session (reused across all API calls) ─────────────────────────
 
 _session: Optional[aiohttp.ClientSession] = None
+API_BASE = os.environ.get("API_BASE", "") # Assurez-vous d'avoir défini vos variables
 
 
 async def get_http_session() -> aiohttp.ClientSession:
@@ -137,6 +129,23 @@ async def api_get_list(path: str) -> Optional[list]:
     except (aiohttp.ClientError, OSError, Exception):
         pass
     return None
+
+
+# ── Point d'entrée principal ─────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    # 1. Lance le serveur Flask en arrière-plan pour Render
+    keep_alive()
+    
+    # 2. Récupère le token du bot depuis les variables d'environnement Render
+    TOKEN = os.environ.get("DISCORD_TOKEN")
+    
+    if not TOKEN:
+        print("Erreur : Le token DISCORD_TOKEN n'est pas défini dans les variables d'environnement.")
+    else:
+        # Remplacez par l'initialisation de votre bot (ex: bot.run(TOKEN))
+        print("Démarrage du bot Dadatcha-bot...")
+        # bot.run(TOKEN)
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
