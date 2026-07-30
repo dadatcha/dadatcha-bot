@@ -4975,9 +4975,10 @@ async def _push_command_manifest() -> None:
                 logger.info("Command manifest pushed — %d commands", len(manifest))
             else:
                 logger.warning("Command manifest push returned %d", resp.status)
+    except (aiohttp.ClientError, OSError, ConnectionRefusedError):
+        logger.warning("API not ready yet for command manifest push, skipping for now.")
     except Exception:
         logger.warning("Failed to push command manifest", exc_info=True)
-
 
 # ── Ready ─────────────────────────────────────────────────────────────────────
 
