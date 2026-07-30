@@ -1070,12 +1070,11 @@ async def send_heartbeat(connected: bool) -> None:
         "connected": connected,
         "botName": bot.user.name if bot.user else None,
         "botId": str(bot.user.id) if bot.user else None,
-        "startedAt": _started_at.isoformat(),
-        "lastReminderAt": _last_reminder_at.isoformat() if _last_reminder_at else None,
-        "remindersSentToday": _reminders_today,
+        "startedAt": _started_at.isoformat() if "_started_at" in globals() and _started_at else None,
+        "lastReminderAt": _last_reminder_at.isoformat() if "_last_reminder_at" in globals() and _last_reminder_at else None,
+        "remindersSentToday": _reminders_today if "_reminders_today" in globals() else 0,
     }
     await api_post("/bot/heartbeat", payload)
-
 
 # Association du bouton au message (bien indenté)
     view = RestartView(owner_id=ctx.author.id)
