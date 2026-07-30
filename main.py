@@ -3644,7 +3644,15 @@ async def before_config_refresh() -> None:
 GIVEAWAY_EMOJI = "🎉"
 
 # ── Duration helpers (shared by giveaway + temp-role display) ─────────────────
-
+async def votre_commande_ou_bouton(interaction: discord.Interaction):
+    # 1. On prévient immédiatement Discord que le bot traite la demande (évite le timeout)
+    await interaction.response.defer(ephemeral=True) # ou ephemeral=False si visible par tous
+    
+    # 2. Vos appels API ou votre logique ensuite
+    eco = await api_get_json(f"/economy/players/{interaction.user.id}")
+    
+    # 3. Pour envoyer le message final plus tard, utilisez followups au lieu de response.send_message
+    await interaction.followup.send("Action réussie !")
 
 def _parse_duration(s: str) -> Optional[int]:
     """Parse '7j'/'7d', '24h', '30m', or a plain number into minutes. Returns None for empty."""
