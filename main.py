@@ -6172,7 +6172,7 @@ async def overview(ctx):
     # Association du bouton au message (le ctx fonctionne ici car c'est une commande)
     view = RestartView(owner_id=ctx.author.id)
     await ctx.send(embed=embed, view=view)
-    )
+    
 
 # Association du bouton au message
     view = RestartView(owner_id=ctx.author.id)
