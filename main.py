@@ -6168,6 +6168,11 @@ async def overview(ctx):
         value="Utilise le bouton ci-dessous pour relancer l'instance.",
         inline=False,
     )
+    
+    # Association du bouton au message (le ctx fonctionne ici car c'est une commande)
+    view = RestartView(owner_id=ctx.author.id)
+    await ctx.send(embed=embed, view=view)
+    )
 
 # Association du bouton au message
     view = RestartView(owner_id=ctx.author.id)
