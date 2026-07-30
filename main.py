@@ -5034,10 +5034,10 @@ async def on_ready() -> None:
     except Exception:
         pass
 
-    # Pre-warm the shared HTTP session
+# Pre-warm the shared HTTP session
     await get_http_session()
 
-    # Push channels & roles to API cache (safely handled)
+    # Push channels & roles to API cache (safely handled against connection refused)
     try:
         s = await get_http_session()
         channels = [
@@ -5075,8 +5075,8 @@ async def on_ready() -> None:
             len(channels),
             len(roles),
         )
-    except Exception:
-        logger.warning("Failed to push channel/role lists to API (API might still be starting)", exc_info=True)
+    except (aiohttp.ClientError, OSError, ConnectionRefusedError):
+        logger.warning("API not ready yet for channel/role sync, skipping for now.")
 
 @bot.tree.error
 async def on_app_command_error(
