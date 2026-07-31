@@ -19,7 +19,10 @@ from discord.ext import commands, tasks
 # ── Global HTTP session (reused across all API calls) ─────────────────────────
 
 _session: Optional[aiohttp.ClientSession] = None
-API_BASE = os.environ.get("API_BASE", "") # Assurez-vous d'avoir défini vos variables
+# API_BASE: URL of the API server.
+# - On Replit  → set automatically via the local port (default below)
+# - On Render  → set API_BASE env var to your deployed Replit API server URL
+API_BASE = os.environ.get("API_BASE", "http://localhost:8080/api")
 
 
 async def get_http_session() -> aiohttp.ClientSession:
@@ -112,9 +115,6 @@ async def api_get_list(path: str) -> Optional[list]:
 
 
 # ── Point d'entrée principal ─────────────────────────────────────────────────
-
-API_BASE = os.environ.get("API_BASE", "")
-
 
 DEFAULT_CHANNEL_ID = 1_531_418_977_677_475_992
 DEFAULT_REMINDER_MESSAGE = """Here is the lotto channel.
@@ -929,9 +929,6 @@ from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)
-
-# Définition de l'API_BASE pour éviter le NameError et les crashs
-API_BASE = os.environ.get("API_BASE", "http://127.0.0.1:10000/api")
 
 # ── Global HTTP session (reused across all API calls) ─────────────────────────
 

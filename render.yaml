@@ -1,0 +1,18 @@
+services:
+  - type: worker          # Worker = pas de port HTTP requis, tourne 24/7
+    name: dadatcha-bot
+    runtime: python
+    plan: free
+    region: frankfurt     # ou oregon / ohio selon ta région
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+
+    envVars:
+      # ── Obligatoire : token du bot Discord ──────────────────────────────────
+      - key: DISCORD_TOKEN
+        sync: false        # à renseigner manuellement dans le dashboard Render
+
+      # ── Obligatoire : URL de l'API server (Replit ou déployée ailleurs) ────
+      # Exemple : https://api-server.<ton-user>.repl.co/api
+      - key: API_BASE
+        sync: false        # à renseigner manuellement dans le dashboard Render
