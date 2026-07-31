@@ -33,25 +33,18 @@ services:
       - key: PORT
         value: "10000"
 
-  # ── 3. Dashboard (Static Site React/Vite) ────────────────────────────────────
-  - type: static
+  # ── 3. Dashboard (Web Service gratuit — serveur statique Node.js) ───────────
+  - type: web
     name: dadatcha-dashboard
+    runtime: node
     plan: free
     region: frankfurt
     rootDir: .
-    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/dashboard run build
-    staticPublishPath: ./artifacts/dashboard/dist/public
-    routes:
-      # SPA fallback — toutes les routes renvoient vers index.html
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    buildCommand: npm install -g pnpm serve && pnpm install --frozen-lockfile && pnpm --filter @workspace/dashboard run build
+    startCommand: serve -s ./artifacts/dashboard/dist/public -l $PORT
     envVars:
       # URL du service dadatcha-api ci-dessus, ex: https://dadatcha-api.onrender.com
       - key: VITE_API_URL
         sync: false
-      # Requis pour vite build (valeur arbitraire pour le build statique)
       - key: BASE_PATH
         value: "/"
-      - key: NODE_ENV
-        value: "production"
