@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { useGetBotStatus } from '@workspace/api-client-react';
 import { formatUptime, formatRelativeTime } from '@/lib/utils';
-import { Activity, Clock, Bell, Wifi, WifiOff, Hash, Bot } from 'lucide-react';
+import { Activity, Clock, Bell, Wifi, WifiOff, Hash, Bot, RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '');
 
 function StatTile({ label, value, icon: Icon, accent = false }: {
   label: string; value: React.ReactNode; icon: React.ElementType; accent?: boolean;
@@ -20,6 +24,25 @@ function StatTile({ label, value, icon: Icon, accent = false }: {
 
 export default function Overview() {
   const { data: s, isLoading } = useGetBotStatus({ query: { refetchInterval: 5000 } });
+  const [restarting, setRestarting] = useState(false);
+  const [restartMsg, setRestartMsg] = useState<string | null>(null);
+
+  async function handleRestart() {
+    setRestarting(true);
+    setRestartMsg(null);
+    try {
+      const resp = await fetch(`${BASE}/api/bot/restart`, { method: 'POST' });
+      if (resp.ok) {
+        setRestartMsg('✅ Redémarrage demandé — le bot va se relancer sous 30 s.');
+      } else {
+        setRestartMsg('❌ Erreur lors de la demande de redémarrage.');
+      }
+    } catch {
+      setRestartMsg('❌ Impossible de contacter le serveur.');
+    } finally {
+      setRestarting(false);
+    }
+  }
 
   return (
     <div className="p-8 space-y-8 max-w-5xl">
@@ -29,17 +52,40 @@ export default function Overview() {
           <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Live status of your Discord bot</p>
         </div>
-        {!isLoading && (
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${
-            s?.connected
-              ? 'bg-green-50 border-green-200 text-green-700'
-              : 'bg-zinc-50 border-zinc-200 text-zinc-500'
-          }`}>
-            {s?.connected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-            {s?.connected ? 'Online' : 'Offline'}
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {!isLoading && (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${
+              s?.connected
+                ? 'bg-green-50 border-green-200 text-green-700'
+                : 'bg-zinc-50 border-zinc-200 text-zinc-500'
+            }`}>
+              {s?.connected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+              {s?.connected ? 'Online' : 'Offline'}
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRestart}
+            disabled={restarting}
+            className="gap-2"
+          >
+            <RotateCcw className={`w-3.5 h-3.5 ${restarting ? 'animate-spin' : ''}`} />
+            {restarting ? 'Redémarrage…' : 'Redémarrer le bot'}
+          </Button>
+        </div>
       </div>
+
+      {/* Restart feedback */}
+      {restartMsg && (
+        <div className={`text-sm px-4 py-3 rounded-lg border ${
+          restartMsg.startsWith('✅')
+            ? 'bg-green-50 border-green-200 text-green-700'
+            : 'bg-red-50 border-red-200 text-red-700'
+        }`}>
+          {restartMsg}
+        </div>
+      )}
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

@@ -13,6 +13,9 @@ import {
 
 const router: IRouter = Router();
 
+// ── Restart flag (set by dashboard, consumed by next heartbeat) ───────────────
+let _restartFlag = false;
+
 // ── Status ────────────────────────────────────────────────────────────────────
 
 router.get("/bot/status", async (req, res): Promise<void> => {
@@ -75,7 +78,16 @@ router.post("/bot/heartbeat", async (req, res): Promise<void> => {
     await db.insert(botStatusTable).values({ id: 1, ...values });
   }
 
-  res.sendStatus(204);
+  const restartRequested = _restartFlag;
+  if (_restartFlag) _restartFlag = false;
+  res.status(200).json({ restartRequested });
+});
+
+// ── Restart ───────────────────────────────────────────────────────────────────
+
+router.post("/bot/restart", (_req, res): void => {
+  _restartFlag = true;
+  res.status(200).json({ ok: true, message: "Restart queued — bot will restart within 30 s" });
 });
 
 // ── Config ────────────────────────────────────────────────────────────────────

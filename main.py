@@ -15,26 +15,6 @@ import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
-from flask import Flask
-from threading import Thread
-
-# ── Configuration Flask pour Render ──────────────────────────────────
-
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "Dadatcha-bot est en ligne !"
-
-def run():
-    # Render attribue dynamiquement un port via la variable d'environnement PORT
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.daemon = True
-    t.start()
 
 # ── Global HTTP session (reused across all API calls) ─────────────────────────
 
@@ -132,20 +112,6 @@ async def api_get_list(path: str) -> Optional[list]:
 
 
 # ── Point d'entrée principal ─────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    # 1. Lance le serveur Flask en arrière-plan pour Render
-    keep_alive()
-    
-    # 2. Récupère le token du bot depuis les variables d'environnement Render
-    TOKEN = os.environ.get("DISCORD_TOKEN")
-    
-    if not TOKEN:
-        print("Erreur : Le token DISCORD_TOKEN n'est pas défini dans les variables d'environnement.")
-    else:
-        # Remplacez par l'initialisation de votre bot (ex: bot.run(TOKEN))
-        print("Démarrage du bot Dadatcha-bot...")
-        # bot.run(TOKEN)
 
 API_BASE = os.environ.get("API_BASE", "")
 
@@ -1079,6 +1045,7 @@ async def log_to_api(level: str, message: str) -> None:
 
 
 async def send_heartbeat(connected: bool) -> None:
+    import sys
     payload = {
         "connected": connected,
         "botName": bot.user.name if bot.user else None,
@@ -1087,7 +1054,10 @@ async def send_heartbeat(connected: bool) -> None:
         "lastReminderAt": _last_reminder_at.isoformat() if "_last_reminder_at" in globals() and _last_reminder_at else None,
         "remindersSentToday": _reminders_today if "_reminders_today" in globals() else 0,
     }
-    await api_post("/bot/heartbeat", payload)
+    result = await api_post("/bot/heartbeat", payload)
+    if isinstance(result, dict) and result.get("restartRequested"):
+        logger.info("Restart requested via dashboard — restarting bot…")
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
 async def _do_send_reminder(r: dict) -> None:
     """Send one reminder if the last message in the channel is not from the bot."""
@@ -4048,10 +4018,12 @@ async def giveaway_poll_loop() -> None:
         if not giveaway.get("messageId"):
             await _post_giveaway_embed(giveaway)
             continue
-            ends_at_str = giveaway["endsAt"]
-            if ends_at_str.endswith("Z"):
-                ends_at_str = ends_at_str[:-1] + "+00:00"
-            ends_at = datetime.fromisoformat(ends_at_str)
+        # Check if expired
+        ends_at_str = giveaway["endsAt"]
+        if ends_at_str.endswith("Z"):
+            ends_at_str = ends_at_str[:-1] + "+00:00"
+        ends_at = datetime.fromisoformat(ends_at_str)
+        if now >= ends_at:
             await _end_giveaway(giveaway)
 
 
@@ -6146,66 +6118,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-import discord
-from discord.ext import commands
-
-
-# --- 1. CLASSE DU BOUTON DE REDÉMARRAGE ---
-class RestartView(discord.ui.View):
-    def __init__(self, owner_id):
-        super().__init__(timeout=None)  # Le bouton ne périme pas
-        self.owner_id = owner_id
-
-    @discord.ui.button(
-        label="Redémarrer le Bot 🔄",
-        style=discord.ButtonStyle.danger,
-        custom_id="restart_bot_btn",
-    )
-    async def restart_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        # Vérification des permissions : seul le créateur du bot peut cliquer
-        if interaction.user.id != self.owner_id:
-            await interaction.response.send_message(
-                "❌ Seul le propriétaire du bot peut exécuter cette action.",
-                ephemeral=True,
-            )
-            return
-
-        # Confirmation dans Discord
-        await interaction.response.send_message(
-            "🔄 **Redémarrage en cours...** La connexion va être relancée.",
-            ephemeral=True,
-        )
-
-        # Ferme proprement le bot (Replit relancera automatiquement le script)
-        await interaction.client.close()
-
-
-# --- 2. COMMANDE POUR AFFICHER L'OVERVIEW / PANNEAU DE CONTRÔLE ---
-@bot.command(name="overview")
-async def overview(ctx):
-    # Création du message de présentation (Embed)
-    embed = discord.Embed(
-        title="🎮 Dashboard & Overview du Bot",
-        description="Gestion globale de l'état du bot et des commandes.",
-        color=discord.Color.blue(),
-    )
-    embed.add_field(name="Statut", value="🟢 En ligne & opérationnel", inline=True)
-    embed.add_field(
-        name="Commande",
-        value="Utilise le bouton ci-dessous pour relancer l'instance.",
-        inline=False,
-    )
-    
-    
-
-# Association du bouton au message
-    view = RestartView(owner_id=ctx.author.id)
-    await ctx.send(embed=embed, view=view)
-
-
-if __name__ == "__main__":
-  keep_alive()
-  bot.run(os.environ.get("DISCORD_TOKEN"))
