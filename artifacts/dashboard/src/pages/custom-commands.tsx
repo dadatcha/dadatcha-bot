@@ -60,7 +60,8 @@ const EMPTY_FORM: FormState = {
   rewardLevels: 0,
 };
 
-const base = () => import.meta.env.BASE_URL.replace(/\/$/, '');
+import { getApiBase } from '@/lib/api-url';
+const base = () => getApiBase();
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 

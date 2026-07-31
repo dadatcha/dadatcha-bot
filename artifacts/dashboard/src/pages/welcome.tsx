@@ -18,7 +18,8 @@ type WelcomeConfig = {
   updatedAt: string;
 };
 
-const base = () => import.meta.env.BASE_URL.replace(/\/$/, '');
+import { getApiBase } from '@/lib/api-url';
+const base = () => getApiBase();
 
 // ── Live embed preview ────────────────────────────────────────────────────────
 

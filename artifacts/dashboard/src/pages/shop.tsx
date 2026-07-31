@@ -3,6 +3,7 @@ import {
   useListShopItems, useCreateShopItem, useUpdateShopItem, useDeleteShopItem,
   getListShopItemsQueryKey, useGetEconomyConfig,
 } from '@workspace/api-client-react';
+import { getApiBase } from '@/lib/api-url';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleCard } from '@/components/ui/module-card';
@@ -55,7 +56,7 @@ function InventoryPanel({ shopItems, currency }: { shopItems: Item[]; currency: 
   const [adding, setAdding] = useState(false);
   const { toast } = useToast();
 
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const base = getApiBase();
 
   async function search(uid?: string) {
     const id = (uid ?? userId).trim();

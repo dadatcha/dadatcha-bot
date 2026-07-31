@@ -1,18 +1,57 @@
 services:
-  - type: worker          # Worker = pas de port HTTP requis, tourne 24/7
+  # ── 1. Discord Bot (Worker — tourne 24/7 sans port) ─────────────────────────
+  - type: worker
     name: dadatcha-bot
     runtime: python
     plan: free
-    region: frankfurt     # ou oregon / ohio selon ta région
+    region: frankfurt
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
-
     envVars:
-      # ── Obligatoire : token du bot Discord ──────────────────────────────────
+      # Token du bot Discord → régénérer sur discord.com/developers si expiré
       - key: DISCORD_TOKEN
-        sync: false        # à renseigner manuellement dans le dashboard Render
-
-      # ── Obligatoire : URL de l'API server (Replit ou déployée ailleurs) ────
-      # Exemple : https://api-server.<ton-user>.repl.co/api
+        sync: false
+      # URL de l'API server déployée, ex: https://dadatcha-api.onrender.com/api
       - key: API_BASE
-        sync: false        # à renseigner manuellement dans le dashboard Render
+        sync: false
+
+  # ── 2. API Server (Web Service Node.js — base de données + logique métier) ──
+  - type: web
+    name: dadatcha-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: .
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
+    envVars:
+      # URL de la base PostgreSQL Replit (Settings → Database → External URL)
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: PORT
+        value: "10000"
+
+  # ── 3. Dashboard (Static Site React/Vite) ────────────────────────────────────
+  - type: static
+    name: dadatcha-dashboard
+    plan: free
+    region: frankfurt
+    rootDir: .
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/dashboard run build
+    staticPublishPath: ./artifacts/dashboard/dist/public
+    routes:
+      # SPA fallback — toutes les routes renvoient vers index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # URL du service dadatcha-api ci-dessus, ex: https://dadatcha-api.onrender.com
+      - key: VITE_API_URL
+        sync: false
+      # Requis pour vite build (valeur arbitraire pour le build statique)
+      - key: BASE_PATH
+        value: "/"
+      - key: NODE_ENV
+        value: "production"

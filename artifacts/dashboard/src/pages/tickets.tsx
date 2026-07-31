@@ -37,7 +37,8 @@ type TicketEntry = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const base = () => import.meta.env.BASE_URL.replace(/\/$/, '');
+import { getApiBase } from '@/lib/api-url';
+const base = () => getApiBase();
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });

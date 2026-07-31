@@ -4,7 +4,8 @@ import { formatUptime, formatRelativeTime } from '@/lib/utils';
 import { Activity, Clock, Bell, Wifi, WifiOff, Hash, Bot, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, '');
+import { getApiBase } from '@/lib/api-url';
+const BASE = getApiBase();
 
 function StatTile({ label, value, icon: Icon, accent = false }: {
   label: string; value: React.ReactNode; icon: React.ElementType; accent?: boolean;

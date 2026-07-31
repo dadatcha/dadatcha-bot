@@ -8,8 +8,9 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ShieldAlert, Trash2, Plus, Save, RotateCcw } from 'lucide-react';
+import { getApiBase } from '@/lib/api-url';
 
-const API = import.meta.env.BASE_URL.replace(/\/$/, '');
+const API = getApiBase();
 
 type Action = 'delete' | 'warn' | 'timeout' | 'kick' | 'ban';
 

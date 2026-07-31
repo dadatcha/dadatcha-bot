@@ -69,7 +69,8 @@ const LEVEL_STYLE: Record<string, string> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const base = () => import.meta.env.BASE_URL.replace(/\/$/, '');
+import { getApiBase } from '@/lib/api-url';
+const base = () => getApiBase();
 
 async function fetchDiag(sel: Selected): Promise<Diag> {
   const url =

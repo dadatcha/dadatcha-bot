@@ -5,6 +5,7 @@ import {
   useDeleteGiveaway,
   getListGiveawaysQueryKey,
 } from '@workspace/api-client-react';
+import { getApiBase } from '@/lib/api-url';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -207,7 +208,7 @@ type BotChannel = { id: string; name: string; guildId: string; guildName: string
 function useChannels() {
   const [channels, setChannels] = useState<BotChannel[]>([]);
   useState(() => {
-    const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+    const base = getApiBase();
     fetch(`${base}/api/bot/channels`)
       .then(r => r.ok ? r.json() : [])
       .then(setChannels)

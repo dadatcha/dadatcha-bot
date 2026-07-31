@@ -7,6 +7,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Hash, AtSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getApiBase } from '@/lib/api-url';
 
 // ── Data types ────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ let _channels: Channel[] | null = null;
 let _roles:    Role[]    | null = null;
 
 function apiBase() {
-  return (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+  return getApiBase();
 }
 
 async function getChannels(): Promise<MentionItem[]> {
