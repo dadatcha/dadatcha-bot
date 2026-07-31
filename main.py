@@ -884,6 +884,35 @@ STRINGS: dict[str, dict[str, str] | list] = {
         "fr": "🔒 **Ticket #{id}** fermé par {closed_by}",
         "en": "🔒 **Ticket #{id}** closed by {closed_by}",
     },
+    # invite tracking
+    "inv_title": {"fr": "📨 Invitations — {name}", "en": "📨 Invitations — {name}"},
+    "inv_regular": {"fr": "Invitations", "en": "Invitations"},
+    "inv_bonus": {"fr": "Bonus", "en": "Bonus"},
+    "inv_left": {"fr": "Membres partis", "en": "Members left"},
+    "inv_total": {"fr": "Total", "en": "Total"},
+    "inv_err": {
+        "fr": "Impossible de charger les invitations en ce moment.",
+        "en": "Could not load invitations right now.",
+    },
+    "inv_top_title": {"fr": "📨 Top Invitations", "en": "📨 Top Invitations"},
+    "inv_top_empty": {
+        "fr": "Aucune invitation enregistrée pour l'instant.",
+        "en": "No invitations recorded yet.",
+    },
+    "inv_no_record": {
+        "fr": "Aucune invitation enregistrée pour ce membre.",
+        "en": "No invitation record found for this member.",
+    },
+    "inv_add_title": {"fr": "✅ Invitations ajoutées", "en": "✅ Invitations Added"},
+    "inv_add_desc": {
+        "fr": "{mention} a reçu **+{amount}** invitation(s) bonus. Total : **{total}**",
+        "en": "{mention} received **+{amount}** bonus invitation(s). Total: **{total}**",
+    },
+    "inv_remove_title": {"fr": "✅ Invitations retirées", "en": "✅ Invitations Removed"},
+    "inv_remove_desc": {
+        "fr": "{mention} a perdu **{amount}** invitation(s) bonus. Total : **{total}**",
+        "en": "{mention} lost **{amount}** bonus invitation(s). Total: **{total}**",
+    },
 }
 
 
@@ -1208,6 +1237,10 @@ async def refresh_custom_commands() -> None:
 
 _automod_cfg: dict = {}
 _spam_tracker: dict[str, list] = {}  # user_id → [datetime, ...]
+
+# ── Invite tracking cache ──────────────────────────────────────────────────────
+# Maps invite code → discord.Invite (snapshot with use count before each join)
+_invite_cache: dict[str, discord.Invite] = {}
 
 
 async def refresh_automod_config() -> None:
@@ -1826,14 +1859,71 @@ async def _send_welcome_embed(member: discord.Member, kind: str) -> None:
         logger.exception("Failed to send %s embed for %s", kind, member)
 
 
+async def _track_invite_join(member: discord.Member) -> None:
+    """Detect which invite was used and record the join in the API."""
+    guild = member.guild
+    try:
+        new_invites = await guild.invites()
+    except discord.Forbidden:
+        return
+
+    inviter_id: str | None = None
+    inviter_name: str = ""
+    used_code: str = ""
+
+    for inv in new_invites:
+        cached = _invite_cache.get(inv.code)
+        if cached is not None and inv.uses > cached.uses:
+            used_code = inv.code
+            if inv.inviter:
+                inviter_id = str(inv.inviter.id)
+                inviter_name = str(inv.inviter)
+            break
+
+    # Refresh cache with latest counts
+    _invite_cache.clear()
+    for inv in new_invites:
+        _invite_cache[inv.code] = inv
+
+    if inviter_id is None:
+        return
+
+    await api_post("/invites/join", {
+        "inviterId":   inviter_id,
+        "inviterName": inviter_name,
+        "inviteeId":   str(member.id),
+        "inviteeName": str(member),
+        "inviteCode":  used_code,
+        "guildId":     str(guild.id),
+    })
+
+
 @bot.event
 async def on_member_join(member: discord.Member) -> None:
     await _send_welcome_embed(member, "join")
+    await _track_invite_join(member)
 
 
 @bot.event
 async def on_member_remove(member: discord.Member) -> None:
     await _send_welcome_embed(member, "leave")
+    # Mark invitee as left so the inviter's total is decremented
+    try:
+        await api_post("/invites/leave", {"inviteeId": str(member.id)})
+    except Exception:
+        pass
+
+
+@bot.event
+async def on_invite_create(invite: discord.Invite) -> None:
+    """Keep the cache up-to-date when a new invite is created."""
+    _invite_cache[invite.code] = invite
+
+
+@bot.event
+async def on_invite_delete(invite: discord.Invite) -> None:
+    """Remove deleted invites from the cache."""
+    _invite_cache.pop(invite.code, None)
 
 
 # ── Role reward automation ────────────────────────────────────────────────────
@@ -5197,6 +5287,14 @@ async def on_ready() -> None:
     await refresh_automod_config()
     _apply_command_labels()
 
+    # Pre-load invite cache for all guilds
+    for _guild in bot.guilds:
+        try:
+            for _inv in await _guild.invites():
+                _invite_cache[_inv.code] = _inv
+        except discord.Forbidden:
+            pass
+
     # Start health server for Render / hosted environments
     await _start_health_server()
 
@@ -6302,6 +6400,141 @@ async def ticket_add(interaction: discord.Interaction, member: discord.Member) -
 
 
 bot.tree.add_command(ticket_group)
+
+
+# ── /invitations ───────────────────────────────────────────────────────────────
+
+
+@bot.tree.command(
+    name="invitations",
+    description="Voir les invitations d'un membre (laisse vide pour toi-même)",
+)
+@app_commands.describe(membre="Membre dont tu veux voir les invitations")
+async def invitations_cmd(
+    interaction: discord.Interaction,
+    membre: Optional[discord.Member] = None,
+) -> None:
+    await interaction.response.defer(ephemeral=False)
+    target = membre or interaction.user
+    data = await api_get_json(f"/invites/{target.id}")
+    if data is None:
+        await interaction.followup.send(_t("inv_err"), ephemeral=True)
+        return
+
+    total_inv = data.get("total", 0)
+    regular = data.get("regularInvites", 0)
+    bonus = data.get("bonusInvites", 0)
+    left = data.get("leftInvites", 0)
+
+    embed = discord.Embed(
+        title=_t("inv_title", name=target.display_name),
+        colour=0x5865F2,
+    )
+    embed.add_field(name=_t("inv_regular"), value=f"**{regular}**", inline=True)
+    embed.add_field(name=_t("inv_bonus"),   value=f"**{bonus:+d}**", inline=True)
+    embed.add_field(name=_t("inv_left"),    value=f"**{left}**", inline=True)
+    embed.add_field(name=_t("inv_total"),   value=f"**{total_inv}**", inline=False)
+    if isinstance(target, discord.Member) and target.avatar:
+        embed.set_thumbnail(url=target.avatar.url)
+    await interaction.followup.send(embed=embed)
+
+
+# ── /invitations-top ───────────────────────────────────────────────────────────
+
+
+@bot.tree.command(
+    name="invitations-top",
+    description="Classement des membres par nombre d'invitations",
+)
+async def invitations_top_cmd(interaction: discord.Interaction) -> None:
+    await interaction.response.defer()
+    data = await api_get_list("/invites")
+    if data is None:
+        await interaction.followup.send(_t("inv_err"), ephemeral=True)
+        return
+
+    embed = discord.Embed(title=_t("inv_top_title"), colour=0x5865F2)
+    medals = ["\U0001f947", "\U0001f948", "\U0001f949"]
+    lines = []
+    for i, entry in enumerate(data[:10]):
+        medal = medals[i] if i < 3 else f"`{i + 1}.`"
+        total_inv = entry.get("total", 0)
+        username = entry.get("username", "?")
+        lines.append(f"{medal} **{username}** — **{total_inv}** invitation(s)")
+    embed.description = "\n".join(lines) if lines else _t("inv_top_empty")
+    await interaction.followup.send(embed=embed)
+
+
+# ── /invitations-ajouter ───────────────────────────────────────────────────────
+
+
+@bot.tree.command(
+    name="invitations-ajouter",
+    description="[Admin] Ajouter des invitations bonus à un membre",
+)
+@app_commands.describe(
+    membre="Membre qui reçoit les invitations",
+    nombre="Nombre d'invitations à ajouter",
+)
+async def invitations_ajouter_cmd(
+    interaction: discord.Interaction,
+    membre: discord.Member,
+    nombre: app_commands.Range[int, 1],
+) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+    await interaction.response.defer()
+    data = await api_patch(f"/invites/{membre.id}/bonus", {
+        "delta":    nombre,
+        "username": str(membre),
+        "guildId":  str(membre.guild.id),
+    })
+    if data is None:
+        await interaction.followup.send(_t("inv_err"), ephemeral=True)
+        return
+    embed = discord.Embed(
+        title=_t("inv_add_title"),
+        description=_t("inv_add_desc", mention=membre.mention, amount=nombre, total=data.get("total", 0)),
+        colour=0x2ECC71,
+    )
+    await interaction.followup.send(embed=embed)
+
+
+# ── /invitations-retirer ───────────────────────────────────────────────────────
+
+
+@bot.tree.command(
+    name="invitations-retirer",
+    description="[Admin] Retirer des invitations bonus à un membre",
+)
+@app_commands.describe(
+    membre="Membre qui perd des invitations",
+    nombre="Nombre d'invitations à retirer",
+)
+async def invitations_retirer_cmd(
+    interaction: discord.Interaction,
+    membre: discord.Member,
+    nombre: app_commands.Range[int, 1],
+) -> None:
+    if not is_admin(interaction):
+        await interaction.response.send_message(_t("err_admin_perm"), ephemeral=True)
+        return
+    await interaction.response.defer()
+    data = await api_patch(f"/invites/{membre.id}/bonus", {
+        "delta":    -nombre,
+        "username": str(membre),
+        "guildId":  str(membre.guild.id),
+    })
+    if data is None:
+        await interaction.followup.send(_t("inv_err"), ephemeral=True)
+        return
+    embed = discord.Embed(
+        title=_t("inv_remove_title"),
+        description=_t("inv_remove_desc", mention=membre.mention, amount=nombre, total=data.get("total", 0)),
+        colour=0xE74C3C,
+    )
+    await interaction.followup.send(embed=embed)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

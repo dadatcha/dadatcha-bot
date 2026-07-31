@@ -16,6 +16,7 @@ import welcomeRouter from "./welcome";
 import customCommandsRouter from "./custom-commands";
 import diagnosticsRouter from "./diagnostics";
 import automodRouter from "./automod";
+import invitesRouter from "./invites";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(welcomeRouter);
 router.use(customCommandsRouter);
 router.use(diagnosticsRouter);
 router.use(automodRouter);
+router.use(invitesRouter);
 
 export default router;

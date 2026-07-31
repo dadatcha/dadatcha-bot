@@ -416,6 +416,36 @@ export const automodConfigTable = pgTable("automod_config", {
 
 export type AutomodConfig = typeof automodConfigTable.$inferSelect;
 
+// ── Invite tracking ────────────────────────────────────────────────────────────
+
+// Aggregate stats per inviter (one row per Discord user)
+export const inviteTrackingTable = pgTable("invite_tracking", {
+  id:             serial("id").primaryKey(),
+  userId:         text("user_id").notNull().unique(),
+  username:       text("username").notNull(),
+  guildId:        text("guild_id").notNull(),
+  regularInvites: integer("regular_invites").notNull().default(0),
+  bonusInvites:   integer("bonus_invites").notNull().default(0),
+  leftInvites:    integer("left_invites").notNull().default(0),
+  updatedAt:      timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (t) => [
+  index("invite_tracking_user_idx").on(t.userId),
+]);
+
+// One row per join event — links invitee → inviter
+export const inviteUsesTable = pgTable("invite_uses", {
+  id:          serial("id").primaryKey(),
+  inviterId:   text("inviter_id").notNull(),
+  inviterName: text("inviter_name").notNull(),
+  inviteeId:   text("invitee_id").notNull().unique(),
+  inviteeName: text("invitee_name").notNull(),
+  inviteCode:  text("invite_code").notNull(),
+  joinedAt:    timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  left:        boolean("left").notNull().default(false),
+}, (t) => [
+  index("invite_uses_inviter_idx").on(t.inviterId),
+]);
+
 // Reward deduplication log — one row per (cmd, author, target) pair
 export const ccRewardLogTable = pgTable("cc_reward_log", {
   id:        serial("id").primaryKey(),
