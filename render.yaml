@@ -22,7 +22,7 @@ services:
     plan: free
     region: frankfurt
     rootDir: .
-    buildCommand: npx --yes pnpm@9 install --no-frozen-lockfile && npx pnpm@9 --filter @workspace/api-server run build
+    buildCommand: npx --yes pnpm@9 install --no-frozen-lockfile && npx pnpm@9 --filter @workspace/api-server run build && npx pnpm@9 --filter @workspace/db exec drizzle-kit push --force
     startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
     envVars:
       # URL de la base PostgreSQL Replit (Settings → Database → External URL)

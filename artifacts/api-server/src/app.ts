@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -33,5 +33,18 @@ app.use(express.urlencoded({ extended: true }));
 app.get(["/health", "/healthz"], (_req, res) => res.json({ status: "ok" }));
 
 app.use("/api", router);
+
+// ── Global JSON error handler ─────────────────────────────────────────────────
+// Must be defined AFTER all routes. Catches any unhandled error (sync or async)
+// and returns a JSON response instead of Express's default HTML error page.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction): void => {
+  const status  = (err as { status?: number; statusCode?: number })?.status
+                ?? (err as { status?: number; statusCode?: number })?.statusCode
+                ?? 500;
+  const message = err instanceof Error ? err.message : String(err);
+  logger.error({ err }, "Unhandled error");
+  res.status(status).json({ error: message });
+});
 
 export default app;
