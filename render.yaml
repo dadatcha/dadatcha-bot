@@ -22,7 +22,7 @@ services:
     plan: free
     region: frankfurt
     rootDir: .
-    buildCommand: corepack enable pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build
+    buildCommand: npx --yes pnpm@9 install --no-frozen-lockfile && npx pnpm@9 --filter @workspace/api-server run build
     startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
     envVars:
       # URL de la base PostgreSQL Replit (Settings → Database → External URL)
@@ -40,7 +40,7 @@ services:
     plan: free
     region: frankfurt
     rootDir: .
-    buildCommand: corepack enable pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/dashboard run build
+    buildCommand: npx --yes pnpm@9 install --no-frozen-lockfile && npx pnpm@9 --filter @workspace/dashboard run build
     startCommand: npx serve -s ./artifacts/dashboard/dist/public -l $PORT
     envVars:
       # URL du service dadatcha-api ci-dessus, ex: https://dadatcha-api.onrender.com
