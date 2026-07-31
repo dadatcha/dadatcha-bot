@@ -923,25 +923,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ── API helpers ───────────────────────────────────────────────────────────────
 
-import os
-import aiohttp
-from typing import Optional
-import logging
-
 logger = logging.getLogger(__name__)
-
-# ── Global HTTP session (reused across all API calls) ─────────────────────────
-
-_session: Optional[aiohttp.ClientSession] = None
-
-
-async def get_http_session() -> aiohttp.ClientSession:
-    """Return the shared aiohttp session, creating it if needed."""
-    global _session
-    if _session is None or _session.closed:
-        _session = aiohttp.ClientSession()
-    return _session
-
 
 # ── Global HTTP session (reused across all API calls) ─────────────────────────
 
@@ -1222,6 +1204,193 @@ async def refresh_custom_commands() -> None:
         )
 
 
+# ── Automoderation ─────────────────────────────────────────────────────────────
+
+_automod_cfg: dict = {}
+_spam_tracker: dict[str, list] = {}  # user_id → [datetime, ...]
+
+
+async def refresh_automod_config() -> None:
+    global _automod_cfg
+    data = await api_get_json("/automod/config")
+    if isinstance(data, dict):
+        _automod_cfg = data
+        logger.info("Automod config refreshed — enabled: %s", data.get("enabled", False))
+
+
+async def _automod_action(
+    message: discord.Message, action: str, timeout_minutes: int, reason: str
+) -> None:
+    """Delete message and apply the configured sanction."""
+    try:
+        try:
+            await message.delete()
+        except discord.HTTPException:
+            pass
+
+        member = message.author
+        if not isinstance(member, discord.Member):
+            return
+
+        # DM warn
+        if _automod_cfg.get("sendWarnDm", True):
+            try:
+                await member.send(
+                    f"⚠️ **Automodération** — Ton message sur **{message.guild.name}** a été supprimé.\n"  # type: ignore[union-attr]
+                    f"Raison : {reason}"
+                )
+            except discord.HTTPException:
+                pass
+
+        if action == "timeout" and timeout_minutes > 0:
+            try:
+                until = datetime.now(timezone.utc) + timedelta(minutes=timeout_minutes)
+                await member.timeout(until, reason=f"Automod: {reason}")
+            except discord.HTTPException:
+                pass
+        elif action == "kick":
+            try:
+                await member.kick(reason=f"Automod: {reason}")
+            except discord.HTTPException:
+                pass
+        elif action == "ban":
+            try:
+                await message.guild.ban(member, reason=f"Automod: {reason}", delete_message_days=1)  # type: ignore[union-attr]
+            except discord.HTTPException:
+                pass
+
+        # Log to channel
+        log_ch_id = _automod_cfg.get("logChannelId", "")
+        if log_ch_id:
+            try:
+                ch = bot.get_channel(int(log_ch_id))
+                if ch and isinstance(ch, discord.TextChannel):
+                    embed = discord.Embed(
+                        title="🛡️ Automodération",
+                        color=discord.Color.orange(),
+                        timestamp=datetime.now(timezone.utc),
+                    )
+                    embed.add_field(name="Utilisateur", value=f"{member.mention} (`{member.id}`)", inline=True)
+                    embed.add_field(name="Canal", value=message.channel.mention, inline=True)  # type: ignore[union-attr]
+                    embed.add_field(name="Raison", value=reason, inline=False)
+                    embed.add_field(name="Action", value=action.upper(), inline=True)
+                    if message.content:
+                        embed.add_field(name="Message supprimé", value=message.content[:500], inline=False)
+                    await ch.send(embed=embed)
+            except Exception:
+                pass
+
+        await api_post("/bot/logs", {"level": "WARNING", "message": f"Automod [{action}] {member}: {reason}"})
+
+    except Exception as exc:
+        logger.warning("Automod action failed: %s", exc)
+
+
+async def _automod_check(message: discord.Message) -> bool:
+    """Run all automod rules. Returns True if message was moderated (caller should return)."""
+    cfg = _automod_cfg
+    if not cfg or not cfg.get("enabled"):
+        return False
+    if message.author.bot or not message.guild:
+        return False
+
+    member = message.author
+    if not isinstance(member, discord.Member):
+        return False
+
+    # Ignored roles
+    member_role_ids = {str(r.id) for r in member.roles}
+    if member_role_ids & set(cfg.get("ignoredRoleIds", [])):
+        return False
+
+    # Ignored channels
+    if str(message.channel.id) in cfg.get("ignoredChannelIds", []):
+        return False
+
+    content = message.content or ""
+    uid = str(member.id)
+
+    # ── Bad words ───────────────────────────────────────────────────────────────
+    if cfg.get("badWordsEnabled"):
+        content_lower = content.lower()
+        for word in cfg.get("badWords", []):
+            if word.lower() in content_lower:
+                await _automod_action(
+                    message,
+                    cfg.get("badWordsAction", "delete"),
+                    int(cfg.get("badWordsTimeoutMinutes", 10)),
+                    f"Mot interdit : `{word}`",
+                )
+                return True
+
+    # ── Spam ────────────────────────────────────────────────────────────────────
+    if cfg.get("spamEnabled"):
+        now = datetime.now(timezone.utc)
+        window = int(cfg.get("spamWindowSeconds", 5))
+        max_msgs = int(cfg.get("spamMaxMessages", 5))
+
+        timestamps = _spam_tracker.get(uid, [])
+        timestamps = [ts for ts in timestamps if (now - ts).total_seconds() < window]
+        timestamps.append(now)
+        _spam_tracker[uid] = timestamps
+
+        if len(timestamps) > max_msgs:
+            _spam_tracker[uid] = []
+            await _automod_action(
+                message,
+                cfg.get("spamAction", "timeout"),
+                int(cfg.get("spamTimeoutMinutes", 5)),
+                f"Spam détecté ({len(timestamps)} messages/{window}s)",
+            )
+            return True
+
+    # ── Caps ────────────────────────────────────────────────────────────────────
+    if cfg.get("capsEnabled") and len(content) >= int(cfg.get("capsMinLength", 10)):
+        alpha = [c for c in content if c.isalpha()]
+        if alpha:
+            caps_pct = sum(1 for c in alpha if c.isupper()) / len(alpha) * 100
+            if caps_pct >= int(cfg.get("capsPercent", 70)):
+                await _automod_action(
+                    message,
+                    cfg.get("capsAction", "delete"),
+                    0,
+                    f"Trop de majuscules ({int(caps_pct)}%)",
+                )
+                return True
+
+    # ── Links ───────────────────────────────────────────────────────────────────
+    if cfg.get("linksEnabled"):
+        urls = re.findall(r"https?://\S+|www\.\S+", content)
+        if urls:
+            whitelist = [w.lower() for w in cfg.get("linksWhitelist", [])]
+            blocked = any(
+                not any(w in u.lower() for w in whitelist) for u in urls
+            ) if whitelist else True
+            if blocked:
+                await _automod_action(
+                    message,
+                    cfg.get("linksAction", "delete"),
+                    int(cfg.get("linksTimeoutMinutes", 5)),
+                    "Lien non autorisé",
+                )
+                return True
+
+    # ── Mass mention ────────────────────────────────────────────────────────────
+    if cfg.get("mentionEnabled"):
+        mention_count = len(message.mentions) + len(message.role_mentions)
+        max_mentions = int(cfg.get("mentionMax", 5))
+        if mention_count >= max_mentions:
+            await _automod_action(
+                message,
+                cfg.get("mentionAction", "delete"),
+                int(cfg.get("mentionTimeoutMinutes", 5)),
+                f"Mass mention ({mention_count} mentions)",
+            )
+            return True
+
+    return False
+
+
 def _label_to_discord_name(label: str) -> str:
     """Convert a human label to a valid Discord slash command name (lowercase, hyphens)."""
     name = label.lower().replace(" ", "-").replace("_", "-")
@@ -1289,6 +1458,10 @@ async def on_message(message: discord.Message) -> None:
     if message.author.bot or not message.guild:
         await bot.process_commands(message)
         return
+
+    # ── Automoderation (runs first — may delete & sanction) ───────────────────
+    if await _automod_check(message):
+        return  # message was moderated — stop processing
 
     # ── Guess-number: detect a valid number typed in the channel ──────────────
     channel_id = message.channel.id
@@ -3509,6 +3682,7 @@ async def config_refresh_loop() -> None:
     await refresh_welcome_config()
     await refresh_random_activity()
     await refresh_custom_commands()
+    await refresh_automod_config()
     if _apply_command_labels():
         try:
             synced = await bot.tree.sync()
@@ -4975,6 +5149,31 @@ async def _push_command_manifest() -> None:
     except Exception:
         logger.warning("Failed to push command manifest", exc_info=True)
 
+# ── Render / hosting keep-alive health server ─────────────────────────────────
+
+async def _start_health_server() -> None:
+    """Bind a minimal HTTP server on $PORT so Render Web Services stay healthy."""
+    port_str = os.environ.get("PORT", "")
+    if not port_str:
+        return  # local dev — not needed
+    try:
+        from aiohttp import web as _web
+
+        async def _health(_req: object) -> "_web.Response":
+            return _web.Response(text="OK")
+
+        _app = _web.Application()
+        _app.router.add_get("/", _health)
+        _app.router.add_get("/health", _health)
+        runner = _web.AppRunner(_app)
+        await runner.setup()
+        site = _web.TCPSite(runner, "0.0.0.0", int(port_str))
+        await site.start()
+        logger.info("Health server listening on port %s", port_str)
+    except Exception as exc:
+        logger.warning("Could not start health server: %s", exc)
+
+
 # ── Ready ─────────────────────────────────────────────────────────────────────
 
 
@@ -4995,7 +5194,11 @@ async def on_ready() -> None:
     await refresh_welcome_config()
     await refresh_random_activity()
     await refresh_custom_commands()
+    await refresh_automod_config()
     _apply_command_labels()
+
+    # Start health server for Render / hosted environments
+    await _start_health_server()
 
     try:
         synced = await bot.tree.sync()

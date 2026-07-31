@@ -375,6 +375,47 @@ export const insertCustomCommandSchema = createInsertSchema(customCommandsTable)
 export type InsertCustomCommand = z.infer<typeof insertCustomCommandSchema>;
 export type CustomCommand = typeof customCommandsTable.$inferSelect;
 
+// ── Automoderation config (single row, id=1) ─────────────────────────────────
+
+export const automodConfigTable = pgTable("automod_config", {
+  id:                     serial("id").primaryKey(),
+  enabled:                boolean("enabled").notNull().default(false),
+  logChannelId:           text("log_channel_id").notNull().default(""),
+  ignoredRoleIds:         text("ignored_role_ids").array().notNull().default([]),
+  ignoredChannelIds:      text("ignored_channel_ids").array().notNull().default([]),
+  // Bad words
+  badWordsEnabled:        boolean("bad_words_enabled").notNull().default(false),
+  badWords:               text("bad_words").array().notNull().default([]),
+  badWordsAction:         text("bad_words_action").notNull().default("delete"),   // delete|warn|timeout|kick|ban
+  badWordsTimeoutMinutes: integer("bad_words_timeout_minutes").notNull().default(10),
+  // Spam
+  spamEnabled:            boolean("spam_enabled").notNull().default(false),
+  spamMaxMessages:        integer("spam_max_messages").notNull().default(5),
+  spamWindowSeconds:      integer("spam_window_seconds").notNull().default(5),
+  spamAction:             text("spam_action").notNull().default("timeout"),
+  spamTimeoutMinutes:     integer("spam_timeout_minutes").notNull().default(5),
+  // Caps
+  capsEnabled:            boolean("caps_enabled").notNull().default(false),
+  capsPercent:            integer("caps_percent").notNull().default(70),
+  capsMinLength:          integer("caps_min_length").notNull().default(10),
+  capsAction:             text("caps_action").notNull().default("delete"),
+  // Links
+  linksEnabled:           boolean("links_enabled").notNull().default(false),
+  linksWhitelist:         text("links_whitelist").array().notNull().default([]),
+  linksAction:            text("links_action").notNull().default("delete"),
+  linksTimeoutMinutes:    integer("links_timeout_minutes").notNull().default(5),
+  // Mass mention
+  mentionEnabled:         boolean("mention_enabled").notNull().default(false),
+  mentionMax:             integer("mention_max").notNull().default(5),
+  mentionAction:          text("mention_action").notNull().default("delete"),
+  mentionTimeoutMinutes:  integer("mention_timeout_minutes").notNull().default(5),
+  // General
+  sendWarnDm:             boolean("send_warn_dm").notNull().default(true),
+  updatedAt:              timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type AutomodConfig = typeof automodConfigTable.$inferSelect;
+
 // Reward deduplication log — one row per (cmd, author, target) pair
 export const ccRewardLogTable = pgTable("cc_reward_log", {
   id:        serial("id").primaryKey(),

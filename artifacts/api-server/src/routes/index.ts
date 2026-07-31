@@ -15,6 +15,7 @@ import ticketsRouter from "./tickets";
 import welcomeRouter from "./welcome";
 import customCommandsRouter from "./custom-commands";
 import diagnosticsRouter from "./diagnostics";
+import automodRouter from "./automod";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(ticketsRouter);
 router.use(welcomeRouter);
 router.use(customCommandsRouter);
 router.use(diagnosticsRouter);
+router.use(automodRouter);
 
 export default router;
