@@ -1,6 +1,6 @@
 services:
-  # ── 1. Discord Bot (Worker — tourne 24/7 sans port) ─────────────────────────
-  - type: worker
+  # ── 1. Discord Bot (Web Service gratuit — bind $PORT via aiohttp health server) ──
+  - type: web
     name: dadatcha-bot
     runtime: python
     plan: free
