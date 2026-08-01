@@ -38,8 +38,16 @@ router.get("/bot/status", async (req, res): Promise<void> => {
     ? Math.floor((Date.now() - new Date(row.startedAt).getTime()) / 1000)
     : null;
 
+  // Stale detection: if the last heartbeat is older than 90 s, treat as offline
+  // regardless of what's stored in the DB. This handles cases where the bot
+  // process restarted with a wrong API_BASE and never sends heartbeats.
+  const STALE_MS = 90_000;
+  const isStale = !row.lastSeenAt
+    || (Date.now() - new Date(row.lastSeenAt).getTime()) > STALE_MS;
+  const connected = row.connected && !isStale;
+
   res.json(GetBotStatusResponse.parse({
-    connected: row.connected,
+    connected,
     botName: row.botName ?? null,
     botId: row.botId ?? null,
     uptimeSeconds,

@@ -34,83 +34,111 @@ async def get_http_session() -> aiohttp.ClientSession:
 
 
 async def api_post(path: str, payload: dict) -> Optional[dict]:
+    url = f"{API_BASE}{path}"
     try:
         s = await get_http_session()
-        async with s.post(
-            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
+        async with s.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=5)) as resp:
             if resp.content_type == "application/json":
                 return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
+            # 2xx with non-JSON body is fine (e.g. 201 No Content from /bot/logs)
+            if not (200 <= resp.status < 300):
+                logger.warning("API POST %s → HTTP %s (content-type: %s)", url, resp.status, resp.content_type)
+    except aiohttp.ClientConnectorError as exc:
+        logger.warning("API POST %s → connexion refusée: %s", url, exc)
+    except aiohttp.ClientError as exc:
+        logger.warning("API POST %s → erreur client: %s", url, exc)
+    except Exception as exc:
+        logger.warning("API POST %s → erreur inattendue: %s", url, exc)
     return None
 
 
 async def api_patch(path: str, payload: dict) -> Optional[dict]:
+    url = f"{API_BASE}{path}"
     try:
         s = await get_http_session()
-        async with s.patch(
-            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
+        async with s.patch(url, json=payload, timeout=aiohttp.ClientTimeout(total=5)) as resp:
             if resp.content_type == "application/json":
                 return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
+            logger.warning("API PATCH %s → HTTP %s (content-type: %s)", url, resp.status, resp.content_type)
+    except aiohttp.ClientConnectorError as exc:
+        logger.warning("API PATCH %s → connexion refusée: %s", url, exc)
+    except aiohttp.ClientError as exc:
+        logger.warning("API PATCH %s → erreur client: %s", url, exc)
+    except Exception as exc:
+        logger.warning("API PATCH %s → erreur inattendue: %s", url, exc)
     return None
 
 
 async def api_delete(path: str) -> Optional[bool]:
     """Returns True on 204 success, False on 404, None on error."""
+    url = f"{API_BASE}{path}"
     try:
         s = await get_http_session()
-        async with s.delete(
-            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
+        async with s.delete(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
             if resp.status == 204:
                 return True
             if resp.status == 404:
                 return False
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
+            logger.warning("API DELETE %s → HTTP %s", url, resp.status)
+    except aiohttp.ClientConnectorError as exc:
+        logger.warning("API DELETE %s → connexion refusée: %s", url, exc)
+    except aiohttp.ClientError as exc:
+        logger.warning("API DELETE %s → erreur client: %s", url, exc)
+    except Exception as exc:
+        logger.warning("API DELETE %s → erreur inattendue: %s", url, exc)
     return None
 
 
 async def api_put(path: str, payload: dict) -> Optional[dict]:
+    url = f"{API_BASE}{path}"
     try:
         s = await get_http_session()
-        async with s.put(
-            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
+        async with s.put(url, json=payload, timeout=aiohttp.ClientTimeout(total=5)) as resp:
             if resp.content_type == "application/json":
                 return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
+            logger.warning("API PUT %s → HTTP %s (content-type: %s)", url, resp.status, resp.content_type)
+    except aiohttp.ClientConnectorError as exc:
+        logger.warning("API PUT %s → connexion refusée: %s", url, exc)
+    except aiohttp.ClientError as exc:
+        logger.warning("API PUT %s → erreur client: %s", url, exc)
+    except Exception as exc:
+        logger.warning("API PUT %s → erreur inattendue: %s", url, exc)
     return None
 
 
 async def api_get_json(path: str) -> Optional[dict]:
+    url = f"{API_BASE}{path}"
     try:
         s = await get_http_session()
-        async with s.get(
-            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
+        async with s.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
             if resp.status == 200:
                 return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
+            if resp.status != 404:
+                logger.warning("API GET %s → HTTP %s", url, resp.status)
+    except aiohttp.ClientConnectorError as exc:
+        logger.warning("API GET %s → connexion refusée: %s", url, exc)
+    except aiohttp.ClientError as exc:
+        logger.warning("API GET %s → erreur client: %s", url, exc)
+    except Exception as exc:
+        logger.warning("API GET %s → erreur inattendue: %s", url, exc)
     return None
 
 
 async def api_get_list(path: str) -> Optional[list]:
+    url = f"{API_BASE}{path}"
     try:
         s = await get_http_session()
-        async with s.get(
-            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
+        async with s.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
             if resp.status == 200:
                 return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
+            if resp.status != 404:
+                logger.warning("API GET %s → HTTP %s", url, resp.status)
+    except aiohttp.ClientConnectorError as exc:
+        logger.warning("API GET %s → connexion refusée: %s", url, exc)
+    except aiohttp.ClientError as exc:
+        logger.warning("API GET %s → erreur client: %s", url, exc)
+    except Exception as exc:
+        logger.warning("API GET %s → erreur inattendue: %s", url, exc)
     return None
 
 
@@ -151,33 +179,33 @@ _eco: dict = {
     "dailyAmount": 500,
     "dailyCooldownHours": 24,
     "workEnabled": True,
-    "workMinAmount": 50,
-    "workMaxAmount": 200,
+    "workMinAmount": 1000,
+    "workMaxAmount": 2500,
     "workCooldownHours": 1,
     "crimeEnabled": True,
-    "crimeWinMin": 100,
-    "crimeWinMax": 500,
-    "crimeLoseMin": 50,
-    "crimeLoseMax": 200,
-    "crimeWinChance": 60,
+    "crimeWinMin": 5000,
+    "crimeWinMax": 10500,
+    "crimeLoseMin": 5000,
+    "crimeLoseMax": 7500,
+    "crimeWinChance": 40,
     "crimeCooldownHours": 2,
     "depositEnabled": True,
     "withdrawEnabled": True,
     "giveEnabled": True,
     "leaderboardEnabled": True,
     "blackjackEnabled": True,
-    "blackjackMinBet": 10,
-    "blackjackMaxBet": 1000,
+    "blackjackMinBet": 100,
+    "blackjackMaxBet": 100000000000000000,
     "rouletteEnabled": True,
-    "rouletteMinBet": 10,
-    "rouletteMaxBet": 1000,
+    "rouletteMinBet": 100,
+    "rouletteMaxBet": 1000000000000000000000,
     "hlEnabled": True,
-    "hlMinBet": 10,
-    "hlMaxBet": 500,
-    "hlStreakReward": 25,
+    "hlMinBet": 100,
+    "hlMaxBet": 10000000000000000000000,
+    "hlStreakReward": 250,
     "guessEnabled": True,
-    "guessMinBet": 10,
-    "guessMaxBet": 1000,
+    "guessMinBet": 100,
+    "guessMaxBet": 100000000000000,
     "guessMaxAttempts": 7,
 }
 
@@ -948,104 +976,6 @@ intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
-
-
-# ── API helpers ───────────────────────────────────────────────────────────────
-
-logger = logging.getLogger(__name__)
-
-# ── Global HTTP session (reused across all API calls) ─────────────────────────
-
-_session: Optional[aiohttp.ClientSession] = None
-
-
-async def get_http_session() -> aiohttp.ClientSession:
-    """Return the shared aiohttp session, creating it if needed."""
-    global _session
-    if _session is None or _session.closed:
-        _session = aiohttp.ClientSession()
-    return _session
-
-
-async def api_post(path: str, payload: dict) -> Optional[dict]:
-    try:
-        s = await get_http_session()
-        async with s.post(
-            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
-            if resp.content_type == "application/json":
-                return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
-    return None
-
-
-async def api_patch(path: str, payload: dict) -> Optional[dict]:
-    try:
-        s = await get_http_session()
-        async with s.patch(
-            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
-            if resp.content_type == "application/json":
-                return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
-    return None
-
-
-async def api_delete(path: str) -> Optional[bool]:
-    """Returns True on 204 success, False on 404, None on error."""
-    try:
-        s = await get_http_session()
-        async with s.delete(
-            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
-            if resp.status == 204:
-                return True
-            if resp.status == 404:
-                return False
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
-    return None
-
-
-async def api_put(path: str, payload: dict) -> Optional[dict]:
-    try:
-        s = await get_http_session()
-        async with s.put(
-            f"{API_BASE}{path}", json=payload, timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
-            if resp.content_type == "application/json":
-                return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
-    return None
-
-
-async def api_get_json(path: str) -> Optional[dict]:
-    try:
-        s = await get_http_session()
-        async with s.get(
-            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
-            if resp.status == 200:
-                return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
-    return None
-
-
-async def api_get_list(path: str) -> Optional[list]:
-    try:
-        s = await get_http_session()
-        async with s.get(
-            f"{API_BASE}{path}", timeout=aiohttp.ClientTimeout(total=5)
-        ) as resp:
-            if resp.status == 200:
-                return await resp.json()
-    except (aiohttp.ClientError, OSError, Exception):
-        pass
-    return None
 
 
 async def log_to_api(level: str, message: str) -> None:
@@ -5325,6 +5255,7 @@ async def on_ready() -> None:
         random_activity_loop.start()
 
     # Appels sécurisés pour éviter le plantage si l'API locale démarre doucement
+    logger.info("API_BASE = %s", API_BASE)
     try:
         await send_heartbeat(connected=True)
         await log_to_api("INFO", f"Bot connected as {bot.user}")
